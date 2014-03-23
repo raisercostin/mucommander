@@ -685,7 +685,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     public void setRowMarked(int row, boolean marked, boolean repaint) {
         if(isParentFolder(row))
             return;
-
+        tableModel.fileTable = this;
         tableModel.setRowMarked(row, marked);
         
         if(repaint)

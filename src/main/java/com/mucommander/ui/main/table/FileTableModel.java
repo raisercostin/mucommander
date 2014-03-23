@@ -18,8 +18,14 @@
 
 package com.mucommander.ui.main.table;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.util.Date;
 
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
 
 import com.mucommander.commons.file.AbstractFile;
@@ -30,8 +36,14 @@ import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.conf.MuConfigurations;
 import com.mucommander.conf.MuPreference;
 import com.mucommander.conf.MuPreferences;
+import com.mucommander.job.FileJob;
+import com.mucommander.job.FileJobListener;
+import com.mucommander.job.PropertiesJob;
+import com.mucommander.job.progress.JobProgressListener;
 import com.mucommander.text.CustomDateFormat;
 import com.mucommander.text.SizeFormat;
+import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.main.WindowManager;
 
 
 /**
@@ -39,7 +51,7 @@ import com.mucommander.text.SizeFormat;
  *
  * @author Maxence Bernard
  */
-public class FileTableModel extends AbstractTableModel {
+public class FileTableModel extends AbstractTableModel implements FileJobListener{
 
     /** The current folder */
     private AbstractFile currentFolder;
@@ -436,12 +448,13 @@ public class FileTableModel extends AbstractTableModel {
      *
      * @param row the row to mark/unmark
      * @param marked <code>true</code> to mark the row, <code>false</code> to unmark it
-     */
+     */    
+    
     public synchronized void setRowMarked(int row, boolean marked) {
         if(row==0 && parent!=null)
             return;
 			
-        int rowIndex = parent==null?row:row-1;
+        int rowIndex = parent==null?row:row-1;        
 
         // Return if the row is already marked/unmarked
         if((marked && rowMarked[fileArrayIndex[rowIndex]]) || (!marked && !rowMarked[fileArrayIndex[rowIndex]]))
@@ -449,6 +462,23 @@ public class FileTableModel extends AbstractTableModel {
 
         AbstractFile file = getCachedFileAtRow(row);
 
+        if (file.isDirectory() && marked)
+        {
+	        FileSet files = new FileSet();
+	        files.add(file);        
+	        MainFrame mainframe =  WindowManager.getCurrentMainFrame();
+	        PropertiesJob job = new PropertiesJob(files,mainframe);
+	        
+	        job.addFileJobListener(this);
+	        job.start();
+	      //  job.run();        
+        
+        
+        
+        	//setValueAt(row, 2, SizeFormat.format(job.getTotalBytes(), SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_LONG | SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB));
+        	setValueAt(row, 2, "?");
+        }
+        
         // Do not call getSize() on directories, it's unnecessary and the value is most likely not cached by CachedFile yet
         long fileSize = file.isDirectory()?0:file.getSize();
 
@@ -710,6 +740,33 @@ public class FileTableModel extends AbstractTableModel {
         return cellValuesCache[fileArrayIndex[fileIndex]+(parent==null?0:1)][columnIndex];
     }
 
+    //	public Object getValueAt(int rowIndex, int columnIndex) {
+    public synchronized void setValueAt(int rowIndex, int columnIndex, Object value) {
+        // Need to check that row index is not larger than actual number of rows
+        // because if table has just been changed (rows have been removed),
+        // JTable may have an old row count value and may try to repaint rows that are out of bounds.
+        if(rowIndex>=getRowCount()) {
+            // Returning null will have JTable ignore this row
+            return;
+        }
+
+        // Icon/extension column, return a null value
+        Column column = Column.valueOf(columnIndex);
+        if(column==Column.EXTENSION)
+            return;
+		
+        // Decrement column index for cellValuesCache array
+        columnIndex--;
+        // Handle special '..' file
+        if(rowIndex==0 && parent!=null)
+        {
+            cellValuesCache[0][columnIndex] = value;
+            return;
+        }
+        int fileIndex = parent==null?rowIndex:rowIndex-1;
+        cellValuesCache[fileArrayIndex[fileIndex]+(parent==null?0:1)][columnIndex] = value;
+    }
+    
 	
     /**
      * Returns <code>true</code> if name column has temporarily be made editable by FileTable
@@ -724,4 +781,20 @@ public class FileTableModel extends AbstractTableModel {
 	
         return false;
     }
+
+	public FileTable fileTable;
+	
+	@Override
+	public void jobStateChanged(FileJob source, int oldState, int newState) {
+		
+		if (source.getState() == FileJob.FINISHED)
+		{
+			PropertiesJob job = (PropertiesJob) source;
+			setValueAt(getFileRow(job.getFiles().get(0)), 2, SizeFormat.format(job.getTotalBytes(), SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_LONG | SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB));
+			System.out.println("File " + job.getCurrentFileIndex() + " file " +  getFileRow(job.getFiles().get(0)) + " filesize " + job.getTotalBytes());
+			fileTable.repaint();
+			
+		}
+	}
+
 }

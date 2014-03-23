@@ -70,7 +70,9 @@ public class PropertiesJob extends FileJob {
         return nbFilesRecurse;
     }
  
-
+    public FileSet getFiles() {
+        return files;
+    }
     ////////////////////////////
     // FileJob implementation //
     ////////////////////////////
