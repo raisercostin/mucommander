@@ -1,7 +1,11 @@
 muCommander
 ===========
 
-www.mucommander.com fork of v0.9.0
+fork of fathersson/muCommander
+
+This repository is used as part of a Software Maintenance course in the University of the Southern Denmark. Please note that this repository might contain unfinished code.
+
+We try to use these practises: http://nvie.com/posts/a-successful-git-branching-model/
 
 Current repository contains also sources of all required libraries:
 * collections
