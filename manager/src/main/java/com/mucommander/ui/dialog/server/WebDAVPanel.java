@@ -6,6 +6,10 @@ import com.mucommander.commons.file.FileURL;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.main.MainFrame;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
@@ -60,14 +64,33 @@ public class WebDAVPanel extends ServerPanel {
     FileURL getServerURL() throws MalformedURLException {
         updateValues();
 
-        FileURL url = FileURL.getFileURL(FileProtocols.WEBDAV + "://"+lastUsername+":"+lastPassword+"@" + lastServer);
+        
+        int port = FileURL.getRegisteredHandler(FileProtocols.WEBDAV).getStandardPort();
+        
+        String url = FileProtocols.WEBDAV + "://"+lastUsername+":"+lastPassword+"@" + lastServer;
+        
+        try {
+            URI uri = new URI(lastServer);
+            if(uri.getScheme() != null){
+                if(uri.getScheme().equalsIgnoreCase("http")){
+                    port = 80;
+                } else if(uri.getScheme().equalsIgnoreCase("https")){
+                    port = 443;
+                }
+                url = FileProtocols.WEBDAV + "://" + lastUsername + ":" + lastPassword + "@" + uri.getHost() + ":" + port + "" + uri.getPath();
+            }
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(WebDAVPanel.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        FileURL fileUrl = FileURL.getFileURL(url);
 
-        url.setCredentials(new Credentials(lastUsername, lastPassword));
+        fileUrl.setCredentials(new Credentials(lastUsername, lastPassword));
 
         // Set port
-        url.setPort(FileURL.getRegisteredHandler(FileProtocols.WEBDAV).getStandardPort());
+        fileUrl.setPort(port);
 
-        return url;
+        return fileUrl;
     }
 
     @Override

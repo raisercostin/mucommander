@@ -42,8 +42,14 @@ public class WebDAVFile extends ProtocolFile {
 
     protected WebDAVFile(FileURL fileURL) throws UnsupportedEncodingException, URISyntaxException {
         super(fileURL);
+               
+        String scheme = "http";
+        
+        if(fileURL.getPort() == 443){
+            scheme = "https";
+        }
 
-        PATH = new URI("http", fileURL.getLogin() + ":" + fileURL.getPassword(), fileURL.getHost(), fileURL.getPort(), fileURL.getPath(), null, null);
+        PATH = new URI(scheme, fileURL.getLogin() + ":" + fileURL.getPassword(), fileURL.getHost(), fileURL.getPort(), fileURL.getPath(), null, null);
     }
 
     @Override
