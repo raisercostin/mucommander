@@ -4168,6 +4168,10 @@ CopyFilesToClipboard.label:NB:Kopier fil(er)
 CopyFilesToClipboard.label:TR:Dosya(lar)ı kopyala
 CopyFilesToClipboard.label:CA:Copia el(s) fitxer(s)
 
+CutFilesToClipboard.label:EN:Cut File(s)
+CutFilesToClipboard.label:DA:Klip Fil(er)
+
+
 PasteClipboardFiles.label:EN:Paste file(s)
 PasteClipboardFiles.label:FR:Coller fichier(s)
 PasteClipboardFiles.label:RO:Lipește fișier(e)
