@@ -19,12 +19,6 @@
 
 package com.mucommander.job;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.archiver.Archiver;
 import com.mucommander.commons.file.util.FileSet;
@@ -33,6 +27,10 @@ import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
+import java.io.IOException;
+import java.io.InputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -105,13 +103,18 @@ public class ArchiveJob extends TransferFileJob {
                     return folderComplete;
                 }
                 else {
-                    InputStream in = setCurrentInputStream(file.getInputStream());
-                    // Synchronize this block to ensure that Archiver.close() is not closed while data is still being
-                    // written to the archive OutputStream, this would cause ZipOutputStream to deadlock.
-                    synchronized(ioLock) {
-                        // Create a new file entry in archive and copy the current file
-                        StreamUtils.copyStream(in, archiver.createEntry(entryRelativePath, file));
-                        in.close();
+                    if(archiver.supportsStream()){
+                        InputStream in = setCurrentInputStream(file.getInputStream());
+                        // Synchronize this block to ensure that Archiver.close() is not closed while data is still being
+                        // written to the archive OutputStream, this would cause ZipOutputStream to deadlock.
+                        synchronized(ioLock) {
+                            // Create a new file entry in archive and copy the current file
+                            StreamUtils.copyStream(in, archiver.createEntry(entryRelativePath, file));
+                            in.close();
+                        }
+                    } else {
+                        //The archiver will handle it on it's own without streams
+                        archiver.createEntry(entryRelativePath, file);
                     }
                     return true;
                 }
