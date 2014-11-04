@@ -97,7 +97,8 @@ public class ISOArchiver extends Archiver{
         try{
             boolean isDirectory = attributes.isDirectory();
             if(isDirectory){
-                ISO9660Directory dir = new ISO9660Directory(entryPath);
+                String[] split = entryPath.split("\\\\");
+                ISO9660Directory dir = new ISO9660Directory(split[split.length-1]);
                 getParentDirectory(entryPath).addDirectory(dir);
             } else {
                 try {
@@ -121,22 +122,11 @@ public class ISOArchiver extends Archiver{
      * @return an ISO9660Directory that is the parent of the provided path
      */
     private ISO9660Directory getParentDirectory(String isoPath){
-        boolean first = true;
         String[] directories = isoPath.split("\\\\");
-        //Reconstruct the path directory by directory
-        //This is done in because the ISO9660Writer library only give access to
-        //path of the directory, not the name alone, so the path has to be used
-        StringBuilder isoSubDirPath = new StringBuilder(isoPath.length());
         //Initial directory (root)
         ISO9660Directory parent = root;
         for(int i = 0; i < directories.length - 1; i++){
-            if(first){
-                first = false;
-            } else {
-                isoSubDirPath.append("\\");
-            }
-            isoSubDirPath.append(directories[i]);
-            ISO9660Directory dir = containsDirectory(parent,isoSubDirPath.toString());
+            ISO9660Directory dir = containsDirectory(parent,directories[i]);
             if(dir == null){
                 return null;
             }
