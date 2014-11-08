@@ -35,16 +35,21 @@ import com.mucommander.ui.layout.XBoxPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
-
-import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Vector;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 
 /**
@@ -106,6 +111,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
         addTab(FileProtocols.S3, new S3Panel(this, mainFrame), selectPanelClass);
         addTab(FileProtocols.SFTP, new SFTPPanel(this, mainFrame), selectPanelClass);
         addTab(FileProtocols.SMB, new SMBPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.WEBDAV, new WebDAVPanel(this, mainFrame), selectPanelClass);
 
         currentServerPanel = getCurrentServerPanel();
 

@@ -42,6 +42,7 @@ public class CopyFilesToClipboardAction extends SelectedFilesAction {
     @Override
     public void performAction(FileSet files) {
         ClipboardSupport.setClipboardFiles(files);
+        CutFilesToClipboardAction.cutOperation = false;
     }
 
     public static class Factory implements ActionFactory {

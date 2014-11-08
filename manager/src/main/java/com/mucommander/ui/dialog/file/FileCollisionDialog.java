@@ -57,6 +57,7 @@ public class FileCollisionDialog extends QuestionDialog {
     public final static int OVERWRITE_IF_OLDER_ACTION = 3;
     public final static int RESUME_ACTION = 4;
     public final static int RENAME_ACTION = 5;
+    public final static int KEEPFILE_ACTION = 6;
 
     public final static String CANCEL_TEXT = Translator.get("cancel");
     public final static String SKIP_TEXT = Translator.get("skip");
@@ -64,6 +65,7 @@ public class FileCollisionDialog extends QuestionDialog {
     public final static String OVERWRITE_IF_OLDER_TEXT = Translator.get("overwrite_if_older");
     public final static String RESUME_TEXT = Translator.get("resume");
     public final static String RENAME_TEXT = Translator.get("rename");
+    public final static String KEEPFILE_TEXT = "Keep File";
 
     private JCheckBox applyToAllCheckBox;
 
@@ -122,6 +124,9 @@ public class FileCollisionDialog extends QuestionDialog {
         if(collisionType==FileCollisionChecker.DESTINATION_FILE_ALREADY_EXISTS && !destFile.isDirectory()) {
             choicesTextV.add(OVERWRITE_TEXT);
             choicesActionsV.add(OVERWRITE_ACTION);
+            
+            choicesTextV.add(KEEPFILE_TEXT);
+            choicesActionsV.add(KEEPFILE_ACTION);
 
             if(sourceFile!=null) {
                 choicesTextV.add(OVERWRITE_IF_OLDER_TEXT);
