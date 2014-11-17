@@ -138,8 +138,6 @@ public abstract class Archiver {
     protected String formatName;
 	/** Support output stream for archiving files */
     protected boolean supporStream;
-	/** Status of the archiving process */
-    protected String statusString;
 	
     /**
      * Creates a new Archiver.
@@ -204,13 +202,6 @@ public abstract class Archiver {
      */
     public boolean supportsStream() {
         return supporStream;
-    }
-    
-    /*
-     * @return a String representing the current status of the archiver
-    */
-    public String getStatus(){
-        return statusString;
     }
 
     /**
