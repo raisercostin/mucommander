@@ -23,7 +23,6 @@ import com.mucommander.commons.file.FilePermissions;
 import com.mucommander.commons.file.SimpleFilePermissions;
 import com.mucommander.commons.file.impl.tar.provider.TarEntry;
 import com.mucommander.commons.file.impl.tar.provider.TarOutputStream;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -91,4 +90,7 @@ class TarArchiver extends Archiver {
 		
         tos.close();
     }
+    
+    @Override
+    public void finish() throws IOException {}
 }

@@ -38,15 +38,33 @@ import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.StatusBar;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.swing.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.RenderingHints;
+import java.awt.Stroke;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.WindowEvent;
+import java.util.Vector;
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.Vector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This dialog informs the user of the progress made by a FileJob and allows to control it: pause/resume it, stop it,
@@ -151,44 +169,45 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
         if(transferFileJob!=null) {
             JPanel tempPanel = new JPanel(new BorderLayout());
 
-            this.currentSpeedLabel = new JLabel();
-            updateCurrentSpeedLabel("");
-            currentSpeedLabel.setIcon(IconManager.getIcon(IconManager.PROGRESS_ICON_SET, CURRENT_SPEED_ICON));
-            tempPanel.add(currentSpeedLabel, BorderLayout.WEST);
+            if(transferFileJob.supportThroughputLimit()){
+                this.currentSpeedLabel = new JLabel();
+                updateCurrentSpeedLabel("");
+                currentSpeedLabel.setIcon(IconManager.getIcon(IconManager.PROGRESS_ICON_SET, CURRENT_SPEED_ICON));
+                tempPanel.add(currentSpeedLabel, BorderLayout.WEST);
 
-            YBoxPanel advancedPanel = new YBoxPanel();
+                YBoxPanel advancedPanel = new YBoxPanel();
 
-            this.speedGraph = new SpeedGraph();
-            speedGraph.setPreferredSize(new Dimension(0, SPEED_GRAPH_HEIGHT));
-            advancedPanel.add(speedGraph);
+                this.speedGraph = new SpeedGraph();
+                speedGraph.setPreferredSize(new Dimension(0, SPEED_GRAPH_HEIGHT));
+                advancedPanel.add(speedGraph);
 
-            advancedPanel.addSpace(5);
+                advancedPanel.addSpace(5);
+            
+                JPanel tempPanel2 = new JPanel(new BorderLayout());
+                this.limitSpeedCheckBox = new JCheckBox(Translator.get("progress_dialog.limit_speed")+":", false);
+                limitSpeedCheckBox.addItemListener(this);
+                tempPanel2.add(limitSpeedCheckBox, BorderLayout.WEST);
 
-            JPanel tempPanel2 = new JPanel(new BorderLayout());
-            this.limitSpeedCheckBox = new JCheckBox(Translator.get("progress_dialog.limit_speed")+":", false);
-            limitSpeedCheckBox.addItemListener(this);
+                speedChooser = new SizeChooser(true);
+                speedChooser.setEnabled(false);
+                speedChooser.addChangeListener(this);
 
-            tempPanel2.add(limitSpeedCheckBox, BorderLayout.WEST);
+                tempPanel2.add(speedChooser, BorderLayout.EAST);
 
-            speedChooser = new SizeChooser(true);
-            speedChooser.setEnabled(false);
-            speedChooser.addChangeListener(this);
+                advancedPanel.add(tempPanel2);
+                advancedPanel.addSpace(5);
 
-            tempPanel2.add(speedChooser, BorderLayout.EAST);
-            advancedPanel.add(tempPanel2);
-            advancedPanel.addSpace(5);
+                this.collapseExpandButton = new CollapseExpandButton(Translator.get("progress_dialog.advanced"), advancedPanel, true);
+                collapseExpandButton.setExpandedState(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_EXPANDED,
+                                                                                       MuPreferences.DEFAULT_PROGRESS_DIALOG_EXPANDED));
+                tempPanel.add(collapseExpandButton, BorderLayout.EAST);
 
-            this.collapseExpandButton = new CollapseExpandButton(Translator.get("progress_dialog.advanced"), advancedPanel, true);
-            collapseExpandButton.setExpandedState(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_EXPANDED,
-                                                                                   MuPreferences.DEFAULT_PROGRESS_DIALOG_EXPANDED));
-            tempPanel.add(collapseExpandButton, BorderLayout.EAST);
+                yPanel.add(tempPanel);
+                yPanel.addSpace(5);
 
-            yPanel.add(tempPanel);
-            yPanel.addSpace(5);
-
-            yPanel.add(advancedPanel);
+                yPanel.add(advancedPanel);
+            }
         }
-
         closeWhenFinishedCheckBox = new JCheckBox(Translator.get("progress_dialog.close_when_finished"));
         closeWhenFinishedCheckBox.setSelected(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_CLOSE_WHEN_FINISHED,
                                                                                MuPreferences.DEFAULT_PROGRESS_DIALOG_CLOSE_WHEN_FINISHED));
@@ -263,7 +282,9 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
     }
 
     private void updateCurrentSpeedLabel(String value) {
-        currentSpeedLabel.setText(Translator.get("progress_dialog.current_speed")+": "+value);
+        if(currentSpeedLabel != null){
+            currentSpeedLabel.setText(Translator.get("progress_dialog.current_speed")+": "+value);
+        }
     }
 
 
@@ -347,7 +368,7 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
             
             // Add new immediate bytes per second speed sample to speed graph and label and repaint it
             // Skip this sample if job was paused and resumed, speed would not be accurate
-            if (progress.getLastTime()>progress.getJobPauseStartDate()) {
+            if (progress.getLastTime()>progress.getJobPauseStartDate() && speedGraph != null) {
                 speedGraph.addSample(progress.getCurrentBps());
                 updateCurrentSpeedLabel(SizeFormat.format(progress.getCurrentBps(), SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT));
             }
