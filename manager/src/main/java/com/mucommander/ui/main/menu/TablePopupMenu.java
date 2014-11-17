@@ -24,7 +24,6 @@ import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.popup.MuActionsPopupMenu;
-
 import javax.swing.JSeparator;
 
 /**
@@ -94,6 +93,9 @@ public class TablePopupMenu extends MuActionsPopupMenu {
             //add pack action
             addAction(com.mucommander.ui.action.impl.PackAction.Descriptor.ACTION_ID);
             addAction(com.mucommander.ui.action.impl.UnpackAction.Descriptor.ACTION_ID);
+            
+            //add share menu
+            add(new ShareMenu(mainFrame,markedFiles,clickedFile));
             
             add(new JSeparator());
         }
