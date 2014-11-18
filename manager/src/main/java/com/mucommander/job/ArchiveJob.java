@@ -58,6 +58,9 @@ public class ArchiveJob extends TransferFileJob {
 	
     /** Lock to avoid Archiver.close() to be called while data is being written */
     private final Object ioLock = new Object();
+    
+    /** True if the archiver is in the final phase of finishing */
+    private boolean finishing = false;
 
 
     public ArchiveJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet files, AbstractFile destFile, int archiveFormat, String archiveComment) {
@@ -220,6 +223,11 @@ public class ArchiveJob extends TransferFileJob {
         synchronized(ioLock) {
             // Try to close the archiver which in turns closes the archive OutputStream and underlying file OutputStream
             if(archiver!=null) {
+                if(getState() != FileJob.INTERRUPTED){
+                    finishing = true;
+                    try { archiver.finish(); }
+                    catch(IOException e) {}
+                }
                 try { archiver.close(); }
                 catch(IOException e) {}
             }
@@ -228,6 +236,11 @@ public class ArchiveJob extends TransferFileJob {
 
     @Override
     public String getStatusString() {
-        return Translator.get("pack_dialog.packing_file", getCurrentFilename());
+        return finishing ? Translator.get("finishing") + ": "+ Translator.get("can_take_a_while") : Translator.get("pack_dialog.packing_file", getCurrentFilename());
+    }
+    
+    @Override
+    public boolean supportThroughputLimit() {
+        return Archiver.SUPPORTS_FILE_STREAMING[archiveFormat];
     }
 }

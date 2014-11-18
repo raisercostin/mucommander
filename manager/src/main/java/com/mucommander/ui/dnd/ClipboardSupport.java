@@ -19,8 +19,7 @@
 package com.mucommander.ui.dnd;
 
 import com.mucommander.commons.file.util.FileSet;
-
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.Transferable;
 
@@ -29,7 +28,19 @@ import java.awt.datatransfer.Transferable;
  *
  * @author Maxence Bernard
  */
+
+
 public class ClipboardSupport {
+    
+    private static ClipboardOperations operation;
+        
+    public static ClipboardOperations getOperation(){
+        return operation;
+    }
+    
+    public static void setOperation(ClipboardOperations operation){
+        ClipboardSupport.operation = operation;
+    }
 
     /**
      * Returns the system clipboard's contents as a <code>Transferable</code>, <code>null</code>
