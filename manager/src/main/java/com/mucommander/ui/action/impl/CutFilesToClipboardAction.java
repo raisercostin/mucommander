@@ -20,6 +20,7 @@ package com.mucommander.ui.action.impl;
 
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.ui.action.*;
+import com.mucommander.ui.dnd.ClipboardOperations;
 import com.mucommander.ui.dnd.ClipboardSupport;
 import com.mucommander.ui.main.MainFrame;
 
@@ -35,7 +36,6 @@ import java.util.Map;
  */
 public class CutFilesToClipboardAction extends SelectedFilesAction {
     
-    public static boolean cutOperation = false;
 
     public CutFilesToClipboardAction(MainFrame mainFrame, Map<String,Object> properties) {
         super(mainFrame, properties);
@@ -44,7 +44,7 @@ public class CutFilesToClipboardAction extends SelectedFilesAction {
     @Override
     public void performAction(FileSet files) {
         ClipboardSupport.setClipboardFiles(files);
-        cutOperation = true;
+        ClipboardSupport.setOperation(ClipboardOperations.CUT);
     }
 
     public static class Factory implements ActionFactory {

@@ -22,6 +22,7 @@ import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.commons.runtime.OsFamilies;
 import com.mucommander.job.CopyJob;
+import com.mucommander.job.FileJob;
 import com.mucommander.job.MoveJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.*;
@@ -61,32 +62,16 @@ public class PasteClipboardFilesAction extends MuAction {
         FileSet clipboardFiles = ClipboardSupport.getClipboardFiles();
         if(clipboardFiles==null || clipboardFiles.isEmpty())
             return;
-
-                
-        // Test if its a Cut or copy operation
-        if(CutFilesToClipboardAction.cutOperation){
-            ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
-            AbstractFile destFolder = mainFrame.getActivePanel().getCurrentFolder();
-            MoveJob job = new MoveJob(
-                progressDialog,
-                mainFrame,
-                clipboardFiles,
-                destFolder,
-                null,
-                FileCollisionDialog.ASK_ACTION,
-                false);
-            progressDialog.start(job);
-            return;
-        }
-        
-        
-  
-        
-        
-        // Start copying files
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
         AbstractFile destFolder = mainFrame.getActivePanel().getCurrentFolder();
-        CopyJob job = new CopyJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, CopyJob.COPY_MODE, FileCollisionDialog.ASK_ACTION);
+        FileJob job;
+            // Test if its a Cut or copy operation
+        switch(ClipboardSupport.getOperation()){ 
+            case CUT    : job = new MoveJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, FileCollisionDialog.ASK_ACTION, false); break;
+            case COPY   : job = new CopyJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, CopyJob.COPY_MODE, FileCollisionDialog.ASK_ACTION); break;
+            default : return;
+        }
+       
         progressDialog.start(job);
     }
 
