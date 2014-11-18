@@ -8,5 +8,5 @@ package com.mucommander.ui.dnd;
 
 //List of possible operations to be made with the clipboard.
 public enum ClipboardOperations {
-    CUT, COPY
+    CUT, COPY, ARCHIVE
 }
