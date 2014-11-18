@@ -20,6 +20,7 @@ package com.mucommander.ui.action.impl;
 
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.ui.action.*;
+import com.mucommander.ui.dnd.ClipboardOperations;
 import com.mucommander.ui.dnd.ClipboardSupport;
 import com.mucommander.ui.main.MainFrame;
 
@@ -42,7 +43,7 @@ public class CopyFilesToClipboardAction extends SelectedFilesAction {
     @Override
     public void performAction(FileSet files) {
         ClipboardSupport.setClipboardFiles(files);
-        CutFilesToClipboardAction.cutOperation = false;
+        ClipboardSupport.setOperation(ClipboardOperations.COPY);
     }
 
     public static class Factory implements ActionFactory {

@@ -152,9 +152,10 @@ public class ISOArchiver extends Archiver{
         }
         return null;
     }
-
+    
+    
     @Override
-    public void close() throws IOException {
+    public void finish() throws IOException {
         if(root.hasSubDirs() || root.getFiles().size() > 0){
             CreateISO iso = new CreateISO(streamHandler, root);
 
@@ -208,4 +209,9 @@ public class ISOArchiver extends Archiver{
             }
         }
     }
+
+    @Override
+    public void close() throws IOException {
+    }
+    
 }
