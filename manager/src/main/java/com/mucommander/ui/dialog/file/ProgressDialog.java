@@ -38,15 +38,33 @@ import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.StatusBar;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.swing.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.RenderingHints;
+import java.awt.Stroke;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.WindowEvent;
+import java.util.Vector;
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.Vector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This dialog informs the user of the progress made by a FileJob and allows to control it: pause/resume it, stop it,
@@ -57,22 +75,22 @@ import java.util.Vector;
 public class ProgressDialog extends NonModalDialog implements ActionListener, ItemListener, ChangeListener, FileJobListener, JobProgressListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ProgressDialog.class);
 	
-    private JLabel currentFileLabel;
-    private JLabel totalTransferredLabel;
+    protected JLabel currentFileLabel;
+    protected JLabel totalTransferredLabel;
 
     private JProgressBar totalProgressBar;
-    private JProgressBar currentFileProgressBar;
+    protected JProgressBar currentFileProgressBar;
 
-    private JLabel currentSpeedLabel;
+    protected JLabel currentSpeedLabel;
     private JCheckBox limitSpeedCheckBox;
     private SizeChooser speedChooser;
     private JLabel elapsedTimeLabel;
 
     private SpeedGraph speedGraph;
 
-    private CollapseExpandButton collapseExpandButton;
+    protected CollapseExpandButton collapseExpandButton;
     private ButtonChoicePanel buttonsChoicePanel;
-    private JButton pauseResumeButton;
+    protected JButton pauseResumeButton;
     private JButton skipButton;
     private JButton stopButton;
     private JCheckBox closeWhenFinishedCheckBox;

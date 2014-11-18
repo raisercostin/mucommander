@@ -1,6 +1,9 @@
 package com.mucommander.share;
 
 import com.mucommander.commons.file.util.FileSet;
+import com.mucommander.job.FileJob;
+import com.mucommander.ui.dialog.file.ProgressDialog;
+import com.mucommander.ui.main.MainFrame;
 import java.util.Set;
 
 /**
@@ -22,10 +25,7 @@ public interface ShareProvider {
      */
     public String getDisplayName();
     
-    /**
-     * Handles the selected files
-     * @param selectedFiles The files that have been selected for sharing
-     */
-    public void handleFiles(FileSet selectedFiles);
+    
+    public FileJob getJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet selectedFiles);
 
 }
