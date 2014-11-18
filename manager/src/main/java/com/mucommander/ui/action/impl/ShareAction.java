@@ -5,8 +5,6 @@ import com.mucommander.share.ShareProvider;
 import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.main.MainFrame;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -34,7 +32,6 @@ public class ShareAction extends MuAction {
         if (selectedFiles.size() == 0) {
             return;
         }
-        Logger.getLogger(ShareAction.class.getName()).log(Level.INFO, "DEBUG 01");
         provider.handleFiles(selectedFiles);
     }
 
