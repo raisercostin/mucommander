@@ -51,7 +51,7 @@ public class BookmarksQL extends QuickListWithIcons<Bookmark> implements Bookmar
 
 	@Override
     protected void acceptListItem(Bookmark item) {
-		folderPanel.tryChangeCurrentFolder(item.getLocation()); //change with text validate
+		folderPanel.tryChangeCurrentFolder(item.getExpandedLocation()); //change with text validate
 	}
 
 	@Override
@@ -61,7 +61,7 @@ public class BookmarksQL extends QuickListWithIcons<Bookmark> implements Bookmar
 	
 	@Override
     protected Icon itemToIcon(Bookmark item) {
-		return getIconOfFile(FileFactory.getFile(item.getLocation()));
+		return getIconOfFile(FileFactory.getFile(item.getExpandedLocation()));
 	}
 
 	public void bookmarksChanged() {

@@ -72,7 +72,7 @@ public class BookmarkFile extends ProtocolFile {
     private synchronized AbstractFile getUnderlyingFile() {
         // Resolves the file if necessary.
         if(file == null)
-            file = FileFactory.getFile(bookmark.getLocation());
+            file = FileFactory.getFile(bookmark.getExpandedLocation());
 
         return file;
     }
@@ -187,7 +187,7 @@ public class BookmarkFile extends ProtocolFile {
     }
 
     @Override
-    public String getCanonicalPath() {return bookmark.getLocation();}
+    public String getCanonicalPath() {return bookmark.getExpandedLocation();}
 
 
 

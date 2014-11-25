@@ -92,6 +92,26 @@ public class Bookmark implements Cloneable {
 
 
     /**
+     * Returns this bookmark's location (with environment variables expansion) which should normally designate
+     * a path or file URL, but which isn't necessarily valid nor exists.
+     * <p>
+     * Returns this bookmark's path expanded by environment variables.
+     * Examples:
+     * "${SystemRoot}" returns "C:\Windows" on Windows platform.
+     * "${HOME}" returns "/home/my_user_name" on Linux platform.
+     * "not_a_$${HOME}_path" returns "not_a_${HOME}_path" where prefixed "$" sign is used to escape the expansion.
+     * "${xyz123}" returns "${xyz123}" when "xyz123" is not an environment variable.
+     * Recursive expansion like "${jre-${java.specification.version}}" is not supported.
+     * </p>
+     * @return this bookmark's location with environment variables expansion.
+     * @see    #setLocation(String)
+     */
+    public String getExpandedLocation() {
+        return org.apache.commons.lang3.text.StrSubstitutor.replace(location, System.getenv());
+    }
+
+
+    /**
      * Changes this bookmark's location to the given one and fires an event to registered {@link BookmarkListener}
      * instances.
      * @param newLocation bookmark's new location.

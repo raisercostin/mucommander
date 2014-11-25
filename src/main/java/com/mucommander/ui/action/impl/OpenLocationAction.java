@@ -107,7 +107,7 @@ public class OpenLocationAction extends ActiveTabAction {
      * {@link Bookmark#getLocation()} and {@link Bookmark#getName()}.
      */
     public OpenLocationAction(MainFrame mainFrame, Map<String,Object> properties, Bookmark bookmark) {
-        this(mainFrame, properties, bookmark.getLocation(), bookmark.getName());
+        this(mainFrame, properties, bookmark.getExpandedLocation(), bookmark.getName());
     }
 
 
