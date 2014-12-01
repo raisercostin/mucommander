@@ -51,6 +51,7 @@ public class ISOArchiverNGTest {
     public void testCreateEntry() throws Exception {
         File createTempFile = File.createTempFile("ISOArchiverNGTest", "iso");
         AbstractFile aFile = FileFactory.getFile(createTempFile.getPath());
+        createTempFile.deleteOnExit();
         ISOArchiver instance = new ISOArchiver(aFile);
         
         File tempFile1 = File.createTempFile("ISOArchiverNGTest1", "txt");
