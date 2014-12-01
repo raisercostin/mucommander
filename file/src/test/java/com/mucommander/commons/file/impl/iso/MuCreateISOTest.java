@@ -96,7 +96,7 @@ public class MuCreateISOTest {
             PrintWriter pw = new PrintWriter(file);
             
             for(int i = 0; i < chars.length; i++){
-                pw.write(chars[i]);
+                pw.write(chars[i] + 128);
             }
             pw.flush();
             pw.close();
