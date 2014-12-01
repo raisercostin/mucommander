@@ -74,18 +74,5 @@ public class ImgurAPI {
         public void completed(String url);
 
     }
-    
-    public static void main(String[] args){
-        ImgurAPI imgurAPI = new ImgurAPI(ImgurProvider.API_KEY);
-        Future uploadAsync = imgurAPI.uploadAsync(new File("C:\\Users\\Mathias\\Desktop\\2014-11-28_00002.jpg"), new Callback() {
-            
-            @Override
-            public void completed(String url) {
-                System.out.println("callback med " + url);
-            }
-        });
-        
-        System.out.println(uploadAsync);
-        
-    }
+
 }
