@@ -19,8 +19,7 @@
 package com.mucommander.ui.dnd;
 
 import com.mucommander.commons.file.util.FileSet;
-
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.Transferable;
 
