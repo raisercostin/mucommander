@@ -24,7 +24,7 @@ import com.mucommander.conf.MuPreferences;
 import com.mucommander.job.FileJob;
 import com.mucommander.job.FileJobListener;
 import com.mucommander.job.TransferFileJob;
-import com.mucommander.job.progress.JobProgress;
+import com.mucommander.job.progress.IJobProgress;
 import com.mucommander.job.progress.JobProgressListener;
 import com.mucommander.job.progress.JobProgressMonitor;
 import com.mucommander.text.DurationFormat;
@@ -169,7 +169,7 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
         if(transferFileJob!=null) {
             JPanel tempPanel = new JPanel(new BorderLayout());
 
-            if(transferFileJob.supportThroughputLimit()){
+            //if(transferFileJob.supportThroughputLimit()){
                 this.currentSpeedLabel = new JLabel();
                 updateCurrentSpeedLabel("");
                 currentSpeedLabel.setIcon(IconManager.getIcon(IconManager.PROGRESS_ICON_SET, CURRENT_SPEED_ICON));
@@ -188,6 +188,7 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
                 limitSpeedCheckBox.addItemListener(this);
                 tempPanel2.add(limitSpeedCheckBox, BorderLayout.WEST);
 
+            if(transferFileJob.supportThroughputLimit()){
                 speedChooser = new SizeChooser(true);
                 speedChooser.setEnabled(false);
                 speedChooser.addChangeListener(this);
@@ -197,16 +198,15 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
                 advancedPanel.add(tempPanel2);
                 advancedPanel.addSpace(5);
 
-                this.collapseExpandButton = new CollapseExpandButton(Translator.get("progress_dialog.advanced"), advancedPanel, true);
-                collapseExpandButton.setExpandedState(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_EXPANDED,
-                                                                                       MuPreferences.DEFAULT_PROGRESS_DIALOG_EXPANDED));
-                tempPanel.add(collapseExpandButton, BorderLayout.EAST);
-
-                yPanel.add(tempPanel);
-                yPanel.addSpace(5);
-
-                yPanel.add(advancedPanel);
             }
+            this.collapseExpandButton = new CollapseExpandButton(Translator.get("progress_dialog.advanced"), advancedPanel, true);
+            collapseExpandButton.setExpandedState(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_EXPANDED,
+                                                                                   MuPreferences.DEFAULT_PROGRESS_DIALOG_EXPANDED));
+            tempPanel.add(collapseExpandButton, BorderLayout.EAST);
+            yPanel.add(tempPanel);
+            yPanel.addSpace(5);
+
+            yPanel.add(advancedPanel);
         }
         closeWhenFinishedCheckBox = new JCheckBox(Translator.get("progress_dialog.close_when_finished"));
         closeWhenFinishedCheckBox.setSelected(MuConfigurations.getPreferences().getVariable(MuPreference.PROGRESS_DIALOG_CLOSE_WHEN_FINISHED,
@@ -219,9 +219,11 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
         pauseResumeButton = new JButton(Translator.get("pause"), IconManager.getIcon(IconManager.PROGRESS_ICON_SET, PAUSE_ICON));
         pauseResumeButton.addActionListener(this);
 
-        if(transferFileJob!=null) {
+        if(transferFileJob!=null && transferFileJob.supportThroughputLimit()) {
             skipButton = new JButton(Translator.get("skip"), IconManager.getIcon(IconManager.PROGRESS_ICON_SET, SKIP_ICON));
             skipButton.addActionListener(this);
+        } else {
+            pauseResumeButton.setVisible(false);
         }
 
         stopButton = new JButton(Translator.get("stop"), IconManager.getIcon(IconManager.PROGRESS_ICON_SET, STOP_ICON));
@@ -350,11 +352,11 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
     // This 'pull' approach allows to throttle the number label updates which have a cost VS updating the label
     // for each file being processed (job notifications) which can hog the CPU when lots of small files
     // are being transferred.
-    private void updateProgressLabel(JobProgress progress) {
+    private void updateProgressLabel(IJobProgress progress) {
     	currentFileLabel.setText(progress.getJobStatusString());
     }
     
-    private void updateProgressUI(JobProgress progress) {
+    private void updateProgressUI(IJobProgress progress) {
         if (progress.isTransferFileJob()) {
             currentFileProgressBar.setValue(progress.getFilePercentInt());
             currentFileProgressBar.setString(progress.getFileProgressText());
@@ -365,7 +367,6 @@ public class ProgressDialog extends NonModalDialog implements ActionListener, It
                               SizeFormat.format(progress.getBytesTotal(), SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_LONG| SizeFormat.ROUND_TO_KB),
                               SizeFormat.format(progress.getTotalBps(), SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.ROUND_TO_KB))
             );
-            
             // Add new immediate bytes per second speed sample to speed graph and label and repaint it
             // Skip this sample if job was paused and resumed, speed would not be accurate
             if (progress.getLastTime()>progress.getJobPauseStartDate() && speedGraph != null) {

@@ -77,6 +77,18 @@ public class ByteCounter {
         if(nbBytes>0)
             this.count += nbBytes;
     }
+    
+    
+    /**
+     * Set the byte counter by the provided number of bytes. If the specified number is negative,
+     * the byte counter will be left unchanged (won't be decreased).
+     *
+     * @param nbBytes number of bytes to add to the byte counter, will be ignored if negative
+     */
+    public synchronized void set(long nbBytes) {
+        if(nbBytes>0)
+            this.count = nbBytes;
+    }
 
 
     /**

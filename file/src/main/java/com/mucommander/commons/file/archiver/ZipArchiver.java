@@ -98,5 +98,5 @@ class ZipArchiver extends Archiver {
     }
     
     @Override
-    public void finish() throws IOException {}
+    public void postProcess() throws IOException {}
 }

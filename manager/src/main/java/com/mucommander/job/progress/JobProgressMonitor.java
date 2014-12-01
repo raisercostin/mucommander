@@ -20,19 +20,15 @@ package com.mucommander.job.progress;
 
 import com.mucommander.job.FileJob;
 import com.mucommander.job.FileJobListener;
-
-import javax.swing.*;
-import javax.swing.event.EventListenerList;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.event.EventListenerList;
 
-/**
- * A class that monitors jobs progress.
- * @author Mariusz Jakubowski
- *
- */
+
 public class JobProgressMonitor implements FileJobListener {
 	
     /** Controls how often should current file label be refreshed (in ms) */
@@ -238,6 +234,14 @@ public class JobProgressMonitor implements FileJobListener {
 			timer.start();
 		}		
 	}
+
+    public void continueUpdating() {
+        progressTimer.start();
+    }
+
+    public void stopUpdating() {
+        progressTimer.stop();
+    }
 	
 	
 	

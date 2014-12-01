@@ -432,9 +432,32 @@ public abstract class Archiver {
 
 
     /**
+     * @return Name of current file being processed
+     */
+    public String getProcessingFile(){return null;}
+    
+    /**
+     * Written bytes in total without the current file progress
+     * @return number of bytes written as a long
+     */
+    public long totalWrittenBytes(){return -1;}
+    
+    /**
+     * Written bytes to the current file being processed, will be the same size as the
+     * file if complete.
+     * @return number of bytes written as a long
+     */
+    public long writtenBytesCurrentFile(){return -1;}
+    
+    /**
+     * @return Size of the current file being processed in bytes
+     */
+    public long currentFileLength(){return -1;}
+    
+    /**
      * Finish the archiving process when all files have been added.
      */
-    public abstract void finish() throws IOException;
+    public abstract void postProcess() throws IOException;
     
     /**
      * Closes the underlying OuputStream and ressources used by this Archiver to write the archive. This method

@@ -23,7 +23,6 @@ import com.github.stephenc.javaisotools.iso9660.ConfigException;
 import com.github.stephenc.javaisotools.iso9660.ISO9660Directory;
 import com.github.stephenc.javaisotools.iso9660.ISO9660File;
 import com.github.stephenc.javaisotools.iso9660.ISO9660RootDirectory;
-import com.github.stephenc.javaisotools.iso9660.impl.CreateISO;
 import com.github.stephenc.javaisotools.iso9660.impl.ISO9660Config;
 import com.github.stephenc.javaisotools.iso9660.impl.ISOImageFileHandler;
 import com.github.stephenc.javaisotools.joliet.impl.JolietConfig;
@@ -32,6 +31,7 @@ import com.github.stephenc.javaisotools.sabre.HandlerException;
 import com.github.stephenc.javaisotools.sabre.StreamHandler;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileAttributes;
+import com.mucommander.commons.file.impl.iso.MuCreateISO;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -54,6 +54,7 @@ public class ISOArchiver extends Archiver{
     private boolean enableRockRidge = true;
     //Adds support for creation of bootable iso files (not implemented)
     private boolean enableElTorito = false;
+    private MuCreateISO createISOProcess = null;
 
     public ISOArchiver(AbstractFile file) throws FileNotFoundException {
         super(null);
@@ -152,12 +153,31 @@ public class ISOArchiver extends Archiver{
         }
         return null;
     }
-    
+
+    @Override
+    public String getProcessingFile() {
+        return createISOProcess != null ? createISOProcess.getProcessingFile() : null;
+    }
     
     @Override
-    public void finish() throws IOException {
+    public long totalWrittenBytes(){
+        return createISOProcess != null ? createISOProcess.totalWrittenBytes(): 0;
+    }
+    
+    @Override
+    public long writtenBytesCurrentFile(){
+        return createISOProcess != null ? createISOProcess.writtenBytesCurrentFile(): 0;
+    }
+    
+    @Override
+    public long currentFileLength(){
+        return createISOProcess != null ? createISOProcess.currentFileLength(): 0;
+    }
+    
+    @Override
+    public void postProcess() throws IOException {
         if(root.hasSubDirs() || root.getFiles().size() > 0){
-            CreateISO iso = new CreateISO(streamHandler, root);
+            createISOProcess = new MuCreateISO(streamHandler, root);
 
             RockRidgeConfig rrConfig = null;
             if (enableRockRidge) {
@@ -203,7 +223,7 @@ public class ISOArchiver extends Archiver{
             ElToritoConfig elToritoConfig = null;
 
             try {
-                iso.process(config, rrConfig, jolietConfig, elToritoConfig);
+                createISOProcess.process(config, rrConfig, jolietConfig, elToritoConfig);
             } catch (HandlerException ex) {
                 Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
             }

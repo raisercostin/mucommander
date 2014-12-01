@@ -22,7 +22,9 @@ package com.mucommander.job;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.archiver.Archiver;
 import com.mucommander.commons.file.util.FileSet;
+import com.mucommander.commons.io.ByteCounter;
 import com.mucommander.commons.io.StreamUtils;
+import com.mucommander.job.progress.JobProgressMonitor;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -60,7 +62,10 @@ public class ArchiveJob extends TransferFileJob {
     private final Object ioLock = new Object();
     
     /** True if the archiver is in the final phase of finishing */
-    private boolean finishing = false;
+    private boolean postProcessing = false;
+    
+    /** Used for overriding the endDate on FileJob in case the archiver does not support streaming*/
+    private long endDate = 0;
 
 
     public ArchiveJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet files, AbstractFile destFile, int archiveFormat, String archiveComment) {
@@ -214,7 +219,16 @@ public class ArchiveJob extends TransferFileJob {
      */
     @Override
     public void jobStopped() {
-
+        if(getState() != FileJob.INTERRUPTED){
+            postProcessing = true;
+            try { 
+                JobProgressMonitor.getInstance().continueUpdating();
+                archiver.postProcess(); 
+                JobProgressMonitor.getInstance().stopUpdating();
+                endDate = System.currentTimeMillis();
+            }
+            catch(IOException e) {}
+        }
         // TransferFileJob.jobStopped() closes the current InputStream, this will cause copyStream() to return
         super.jobStopped();
 
@@ -223,11 +237,6 @@ public class ArchiveJob extends TransferFileJob {
         synchronized(ioLock) {
             // Try to close the archiver which in turns closes the archive OutputStream and underlying file OutputStream
             if(archiver!=null) {
-                if(getState() != FileJob.INTERRUPTED){
-                    finishing = true;
-                    try { archiver.finish(); }
-                    catch(IOException e) {}
-                }
                 try { archiver.close(); }
                 catch(IOException e) {}
             }
@@ -235,8 +244,74 @@ public class ArchiveJob extends TransferFileJob {
     }
 
     @Override
+    public long getEndDate() {
+        return endDate;
+    }
+    
+    /**
+     * Returns the size of the file currently being processed, <code>-1</code> if this information is not available.
+     * 
+     * @return the size of the file currently being processed, -1 if this information is not available.
+     */
+    @Override
+    public long getCurrentFileSize() {
+        if(archiver != null && !archiver.supportsStream()){
+            return archiver.getProcessingFile() != null ? archiver.currentFileLength() : -1;
+        }
+        return super.getCurrentFileSize();
+    }
+
+    /**
+     * Returns the percentage of the current file that has been processed, <code>0</code> if the current file's size
+     * is not available (in this case getNbCurrentFileBytesProcessed() returns <code>-1</code>).
+     *
+     * @return the percentage of the current file that has been processed
+     */
+//    public float getFilePercentDone() {
+//        long currentFileSize = getCurrentFileSize();
+//        if(currentFileSize<=0)
+//            return 0;
+//        else
+//            System.out.println("archiver.writtenBytesCurrentFile() "+archiver.writtenBytesCurrentFile());
+//            return archiver.writtenBytesCurrentFile()/(float)currentFileSize;
+//    }
+    
+    @Override
+    public ByteCounter getCurrentFileByteCounter() {
+        ByteCounter currentFileByteCounter = super.getCurrentFileByteCounter();
+        if(archiver != null && !archiver.supportsStream()){
+            currentFileByteCounter.set(archiver.writtenBytesCurrentFile());
+        }
+        return currentFileByteCounter;
+    }
+
+    /**
+     * Returns a {@link ByteCounter} that holds the total number of bytes that have been processed by this job so far.
+     *
+     * @return a ByteCounter that holds the total number of bytes that have been processed by this job so far
+     */
+    public ByteCounter getTotalByteCounter() {
+        //refresh current file byte counter
+        getCurrentFileByteCounter();
+        
+        ByteCounter totalByteCounter = super.getTotalByteCounter();
+        if(archiver != null && !archiver.supportsStream()){
+            long totalWrittenBytes = archiver.totalWrittenBytes();
+            totalByteCounter.set(totalWrittenBytes);
+        }
+        return totalByteCounter;
+    }
+    
+    /**
+     * Returns the percentage of the current file that has been processed, <code>0</code> if the current file's size
+     * is not available (in this case getNbCurrentFileBytesProcessed() returns <code>-1</code>).
+     *
+     * @return the percentage of the current file that has been processed
+     */
+
+    @Override
     public String getStatusString() {
-        return finishing ? Translator.get("finishing") + ": "+ Translator.get("can_take_a_while") : Translator.get("pack_dialog.packing_file", getCurrentFilename());
+        return postProcessing ? archiver != null && archiver.getProcessingFile() != null ? Translator.get("pack_dialog.packing_file", "'" + archiver.getProcessingFile() + "'") : Translator.get("preparing.archive") + ": "+ Translator.get("can_take_a_while") : Translator.get("indexing") + " '"+ getCurrentFilename() + "'";
     }
     
     @Override
