@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import static org.testng.Assert.assertEquals;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -180,10 +181,10 @@ public class MuCreateISOTest {
             FileInputStream fis = new FileInputStream(files.get(fileName));
             InputStream is = archiveEntryFile.getInputStream();
             //See if file content is equal
-            assert fis.available() == is.available();
+            assertEquals(is.available(), fis.available());
             while(fis.available() > 0){
                 //See if data is identical
-                assert is.read() == fis.read();
+                assertEquals(is.read(), fis.read());
             }
         }
     }
@@ -216,7 +217,7 @@ public class MuCreateISOTest {
         for(File file : files.values()){
             totalSize += file.length();
         }
-        assert instance.totalWrittenBytes() == totalSize;
+        assertEquals(instance.totalWrittenBytes(), totalSize);
     }
 
     @Test
