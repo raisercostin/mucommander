@@ -8,18 +8,27 @@ package com.mucommander.commons.file.impl.iso;
 
 import com.github.stephenc.javaisotools.eltorito.impl.ElToritoConfig;
 import com.github.stephenc.javaisotools.iso9660.ConfigException;
+import com.github.stephenc.javaisotools.iso9660.ISO9660Directory;
 import com.github.stephenc.javaisotools.iso9660.ISO9660RootDirectory;
 import com.github.stephenc.javaisotools.iso9660.impl.ISO9660Config;
 import com.github.stephenc.javaisotools.iso9660.impl.ISOImageFileHandler;
 import com.github.stephenc.javaisotools.joliet.impl.JolietConfig;
 import com.github.stephenc.javaisotools.rockridge.impl.RockRidgeConfig;
+import com.github.stephenc.javaisotools.sabre.HandlerException;
+import com.google.common.io.Files;
+import com.mucommander.commons.file.AbstractFile;
+import com.mucommander.commons.file.FileFactory;
 import com.mucommander.commons.file.archiver.ISOArchiver;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.HashMap;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import static org.testng.Assert.assertEquals;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -29,9 +38,13 @@ import org.testng.annotations.Test;
 
 @Test
 public class MuCreateISOTest {
-    private File tempFile = null;
-    private File archiveFile = null;
-    private MuCreateISO instance = null;
+    private static File tempFile1 = null;
+    private static File tempFile2 = null;
+    private static File tempFile3 = null;
+    private static File tempDir1;
+    private static HashMap<String, File> files = new HashMap();
+    private static File archiveFile = null;
+    private static MuCreateISO instance = null;
     
     public MuCreateISOTest(){
         
@@ -39,20 +52,29 @@ public class MuCreateISOTest {
     
     @BeforeClass
     public static void setUpClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-    }
-
-    @BeforeMethod
-    public void setUpMethod() throws Exception {
-        ISO9660RootDirectory root = new ISO9660RootDirectory();
-        tempFile = createTempFile("MuCreateISOTest",10000);
-        tempFile.deleteOnExit();
-        root.addFile(tempFile);
+        //Create a archive
         
-        archiveFile = File.createTempFile("MuCreateISOTestArchive", "test");
+        ISO9660RootDirectory root = new ISO9660RootDirectory();
+        tempFile1 = createTempFile("tempFile1",10000);
+        root.addFile(tempFile1);
+        files.put(tempFile1.getName(), tempFile1);
+        tempFile1.deleteOnExit();
+        
+        tempFile2 = createTempFile("tempFile2",20000);
+        root.addFile(tempFile2);
+        files.put(tempFile2.getName(), tempFile2);
+        tempFile2.deleteOnExit();
+        
+        tempDir1 = Files.createTempDir();
+        ISO9660Directory dir = root.addDirectory(tempDir1);
+        tempDir1.deleteOnExit();
+        
+        tempFile3 = createTempFile("tempFile3",40000);
+        dir.addFile(tempFile3);
+        files.put(tempDir1.getName() + File.separator + tempFile3.getName(), tempFile3);
+        tempFile3.deleteOnExit();
+        
+        archiveFile = File.createTempFile("MuCreateISOTest", ".iso");
         archiveFile.deleteOnExit();
         
         ISO9660Config iso9660Config = new ISO9660Config();
@@ -61,7 +83,7 @@ public class MuCreateISOTest {
             iso9660Config.setInterchangeLevel(1);
             iso9660Config.restrictDirDepthTo8(false);
             iso9660Config.setPublisher(System.getProperty("user.name"));
-            iso9660Config.setVolumeID(tempFile.getName());
+            iso9660Config.setVolumeID(archiveFile.getName());
             iso9660Config.setDataPreparer(System.getProperty("user.name"));
             iso9660Config.forceDotDelimiter(true);
         } catch (ConfigException ex) {
@@ -70,33 +92,66 @@ public class MuCreateISOTest {
         
         RockRidgeConfig rrConfig = new RockRidgeConfig();
         rrConfig.setMkisofsCompatibility(false);
+        rrConfig.hideMovedDirectoriesStore(true);
+        rrConfig.forcePortableFilenameCharacterSet(true);
         
         JolietConfig jolietConfig = new JolietConfig();
-        jolietConfig.forceDotDelimiter(true);
+        try {
+            if(iso9660Config.getPublisher() instanceof String){
+                jolietConfig.setPublisher((String) iso9660Config.getPublisher());
+            } else {
+                try {
+                    jolietConfig.setPublisher((File) iso9660Config.getPublisher());
+                } catch (HandlerException ex) {
+                    Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } 
+            jolietConfig.setVolumeID(iso9660Config.getVolumeID());
+            jolietConfig.forceDotDelimiter(true);
+        } catch (ConfigException ex) {
+            Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+        }
         
         ElToritoConfig elToritoConfig = null;
         
         instance = new MuCreateISO(new ISOImageFileHandler(archiveFile), root);
+        //testProcess will check if it actually did it correctly, but other tests 
+        //need it to also have been ran
         instance.process(iso9660Config, rrConfig, jolietConfig, elToritoConfig);
+    }
+
+    @AfterClass
+    public static void tearDownClass() throws Exception {
+        for(File file : files.values()){
+            file.delete();
+        }
+        archiveFile.delete();
+        files.clear();
+        instance = null;
+    }
+
+    @BeforeMethod
+    public void setUpMethod() throws Exception {
     }
 
     @AfterMethod
     public void tearDownMethod() throws Exception {
     }
     
-    
-    public File createTempFile(String name, int fileSize){
+    //Create a temp file with data within the ASCII range
+    public static File createTempFile(String name, int fileSize){
         File file = null;
         try {
             file = File.createTempFile(name, "test");
-            Random random = new Random(123456789);
+            //Make sure data is always the same
+            Random random = new Random(fileSize);
             byte[] chars = new byte[fileSize];
             random.nextBytes(chars);
             
             PrintWriter pw = new PrintWriter(file);
             
             for(int i = 0; i < chars.length; i++){
-                pw.write(chars[i]);
+                pw.write(chars[i] + 128);
             }
             pw.flush();
             pw.close();
@@ -115,8 +170,23 @@ public class MuCreateISOTest {
     @Test
     public void testProcess() throws Exception {
         System.out.println("process");
-        //Archive size if archived correctly
-        assert archiveFile.length() == 63488;
+        //complete check of file content
+        IsoArchiveFile archive = new IsoArchiveFile(FileFactory.getFile(archiveFile.getPath()));
+        
+        for(String fileName : files.keySet()){
+            System.out.println("Testing: "+fileName);
+            //File that should be saved in the archive
+            AbstractFile archiveEntryFile = archive.getArchiveEntryFile(fileName);
+            //Archive entry inputstream
+            FileInputStream fis = new FileInputStream(files.get(fileName));
+            InputStream is = archiveEntryFile.getInputStream();
+            //See if file content is equal
+            assertEquals(is.available(), fis.available());
+            while(fis.available() > 0){
+                //See if data is identical
+                assertEquals(is.read(), fis.read());
+            }
+        }
     }
 
     /**
@@ -126,7 +196,14 @@ public class MuCreateISOTest {
     public void testGetProcessingFile() throws Exception {
         System.out.println("getProcessingFile");
         
-        assert instance.getProcessingFile().equals(tempFile.getName());
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(file.getName().equals(instance.getProcessingFile())){
+                found = true;
+            }
+        }
+        assert found;
     }
 
     /**
@@ -136,52 +213,28 @@ public class MuCreateISOTest {
     public void testTotalWrittenBytes() throws Exception {
         System.out.println("totalWrittenBytes");
         
-        ISO9660RootDirectory root = new ISO9660RootDirectory();
-        File tempFile = createTempFile("totalWrittenBytes",10000);
-        root.addFile(tempFile);
-        tempFile.deleteOnExit();
-        File tempFile2 = createTempFile("totalWrittenBytes2",20000);
-        root.addFile(tempFile2);
-        tempFile2.deleteOnExit();
-        File tempFile3 = createTempFile("totalWrittenBytes3",40000);
-        root.addFile(tempFile3);
-        tempFile3.deleteOnExit();
-        
-        File archiveFile = File.createTempFile("totalWrittenBytesArchive", "test");
-        archiveFile.deleteOnExit();
-        
-        ISO9660Config iso9660Config = new ISO9660Config();
-        try {
-            iso9660Config.allowASCII(false);
-            iso9660Config.setInterchangeLevel(1);
-            iso9660Config.restrictDirDepthTo8(false);
-            iso9660Config.setPublisher(System.getProperty("user.name"));
-            iso9660Config.setVolumeID(tempFile.getName());
-            iso9660Config.setDataPreparer(System.getProperty("user.name"));
-            iso9660Config.forceDotDelimiter(true);
-        } catch (ConfigException ex) {
-            Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+        long totalSize = 0;
+        for(File file : files.values()){
+            totalSize += file.length();
         }
-        
-        RockRidgeConfig rrConfig = new RockRidgeConfig();
-        rrConfig.setMkisofsCompatibility(false);
-        
-        JolietConfig jolietConfig = new JolietConfig();
-        jolietConfig.forceDotDelimiter(true);
-        
-        ElToritoConfig elToritoConfig = null;
-        
-        MuCreateISO instance = new MuCreateISO(new ISOImageFileHandler(archiveFile), root);
-        instance.process(iso9660Config, rrConfig, jolietConfig, elToritoConfig);
-        
-        assert instance.totalWrittenBytes() == 70000;
+        assertEquals(instance.totalWrittenBytes(), totalSize);
     }
 
     @Test
     public void testWrittenBytesCurrentFile() throws Exception {
         System.out.println("writtenBytesCurrentFile");
         
-        assert instance.writtenBytesCurrentFile() == 10000;
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(
+                    file.getName().equals(instance.getProcessingFile()) 
+                 && file.length() == instance.writtenBytesCurrentFile())
+            {
+                found = true;
+            }
+        }
+        assert found;
     }
 
     /**
@@ -191,7 +244,17 @@ public class MuCreateISOTest {
     public void testCurrentFileLength() {
         System.out.println("currentFileLength");
         
-        assert instance.currentFileLength() == tempFile.length();
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(
+                    file.getName().equals(instance.getProcessingFile()) 
+                 && file.length() == instance.currentFileLength())
+            {
+                found = true;
+            }
+        }
+        assert found;
     }
     
 }
