@@ -70,6 +70,9 @@ public class ISOArchiverNGTest {
         for(String filePath : files.keySet()){
             instance.createEntry(filePath, FileFactory.getFile(files.get(filePath).getPath()));
         }
+        
+        //Archive the files
+        instance.postProcess();
     }
 
     @AfterClass
@@ -126,33 +129,72 @@ public class ISOArchiverNGTest {
     /**
      * Test of getProcessingFile method, of class ISOArchiver.
      */
-//    @Test
-    public void testGetProcessingFile() {
-        //Tested in MyCreateISOTest.java
+    @Test
+    public void testGetProcessingFile() throws Exception {
+        System.out.println("getProcessingFile");
+        
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(file.getName().equals(instance.getProcessingFile())){
+                found = true;
+            }
+        }
+        assert found;
     }
 
     /**
      * Test of totalWrittenBytes method, of class ISOArchiver.
      */
-//    @Test
-    public void testTotalWrittenBytes() {
-        //Tested in MyCreateISOTest.java
+    @Test
+    public void testTotalWrittenBytes() throws Exception {
+        System.out.println("totalWrittenBytes");
+        
+        long totalSize = 0;
+        for(File file : files.values()){
+            totalSize += file.length();
+        }
+        assertEquals(instance.totalWrittenBytes(), totalSize);
     }
 
     /**
-     * Test of writtenBytesCurrentFile method, of class ISOArchiver.
+     * Test of testWrittenBytesCurrentFile method, of class ISOArchiver.
      */
-//    @Test
-    public void testWrittenBytesCurrentFile() {
-        //Tested in MyCreateISOTest.java
+    @Test
+    public void testWrittenBytesCurrentFile() throws Exception {
+        System.out.println("writtenBytesCurrentFile");
+        
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(
+                    file.getName().equals(instance.getProcessingFile()) 
+                 && file.length() == instance.writtenBytesCurrentFile())
+            {
+                found = true;
+            }
+        }
+        assert found;
     }
 
     /**
      * Test of currentFileLength method, of class ISOArchiver.
      */
-    //@Test
+    @Test
     public void testCurrentFileLength() {
-        //Tested in MyCreateISOTest.java
+        System.out.println("currentFileLength");
+        
+        //Can't be sure which file is is
+        boolean found = false;
+        for(File file : files.values()){
+            if(
+                    file.getName().equals(instance.getProcessingFile()) 
+                 && file.length() == instance.currentFileLength())
+            {
+                found = true;
+            }
+        }
+        assert found;
     }
 
     /**
@@ -160,8 +202,7 @@ public class ISOArchiverNGTest {
      */
     @Test
     public void testPostProcess() throws Exception {
-        //Archive the files
-        instance.postProcess();
+        //instance.postProcess(); was called in class setup
         
         //complete check of file content
         IsoArchiveFile archive = new IsoArchiveFile(FileFactory.getFile(archiveFile.getPath()));
