@@ -444,10 +444,11 @@ public abstract class TransferFileJob extends FileJob {
      */
     public float getFilePercentDone() {
         long currentFileSize = getCurrentFileSize();
+        long byteCount = getCurrentFileByteCounter().getByteCount();
         if(currentFileSize<=0)
             return 0;
         else
-            return getCurrentFileByteCounter().getByteCount()/(float)currentFileSize;
+            return byteCount/(float)currentFileSize;
     }
 
     /**
