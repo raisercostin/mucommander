@@ -6,8 +6,11 @@ import com.mucommander.commons.file.FileURL;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.main.MainFrame;
 import java.net.MalformedURLException;
-import java.text.ParseException;
-import javax.swing.JSpinner;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
 /**
@@ -18,15 +21,11 @@ public class WebDAVPanel extends ServerPanel {
 
     private JTextField serverField;
     private JTextField usernameField;
-    private JTextField passwordField;
-    private JTextField initialDirField;
-    private JSpinner portSpinner;
+    private JPasswordField passwordField;
 
     private static String lastServer = "";
     private static String lastUsername = System.getProperty("user.name");
-    private static String lastInitialDir = "/";
     private static String lastPassword = "";
-    private static int lastPort = FileURL.getRegisteredHandler(FileProtocols.WEBDAV).getStandardPort();
 
     WebDAVPanel(ServerConnectDialog dialog, final MainFrame mainFrame) {
         super(dialog, mainFrame);
@@ -44,27 +43,18 @@ public class WebDAVPanel extends ServerPanel {
         addRow(Translator.get("server_connect_dialog.username"), usernameField, 15);
 
 //        // Password field, initialized to ""
-        passwordField = new JTextField("");
+        passwordField = new JPasswordField("");
+        
         passwordField.selectAll();
         addTextFieldListeners(passwordField, false);
         addRow(Translator.get("password"), passwordField, 15);
-        // Initial directory field, initialized to "/"
-        initialDirField = new JTextField(lastInitialDir);
-        initialDirField.selectAll();
-        addTextFieldListeners(initialDirField, true);
-        addRow(Translator.get("server_connect_dialog.initial_dir"), initialDirField, 5);
 
-        // Port field, initialized to last port
-        portSpinner = createPortSpinner(lastPort);
-        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 15);
     }
 
     private void updateValues() {
         lastServer = serverField.getText();
         lastUsername = usernameField.getText();
         lastPassword = passwordField.getText();
-        lastInitialDir = initialDirField.getText();
-        lastPort = (Integer) portSpinner.getValue();
     }
 
     ////////////////////////////////
@@ -73,18 +63,34 @@ public class WebDAVPanel extends ServerPanel {
     @Override
     FileURL getServerURL() throws MalformedURLException {
         updateValues();
-        if (!lastInitialDir.startsWith("/")) {
-            lastInitialDir = "/" + lastInitialDir;
+
+        
+        int port = FileURL.getRegisteredHandler(FileProtocols.WEBDAV).getStandardPort();
+        
+        String url = FileProtocols.WEBDAV + "://"+lastUsername+":"+lastPassword+"@" + lastServer;
+        
+        try {
+            URI uri = new URI(lastServer);
+            if(uri.getScheme() != null){
+                if(uri.getScheme().equalsIgnoreCase("http")){
+                    port = 80;
+                } else if(uri.getScheme().equalsIgnoreCase("https")){
+                    port = 443;
+                }
+                url = FileProtocols.WEBDAV + "://" + lastUsername + ":" + lastPassword + "@" + uri.getHost() + ":" + port + "" + uri.getPath();
+            }
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(WebDAVPanel.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        FileURL fileUrl = FileURL.getFileURL(url);
 
-        FileURL url = FileURL.getFileURL(FileProtocols.WEBDAV + "://"+lastUsername+":"+lastPassword+"@" + lastServer + ":" + lastPort);
-
-        url.setCredentials(new Credentials(lastUsername, lastPassword));
+        fileUrl.setCredentials(new Credentials(lastUsername, lastPassword));
 
         // Set port
-        url.setPort(lastPort);
+        fileUrl.setPort(port);
 
-        return url;
+        return fileUrl;
     }
 
     @Override
@@ -94,13 +100,6 @@ public class WebDAVPanel extends ServerPanel {
 
     @Override
     public void dialogValidated() {
-        // Commits the current spinner value in case it was being edited and 'enter' was pressed
-        // (the spinner value would otherwise not be committed)
-        try {
-            portSpinner.commitEdit();
-        } catch (ParseException e) {
-        }
-
         updateValues();
     }
 }

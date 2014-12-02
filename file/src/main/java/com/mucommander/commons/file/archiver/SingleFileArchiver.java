@@ -19,16 +19,11 @@
 package com.mucommander.commons.file.archiver;
 
 import com.mucommander.commons.file.FileAttributes;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
 
-/**
- * Generic single file Archiver.
- *
- * @author Maxence Bernard
- */
+
 class SingleFileArchiver extends Archiver {
 
     private boolean firstEntry = true;
@@ -62,4 +57,7 @@ class SingleFileArchiver extends Archiver {
     public void close() throws IOException {
         out.close();
     }
+
+    @Override
+    public void postProcess() throws IOException {}
 }

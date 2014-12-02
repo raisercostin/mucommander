@@ -24,12 +24,11 @@ import com.mucommander.commons.file.FileOperation;
 import com.mucommander.commons.file.UnsupportedFileOperationException;
 import com.mucommander.commons.io.BufferedRandomOutputStream;
 import com.mucommander.commons.io.RandomAccessOutputStream;
-import org.apache.tools.bzip2.CBZip2OutputStream;
-
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
+import org.apache.tools.bzip2.CBZip2OutputStream;
 
 
 /**
@@ -63,6 +62,8 @@ public abstract class Archiver {
     public final static int TAR_GZ_FORMAT = 4;
     /** Tar archive compressed with Bzip2 format (many entries format) */
     public final static int TAR_BZ2_FORMAT = 5;
+    /** ISO archive format (many entries format) */
+    public final static int ISO_FORMAT = 6;
 
     /** Boolean array describing for each format if it can store more than one entry */
     private final static boolean SUPPORTS_MANY_ENTRIES[] = {
@@ -71,7 +72,19 @@ public abstract class Archiver {
         false,
         true,
         true,
+        true,
         true
+    };
+    
+    /** Boolean array describing for each format if it can store more than one entry */
+    public final static boolean SUPPORTS_FILE_STREAMING[] = {
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false
     };
 	
     /** Array of single entry formats: many entries formats are considered to be single entry formats as well */
@@ -81,7 +94,8 @@ public abstract class Archiver {
         BZ2_FORMAT,
         TAR_FORMAT,
         TAR_GZ_FORMAT,
-        TAR_BZ2_FORMAT
+        TAR_BZ2_FORMAT,
+        ISO_FORMAT
     };
 
     /** Array of many entries formats */
@@ -89,7 +103,8 @@ public abstract class Archiver {
         ZIP_FORMAT,
         TAR_FORMAT,
         TAR_GZ_FORMAT,
-        TAR_BZ2_FORMAT
+        TAR_BZ2_FORMAT,
+        ISO_FORMAT
     };
 	
     /** Array of format names */
@@ -99,7 +114,8 @@ public abstract class Archiver {
         "Bzip2",
         "Tar",
         "Tar/Gzip",
-        "Tar/Bzip2"
+        "Tar/Bzip2",
+        "ISO"
     };
 
     /** Array of format extensions */
@@ -109,7 +125,8 @@ public abstract class Archiver {
         "bz2",
         "tar",
         "tar.gz",
-        "tar.bz2"
+        "tar.bz2",
+        "iso"
     };
 	
 
@@ -119,7 +136,8 @@ public abstract class Archiver {
     protected int format;
     /** Archive format's name of this Archiver */
     protected String formatName;
-	
+	/** Support output stream for archiving files */
+    protected boolean supporStream;
 	
     /**
      * Creates a new Archiver.
@@ -128,6 +146,7 @@ public abstract class Archiver {
      */
     Archiver(OutputStream out) {
         this.out = out;
+        this.supporStream = true;
     }
 
     /**
@@ -178,6 +197,12 @@ public abstract class Archiver {
         return formatSupportsComment(this.format);
     }
 
+    /**
+     * @return true if the archiver supports writing with streams
+     */
+    public boolean supportsStream() {
+        return supporStream;
+    }
 
     /**
      * Sets an optional comment in the archive, the {@link #supportsComment()} or
@@ -231,7 +256,13 @@ public abstract class Archiver {
      * @throws IOException if the file cannot be opened for write, or if an error occurred while intializing the archiver
      * @throws UnsupportedFileOperationException if the underlying filesystem does not support write operations
      */
-    public static Archiver getArchiver(AbstractFile file, int format) throws IOException, UnsupportedFileOperationException {
+    public static Archiver getArchiver(AbstractFile file, int format) throws IOException, UnsupportedFileOperationException, Exception {
+        
+        switch(format) {
+            case ISO_FORMAT:
+                return new ISOArchiver(file);
+        }
+        
         OutputStream out = null;
 
         if(file.isFileOperationSupported(FileOperation.RANDOM_WRITE_FILE)) {
@@ -254,7 +285,6 @@ public abstract class Archiver {
         return getArchiver(out, format);
     }
 
-
     /**
      * Returns an Archiver for the specified format and that uses the given <code>OutputStream</code> to write entries to.
      * <code>null</code> is returned if the specified format is not valid. Whenever possible, a
@@ -266,7 +296,7 @@ public abstract class Archiver {
      * null if the specified format is not valid.
      * @throws IOException if an error occurred while intializing the archiver
      */
-    public static Archiver getArchiver(OutputStream out, int format) throws IOException {
+    public static Archiver getArchiver(OutputStream out, int format) throws IOException, UnsupportedFileOperationException, Exception {
         Archiver archiver;
 
         switch(format) {
@@ -288,6 +318,8 @@ public abstract class Archiver {
             case TAR_BZ2_FORMAT:
                 archiver = new TarArchiver(createBzip2OutputStream(out));
                 break;
+            case ISO_FORMAT:
+                throw new Exception("ISO archiving not supported by stream");
 
             default:
                 return null;
@@ -399,6 +431,34 @@ public abstract class Archiver {
     public abstract OutputStream createEntry(String entryPath, FileAttributes attributes) throws IOException;
 
 
+    /**
+     * @return Name of current file being processed
+     */
+    public String getProcessingFile(){return null;}
+    
+    /**
+     * Written bytes in total without the current file progress
+     * @return number of bytes written as a long
+     */
+    public long totalWrittenBytes(){return -1;}
+    
+    /**
+     * Written bytes to the current file being processed, will be the same size as the
+     * file if complete.
+     * @return number of bytes written as a long
+     */
+    public long writtenBytesCurrentFile(){return -1;}
+    
+    /**
+     * @return Size of the current file being processed in bytes
+     */
+    public long currentFileLength(){return -1;}
+    
+    /**
+     * Finish the archiving process when all files have been added.
+     */
+    public abstract void postProcess() throws IOException;
+    
     /**
      * Closes the underlying OuputStream and ressources used by this Archiver to write the archive. This method
      * must be called when all entries have been added to the archive.
