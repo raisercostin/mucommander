@@ -18,13 +18,6 @@
 
 package com.mucommander;
 
-import java.awt.GraphicsEnvironment;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.bookmark.file.BookmarkProtocolProvider;
 import com.mucommander.command.Command;
@@ -39,6 +32,7 @@ import com.mucommander.conf.MuConfigurations;
 import com.mucommander.conf.MuPreference;
 import com.mucommander.conf.MuPreferences;
 import com.mucommander.extension.ExtensionManager;
+import com.mucommander.share.ShareAssembler;
 import com.mucommander.shell.ShellHistoryManager;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
@@ -51,6 +45,11 @@ import com.mucommander.ui.main.commandbar.CommandBarIO;
 import com.mucommander.ui.main.frame.CommandLineMainFrameBuilder;
 import com.mucommander.ui.main.frame.DefaultMainFramesBuilder;
 import com.mucommander.ui.main.toolbar.ToolBarIO;
+import java.awt.GraphicsEnvironment;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * muCommander launcher.
@@ -568,7 +567,10 @@ public class Launcher {
             // Starts Bonjour services discovery (only if enabled in prefs)
             printStartupMessage("Starting Bonjour services discovery...");
             com.mucommander.bonjour.BonjourDirectory.setActive(MuConfigurations.getPreferences().getVariable(MuPreference.ENABLE_BONJOUR_DISCOVERY, MuPreferences.DEFAULT_ENABLE_BONJOUR_DISCOVERY));
-
+            
+            //Assembles the sharing providers to the manager
+            new ShareAssembler();
+            
             // Creates the initial main frame using any initial path specified by the command line.
             printStartupMessage("Initializing window...");
             String[] folders = new String[args.length - i];

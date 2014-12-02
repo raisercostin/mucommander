@@ -1,4 +1,4 @@
-package com.mucommander.share.impl;
+package com.mucommander.share.impl.imgur;
 
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.job.FileJob;
@@ -14,14 +14,15 @@ import java.util.Set;
  * @author Mathias
  */
 public class ImgurProvider implements ShareProvider {
-
+    
     public final static String DISPLAY_NAME = "imgur.com";
-    public final static String API_ENDPOINT = "https://api.imgur.com/3/";
-    public final static String API_IMAGE = API_ENDPOINT + "image";
-
     public List<String> supportedFiletypes = Arrays.asList("JPEG", "JPG", "GIF", "PNG", "APNG", "TIFF", "BMP", "PDF", "XCF");
-
     public final static String API_KEY = "28ee9ddb765a2b0";
+    private ImgurAPI imgurAPI;
+
+    public ImgurProvider() {
+        imgurAPI = new ImgurAPI(API_KEY);
+    }
 
     @Override
     public boolean supportsFiletypes(Set<String> extensions) {
@@ -52,7 +53,15 @@ public class ImgurProvider implements ShareProvider {
 
     @Override
     public FileJob getJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet selectedFiles) {
-        return new ImgurJob(progressDialog, mainFrame, selectedFiles);
+        return new ImgurJob(imgurAPI,progressDialog, mainFrame, selectedFiles);
+    }
+
+    public ImgurAPI getImgurAPI() {
+        return imgurAPI;
+    }
+
+    public void setImgurAPI(ImgurAPI imgurAPI) {
+        this.imgurAPI = imgurAPI;
     }
 
 }
