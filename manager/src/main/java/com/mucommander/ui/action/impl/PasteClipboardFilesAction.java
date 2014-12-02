@@ -69,8 +69,8 @@ public class PasteClipboardFilesAction extends MuAction {
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
         AbstractFile destFolder = mainFrame.getActivePanel().getCurrentFolder();
         FileJob job;
-            // Test if its a Cut or copy operation
-        switch(ClipboardSupport.getOperation()){ 
+            // Test what paste operation to preform.
+       switch(ClipboardSupport.getOperation()){ 
             case CUT    : job = new MoveJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, FileCollisionDialog.ASK_ACTION, false); break;
             case COPY   : job = new CopyJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, CopyJob.COPY_MODE, FileCollisionDialog.ASK_ACTION); break;
             case ARCHIVE: job = new UnpackJob(progressDialog, mainFrame, clipboardFiles , destFolder, FileCollisionDialog.ASK_ACTION); break;
