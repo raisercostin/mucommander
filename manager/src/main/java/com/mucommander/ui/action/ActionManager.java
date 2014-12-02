@@ -129,7 +129,7 @@ public class ActionManager {
     	registerAction(new CombineFilesAction.Descriptor(),            		new CombineFilesAction.Factory());
     	registerAction(new MinimizeWindowAction.Descriptor(),               new MinimizeWindowAction.Factory());
     	registerAction(new MkdirAction.Descriptor(),           			    new MkdirAction.Factory());
-    	registerAction(new MkfileAction.Descriptor(),		                new MkfileAction.Factory());
+    	registerAction(new MakeFileAction.Descriptor(),		                new MakeFileAction.Factory());
     	registerAction(new MoveAction.Descriptor(),		                    new MoveAction.Factory());
     	registerAction(new MoveTabToOtherPanelAction.Descriptor(),			new MoveTabToOtherPanelAction.Factory());
     	registerAction(new NewWindowAction.Descriptor(),     		        new NewWindowAction.Factory());

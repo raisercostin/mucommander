@@ -722,6 +722,7 @@ public abstract class FileJob implements Runnable {
      * @return the file currently being processed.
      */
     public AbstractFile getCurrentFile() {
+    	
     	return currentFile;
     }
     

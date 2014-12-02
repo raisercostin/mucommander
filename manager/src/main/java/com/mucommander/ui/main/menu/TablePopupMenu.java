@@ -80,9 +80,7 @@ public class TablePopupMenu extends MuActionsPopupMenu {
             addAction(com.mucommander.ui.action.impl.RevealInDesktopAction.Descriptor.ACTION_ID);
 
         add(new JSeparator());
-        //Create dir and file
-        addAction(com.mucommander.ui.action.impl.MkdirAction.Descriptor.ACTION_ID);
-        addAction(com.mucommander.ui.action.impl.MkfileAction.Descriptor.ACTION_ID);
+       
         
         // 'Copy name(s)' and 'Copy path(s)' are displayed only if a single file was clicked or files are marked
         if(clickedFile!=null || markedFiles.size()>0) {
@@ -102,7 +100,10 @@ public class TablePopupMenu extends MuActionsPopupMenu {
         addAction(com.mucommander.ui.action.impl.MarkAllAction.Descriptor.ACTION_ID);
         addAction(com.mucommander.ui.action.impl.UnmarkAllAction.Descriptor.ACTION_ID);
         addAction(com.mucommander.ui.action.impl.MarkSelectedFileAction.Descriptor.ACTION_ID);
-
+        
+        //Create dir and file
+        addAction(com.mucommander.ui.action.impl.MkdirAction.Descriptor.ACTION_ID);
+        addAction(com.mucommander.ui.action.impl.MakeFileAction.Descriptor.ACTION_ID);
         
         add(new JSeparator());
 
@@ -113,7 +114,7 @@ public class TablePopupMenu extends MuActionsPopupMenu {
         addAction(com.mucommander.ui.action.impl.DeleteAction.Descriptor.ACTION_ID);
 
         add(new JSeparator());
-
+        						
         addAction(com.mucommander.ui.action.impl.ShowFilePropertiesAction.Descriptor.ACTION_ID);
         addAction(com.mucommander.ui.action.impl.ChangePermissionsAction.Descriptor.ACTION_ID);
         addAction(com.mucommander.ui.action.impl.ChangeDateAction.Descriptor.ACTION_ID);
