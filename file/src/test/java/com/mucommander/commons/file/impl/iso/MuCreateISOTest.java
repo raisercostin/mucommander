@@ -52,8 +52,7 @@ public class MuCreateISOTest {
     
     @BeforeClass
     public static void setUpClass() throws Exception {
-        //Create a archive
-        
+        //Setup testing files and dirs
         ISO9660RootDirectory root = new ISO9660RootDirectory();
         tempFile1 = createTempFile("tempFile1",10000);
         root.addFile(tempFile1);
@@ -74,9 +73,11 @@ public class MuCreateISOTest {
         files.put(tempDir1.getName() + File.separator + tempFile3.getName(), tempFile3);
         tempFile3.deleteOnExit();
         
+        //Create archive file
         archiveFile = File.createTempFile("MuCreateISOTest", ".iso");
         archiveFile.deleteOnExit();
         
+        //Setup iso archiver
         ISO9660Config iso9660Config = new ISO9660Config();
         try {
             iso9660Config.allowASCII(false);
@@ -145,12 +146,15 @@ public class MuCreateISOTest {
             file = File.createTempFile(name, "test");
             //Make sure data is always the same
             Random random = new Random(fileSize);
+            //Generate data to be filled into the file
             byte[] chars = new byte[fileSize];
             random.nextBytes(chars);
             
             PrintWriter pw = new PrintWriter(file);
             
             for(int i = 0; i < chars.length; i++){
+                //Since java use signed bytes, add 128 in order to 
+                //get a byte range from 0 to 255
                 pw.write(chars[i] + 128);
             }
             pw.flush();
