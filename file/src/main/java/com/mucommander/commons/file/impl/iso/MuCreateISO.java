@@ -112,7 +112,7 @@ public class MuCreateISO {
      * @return number of bytes written as a long
      */
     public long totalWrittenBytes(){
-        return fileHandler != null ? fileHandler.totalWrittenBytes(): null;
+        return fileHandler != null ? fileHandler.totalWrittenBytes(): 0;
     }
 
     /**
@@ -121,14 +121,14 @@ public class MuCreateISO {
      * @return number of bytes written as a long
      */
     public long writtenBytesCurrentFile() {
-        return fileHandler != null ? fileHandler.writtenBytesCurrentFile(): null;
+        return fileHandler != null ? fileHandler.writtenBytesCurrentFile(): 0;
     }
     
     /**
      * @return Size of the current file being processed in bytes
      */
     public long currentFileLength(){
-        return fileHandler != null ? fileHandler.currentFileLength(): null;
+        return fileHandler != null ? fileHandler.currentFileLength(): 0;
     }
     
 }
