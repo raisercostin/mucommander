@@ -208,7 +208,7 @@ public class ISOArchiver extends Archiver{
                     } else {
                         try {
                             jolietConfig.setDataPreparer((File) config.getDataPreparer());
-                        } catch (HandlerException ex) {
+                        } catch (Exception ex) {
                             Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
                         }
                     } 
