@@ -18,7 +18,6 @@
 
 package com.mucommander.ui.dialog.file;
 
-import com.mucommander.ui.main.MainFrame;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileFactory;
 import com.mucommander.commons.file.impl.local.LocalFile;
@@ -34,35 +33,31 @@ import com.mucommander.ui.action.ActionProperties;
 import com.mucommander.ui.action.impl.ShowFilePropertiesAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
-import com.mucommander.ui.dialog.file.FileCollisionDialog;
-import com.mucommander.ui.dialog.file.FileCollisionRenameDialog;
 import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.icon.SpinningDial;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.YBoxPanel;
-import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
-import com.mucommander.ui.main.WindowManager;
-import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.text.FileLabel;
 import com.mucommander.ui.text.MultiLineLabel;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.border.EmptyBorder;
 
 /**
  * This dialog shows properties of a file or a group of files : number of files,
@@ -253,40 +248,16 @@ public class PropertiesDialog extends FocusDialog implements Runnable,
 		return destFile;
 	}
 	
-	public void renamefile(AbstractFile destFile, String newName){
-		
-//		String newPath = destFile.getAbsolutePath();
-//		File newFile = new File(newFile);
-//		URI uri = newFile.toURI();
-//		
-//		Path path = Paths.get(newPath);
-//		path.get
-		
-		
-		AbstractFile destination = FileFactory.getFile(destFile.getParent()+"/"+textfield.getText());
+	public static void renamefile(AbstractFile destFile, String newName){
+
+		AbstractFile destination = FileFactory.getFile(destFile.getParent()+"/"+newName);
 		
 		try {
 			destFile.moveTo(destination);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-		
-		if(true)
-		return;
-		
-		FolderPanel f = FileTable.getFolderPanel2();
-		String destFileName = textfield.getText();
-		AbstractFile destFolder = f.getCurrentFolder();
-		String oldName = destFile.getName();
-		if(!newName.equals(oldName)) {
-			destFile = createDestinationFile(destFolder,
-					destFileName);
-		}
-		
-
-	
-		
+		}	
 	}
 		
 
