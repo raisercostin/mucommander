@@ -71,7 +71,8 @@ public class ISOArchiver extends Archiver{
                 config.restrictDirDepthTo8(true);
             }
             config.setPublisher(System.getProperty("user.name"));
-            config.setVolumeID(file.getName());
+            //Max length of volume is 32 chars
+            config.setVolumeID(file.getName().substring(0,Math.min(file.getName().length(), 31)));
             config.setDataPreparer(System.getProperty("user.name"));
             config.forceDotDelimiter(true);
         } catch (ConfigException ex) {
@@ -202,16 +203,19 @@ public class ISOArchiver extends Archiver{
                             Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
                         }
                     } 
-                    jolietConfig.setVolumeID(config.getVolumeID());
-                    if(config.getDataPreparer() instanceof String){
-                        jolietConfig.setDataPreparer((String) config.getDataPreparer());
-                    } else {
-                        try {
-                            jolietConfig.setDataPreparer((File) config.getDataPreparer());
-                        } catch (Exception ex) {
-                            Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                    } 
+                    //Max volume id is 16 in the joliet config
+                    jolietConfig.setVolumeID(config.getVolumeID().substring(0,Math.min(config.getVolumeID().length(), 15)));
+                    if(config.getDataPreparer() != null){
+                        if(config.getDataPreparer() instanceof String){
+                            jolietConfig.setDataPreparer((String) config.getDataPreparer());
+                        } else {
+                            try {
+                                jolietConfig.setDataPreparer((File) config.getDataPreparer());
+                            } catch (Exception ex) {
+                                Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                        } 
+                    }
                     jolietConfig.forceDotDelimiter(true);
                 } catch (ConfigException ex) {
                     Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);

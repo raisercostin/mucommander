@@ -181,6 +181,8 @@ public class MuCreateISOTest {
             System.out.println("Testing: "+fileName);
             //File that should be saved in the archive
             AbstractFile archiveEntryFile = archive.getArchiveEntryFile(fileName);
+            //See if file actually exists
+            assert archiveEntryFile.exists();
             //Archive entry inputstream
             FileInputStream fis = new FileInputStream(files.get(fileName));
             InputStream is = archiveEntryFile.getInputStream();
