@@ -42,6 +42,8 @@ public class PropertiesJob extends FileJob {
 	
     /** Combined size of all files encountered so far */
     private long totalBytes;
+    
+    private String lastmoddate;
 	
 	
     public PropertiesJob(FileSet files, MainFrame mainFrame) {
@@ -69,6 +71,11 @@ public class PropertiesJob extends FileJob {
     public int getNbFilesRecurse() {
         return nbFilesRecurse;
     }
+    
+    public String getLastmoddate(){
+    	return lastmoddate;
+    }
+    
  
 
     ////////////////////////////

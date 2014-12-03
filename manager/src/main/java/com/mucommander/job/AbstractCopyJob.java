@@ -204,43 +204,7 @@ public abstract class AbstractCopyJob extends TransferFileJob {
 					append = true;
 					break;
 				} else if (choice == FileCollisionDialog.KEEPFILE_ACTION) {
-					String destFileName = destFile.getName();
-					defaultFileExistsAction = FileCollisionDialog.KEEPFILE_ACTION;
-					int lastInd = destFileName.lastIndexOf('.');
-
-					String temp = destFileName.substring(0, lastInd);
-					try {
-						if (temp.endsWith(")")) {
-							int t = Integer
-									.parseInt(temp.charAt(temp.length() - 2)
-											+ "");
-							if(temp.charAt(temp.length()-3)=='('){
-								t++;
-								temp = temp.substring(0, temp.length()-3);
-								temp = temp.concat("("+t+")");
-							}else{
-								temp = temp.concat("(1)");
-							}
-
-						}
-						else{
-							temp = temp.concat("(1)");
-						}
-					} catch (Exception e) {
-						temp = temp.concat("(1)");
-					}
-
-					temp = temp.concat(destFileName.substring(lastInd));
-					destFileName = temp;
-
-					if (destFileName != null) {
-						destFile = createDestinationFile(destFolder,
-								destFileName);
-					} else {
-						// turn on FileCollisionDialog, so we don't loop
-						// indefinitely
-						defaultFileExistsAction = FileCollisionDialog.ASK_ACTION;
-					}
+					destFile = CheckForLastIndex(destFolder, destFile);
 
 					continue;
 
@@ -276,6 +240,49 @@ public abstract class AbstractCopyJob extends TransferFileJob {
 				}
 			}
 			break; // no collision
+		}
+		
+		return destFile;
+	}
+
+	protected AbstractFile CheckForLastIndex(AbstractFile destFolder,
+			AbstractFile destFile) {
+		String destFileName = destFile.getName();
+		defaultFileExistsAction = FileCollisionDialog.KEEPFILE_ACTION;
+		int lastInd = destFileName.lastIndexOf('.');
+
+		String temp = destFileName.substring(0, lastInd);
+		try {
+			if (temp.endsWith(")")) {
+				int t = Integer
+						.parseInt(temp.charAt(temp.length() - 2)
+								+ "");
+				if(temp.charAt(temp.length()-3)=='('){
+					t++;
+					temp = temp.substring(0, temp.length()-3);
+					temp = temp.concat("("+t+")");
+				}else{
+					temp = temp.concat("(1)");
+				}
+
+			}
+			else{
+				temp = temp.concat("(1)");
+			}
+		} catch (Exception e) {
+			temp = temp.concat("(1)");
+		}
+
+		temp = temp.concat(destFileName.substring(lastInd));
+		destFileName = temp;
+
+		if (destFileName != null) {
+			destFile = createDestinationFile(destFolder,
+					destFileName);
+		} else {
+			// turn on FileCollisionDialog, so we don't loop
+			// indefinitely
+			defaultFileExistsAction = FileCollisionDialog.ASK_ACTION;
 		}
 		return destFile;
 	}
