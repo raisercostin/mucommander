@@ -217,10 +217,10 @@ public class PropertiesDialog extends FocusDialog implements Runnable,
 				+ ")");
 
 		
-		//andet lort added
+		//adding last modification time and date
 		lastMod.setText(sdf.format(file.getDate()));
 
-//		readAttributes kan ikke lide abstractfile
+
 		
 //		BasicFileAttributes attr = Files.readAttributes(Paths.get(file.getAbsolutePath())),
 //				BasicFileAttributes.class);
