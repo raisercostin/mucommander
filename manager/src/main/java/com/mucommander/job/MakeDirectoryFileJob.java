@@ -100,7 +100,7 @@ public class MakeDirectoryFileJob extends FileJob {
         do {
             try {
                 LOGGER.debug("Creating "+file);
-
+                System.out.println("Her1---->"+allocateSpace);
                 // Check for file collisions, i.e. if the file already exists in the destination
                 int collision = FileCollisionChecker.checkForCollision(null, file);
                 if(collision!=FileCollisionChecker.NO_COLLOSION) {
@@ -128,11 +128,12 @@ public class MakeDirectoryFileJob extends FileJob {
                     // Use mkfile
                  
 
-                	
+                	System.out.println("Her2---->"+allocateSpace);
                     if(allocateSpace==-1) {
                     	
                         file.mkfile();
-               
+                        System.out.println(file.toString()+ "LORTE VIRKER!");
+                        LOGGER.debug(getCurrentFilename()+"LORTE VIRKER!");
                        
                     }
                     // Allocate the requested number of bytes
@@ -184,8 +185,9 @@ public class MakeDirectoryFileJob extends FileJob {
                     file.mkdir();
                     
                 }
+                
                 LOGGER.debug(getCurrentFilename()+"222222");
-                System.out.println(file.toString()+"bulshit");
+                System.out.println("Her3---->"+allocateSpace);
                 
                 // Resolve new file instance now that it exists: remote files do not update file attributes after
                 // creation, we need to get an instance that reflects the newly created file attributes
