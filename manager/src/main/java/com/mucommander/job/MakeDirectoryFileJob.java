@@ -19,8 +19,11 @@
 
 package com.mucommander.job;
 
+import java.io.Console;
 import java.io.IOException;
 import java.io.OutputStream;
+
+import javax.swing.JOptionPane;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +45,8 @@ import com.mucommander.ui.main.MainFrame;
  *
  * @author Maxence Bernard
  */
-public class MkdirJob extends FileJob {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MkdirJob.class);
+public class MakeDirectoryFileJob extends FileJob {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MakeDirectoryFileJob.class);
 	
     private AbstractFile destFolder;
 
@@ -54,7 +57,7 @@ public class MkdirJob extends FileJob {
     /**
      * Creates a new MkdirJob which operates in 'mkdir' mode.
      */
-    public MkdirJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet fileSet) {
+    public MakeDirectoryFileJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet fileSet) {
         super(progressDialog, mainFrame, fileSet);
 
         this.destFolder = fileSet.getBaseFolder();
@@ -68,7 +71,7 @@ public class MkdirJob extends FileJob {
      *
      * @param allocateSpace number of bytes to allocate to the file, -1 for none (use AbstractFile#mkfile())
      */
-    public MkdirJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet fileSet, long allocateSpace) {
+    public MakeDirectoryFileJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet fileSet, long allocateSpace) {
         super(progressDialog, mainFrame, fileSet);
 
         this.destFolder = fileSet.getBaseFolder();
@@ -88,6 +91,8 @@ public class MkdirJob extends FileJob {
      */
     @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
+    	
+    	System.out.println(file.toString());
         // Stop if interrupted (although there is no way to stop the job at this time)
         if(getState()==INTERRUPTED)
             return false;
@@ -95,7 +100,7 @@ public class MkdirJob extends FileJob {
         do {
             try {
                 LOGGER.debug("Creating "+file);
-
+                System.out.println("Her1---->"+allocateSpace);
                 // Check for file collisions, i.e. if the file already exists in the destination
                 int collision = FileCollisionChecker.checkForCollision(null, file);
                 if(collision!=FileCollisionChecker.NO_COLLOSION) {
@@ -117,13 +122,24 @@ public class MkdirJob extends FileJob {
                 }
 
                 // Create file
+                
+                
                 if(mkfileMode) {
                     // Use mkfile
+                 
+
+                	System.out.println("Her2---->"+allocateSpace);
                     if(allocateSpace==-1) {
+                    	
                         file.mkfile();
+                        System.out.println(file.toString()+ "LORTE VIRKER!");
+                        LOGGER.debug(getCurrentFilename()+"LORTE VIRKER!");
+                       
                     }
                     // Allocate the requested number of bytes
                     else {
+                    	  System.out.println(file.toString()+ "alooo");
+                          LOGGER.debug(getCurrentFilename()+"all");
                         OutputStream mkfileOut = null;
                         try {
                             // using RandomAccessOutputStream if we can have one
@@ -158,19 +174,28 @@ public class MkdirJob extends FileJob {
                                 try { mkfileOut.close(); }
                                 catch(IOException e) {}
                         }
-                    }
+                    }   
+                 	;
+                    
                 }
                 // Create directory
                 else {
+                    System.out.println(file.toString()+ "else");
+                    LOGGER.debug(getCurrentFilename()+"else");
                     file.mkdir();
+                    
                 }
-
+                
+                LOGGER.debug(getCurrentFilename()+"222222");
+                System.out.println("Her3---->"+allocateSpace);
+                
                 // Resolve new file instance now that it exists: remote files do not update file attributes after
                 // creation, we need to get an instance that reflects the newly created file attributes
                 file = FileFactory.getFile(file.getURL());
 
                 // Select newly created file when job is finished
                 selectFileWhenFinished(file);
+                                
 
                 return true;		// Return Success
             }

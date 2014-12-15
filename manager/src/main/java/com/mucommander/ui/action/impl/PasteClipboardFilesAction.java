@@ -22,17 +22,23 @@ import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.commons.runtime.OsFamilies;
 import com.mucommander.job.CopyJob;
+import com.mucommander.job.FileJob;
+import com.mucommander.job.MoveJob;
+import com.mucommander.job.UnpackJob;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.*;
+import com.mucommander.ui.action.AbstractActionDescriptor;
+import com.mucommander.ui.action.ActionCategories;
+import com.mucommander.ui.action.ActionCategory;
+import com.mucommander.ui.action.ActionFactory;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.dnd.ClipboardNotifier;
 import com.mucommander.ui.dnd.ClipboardSupport;
 import com.mucommander.ui.main.MainFrame;
-
-import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.util.Map;
+import javax.swing.KeyStroke;
 
 /**
  * This action pastes the files contained by the system clipboard to the currently active folder.
@@ -60,13 +66,23 @@ public class PasteClipboardFilesAction extends MuAction {
         FileSet clipboardFiles = ClipboardSupport.getClipboardFiles();
         if(clipboardFiles==null || clipboardFiles.isEmpty())
             return;
-
-        // Start copying files
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
         AbstractFile destFolder = mainFrame.getActivePanel().getCurrentFolder();
-        CopyJob job = new CopyJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, CopyJob.COPY_MODE, FileCollisionDialog.ASK_ACTION);
+        FileJob job;
+            // Test what paste operation to preform.
+       switch(ClipboardSupport.getOperation()){ 
+            case CUT    : job = new MoveJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, FileCollisionDialog.ASK_ACTION, false); break;
+            case COPY   : job = new CopyJob(progressDialog, mainFrame, clipboardFiles, destFolder, null, CopyJob.COPY_MODE, FileCollisionDialog.ASK_ACTION); break;
+            case ARCHIVE: job = new UnpackJob(progressDialog, mainFrame, clipboardFiles , destFolder, FileCollisionDialog.ASK_ACTION); break;
+            default : return;
+        }
+        
+       
         progressDialog.start(job);
     }
+    
+    
+    
 
     public static class Factory implements ActionFactory {
 

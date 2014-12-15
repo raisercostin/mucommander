@@ -19,11 +19,6 @@
 
 package com.mucommander.job;
 
-import java.util.WeakHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.impl.CachedFile;
 import com.mucommander.commons.file.util.FileSet;
@@ -38,6 +33,9 @@ import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.notifier.AbstractNotifier;
 import com.mucommander.ui.notifier.NotificationType;
+import java.util.WeakHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
@@ -422,10 +420,10 @@ public abstract class FileJob implements Runnable {
 //        jobThread.interrupt();
 
         jobThread = null;
-        endDate = System.currentTimeMillis();
-
         // Notify that the job has been stopped
         jobStopped();
+        endDate = System.currentTimeMillis();
+
     }
 
 	
@@ -722,6 +720,7 @@ public abstract class FileJob implements Runnable {
      * @return the file currently being processed.
      */
     public AbstractFile getCurrentFile() {
+    	
     	return currentFile;
     }
     

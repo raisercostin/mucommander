@@ -873,6 +873,115 @@ download:NB:Last ned
 download:TR:İndir
 download:CA:Descarrega
 
+indexing:EN:Indexing
+indexing:FR:Finition
+indexing:DE:Veredelung
+indexing:ES:Acabado
+indexing:CS:Dokončovací
+indexing:zh_TW:整理
+indexing:PL:Wykończenie
+indexing:HU:Befejező
+indexing:RU:Отделочные
+indexing:zh_CN:整理
+indexing:SL:Zaključna
+indexing:RO:Finisare
+indexing:IT:Apdailos
+indexing:KO:마무리
+indexing:pt_BR:Acabamento
+indexing:NL:Afwerking
+indexing:SK:Dokončovacie
+indexing:JA:Dokončovacie
+indexing:SV:Avslutning
+indexing:DA:Indeksere
+indexing:UA:Finishing
+indexing:AR:الانتهاء
+indexing:BE:аздобныя
+indexing:NB:Behandling
+indexing:TR:Terbiye
+indexing:CA:Acabat
+
+preparing.archive:EN:Preparing Archive
+preparing.archive:FR:Finition
+preparing.archive:DE:Veredelung
+preparing.archive:ES:Acabado
+preparing.archive:CS:Dokončovací
+preparing.archive:zh_TW:整理
+preparing.archive:PL:Wykończenie
+preparing.archive:HU:Befejező
+preparing.archive:RU:Отделочные
+preparing.archive:zh_CN:整理
+preparing.archive:SL:Zaključna
+preparing.archive:RO:Finisare
+preparing.archive:IT:Apdailos
+preparing.archive:KO:마무리
+preparing.archive:pt_BR:Acabamento
+preparing.archive:NL:Afwerking
+preparing.archive:SK:Dokončovacie
+preparing.archive:JA:Dokončovacie
+preparing.archive:SV:Avslutning
+preparing.archive:DA:Forbereder
+preparing.archive:UA:Finishing
+preparing.archive:AR:الانتهاء
+preparing.archive:BE:аздобныя
+preparing.archive:NB:Behandling
+preparing.archive:TR:Terbiye
+preparing.archive:CA:Acabat
+
+finishing:EN:Finishing
+finishing:FR:Finition
+finishing:DE:Veredelung
+finishing:ES:Acabado
+finishing:CS:Dokončovací
+finishing:zh_TW:整理
+finishing:PL:Wykończenie
+finishing:HU:Befejező
+finishing:RU:Отделочные
+finishing:zh_CN:整理
+finishing:SL:Zaključna
+finishing:RO:Finisare
+finishing:IT:Apdailos
+finishing:KO:마무리
+finishing:pt_BR:Acabamento
+finishing:NL:Afwerking
+finishing:SK:Dokončovacie
+finishing:JA:Dokončovacie
+finishing:SV:Avslutning
+finishing:DA:Afslutter
+finishing:UA:Finishing
+finishing:AR:الانتهاء
+finishing:BE:аздобныя
+finishing:NB:Behandling
+finishing:TR:Terbiye
+finishing:CA:Acabat
+
+can_take_a_while:EN:Can take a while
+can_take_a_while:FR:Peut prendre un certain temps
+can_take_a_while:DE:Kann eine Weile dauern
+can_take_a_while:ES:Puede tomar un tiempo
+can_take_a_while:CS:Chvíli může trvat
+can_take_a_while:zh_TW:可能需要一段時間
+can_take_a_while:PL:Może trochę potrwać
+can_take_a_while:HU:Eltarthat egy ideig
+can_take_a_while:RU:Может занять некоторое время
+can_take_a_while:zh_CN:可能需要一段时间
+can_take_a_while:SL:Lahko traja nekaj časa
+can_take_a_while:RO:Poate dura un timp
+can_take_a_while:IT:Può prendere un po '
+can_take_a_while:KO:시간이 걸릴 수
+can_take_a_while:pt_BR:Pode demorar um pouco
+can_take_a_while:NL:Kan een tijdje duren
+can_take_a_while:SK:Chvíľu môže trvať
+can_take_a_while:JA:しばらく時間がかかることができます
+can_take_a_while:SV:Kan ta en stund
+can_take_a_while:DA:Kan tage noget tid
+can_take_a_while:UA:Can take a while
+can_take_a_while:AR:يمكن أن يستغرق بعض الوقت
+can_take_a_while:BE:Можа заняць некаторы час
+can_take_a_while:NB:Kan ta en stund
+can_take_a_while:TR:Bir süre alabilir
+can_take_a_while:CA:Pot prendre un temps
+
+
 # Split as in split a file into several parts.
 split:EN:Split
 split:FR:Scinder
@@ -4167,6 +4276,10 @@ CopyFilesToClipboard.label:BE:Капіяваць файл(ы)
 CopyFilesToClipboard.label:NB:Kopier fil(er)
 CopyFilesToClipboard.label:TR:Dosya(lar)ı kopyala
 CopyFilesToClipboard.label:CA:Copia el(s) fitxer(s)
+
+CutFilesToClipboard.label:EN:Cut File(s)
+CutFilesToClipboard.label:DA:Klip Fil(er)
+
 
 PasteClipboardFiles.label:EN:Paste file(s)
 PasteClipboardFiles.label:FR:Coller fichier(s)
@@ -19158,3 +19271,16 @@ tabs_quick_list.empty_message:EN:Only one tab is presented
 #Pack.label:UA:Стиснути файли
 #Pack.label:AR:أرشفة الملفات
 #Pack.label:NB:Pakk filer
+
+
+###########
+# SHARING #
+###########
+file_menu.share:DA:Del...
+file_menu.share:EN:Share...
+share_dialog.sharing:DA:Deler...
+share_dialog.sharing:EN:Sharing...
+share_dialog.connecting:DA:Forbinder...
+share_dialog.connecting:EN:Connecting...
+share_dialog.uploading:DA:Uploader... (%1)
+share_dialog.uploading:EN:Uploading... (%1)

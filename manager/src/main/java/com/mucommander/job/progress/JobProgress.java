@@ -23,11 +23,8 @@ import com.mucommander.job.TransferFileJob;
 import com.mucommander.text.DurationFormat;
 import com.mucommander.text.Translator;
 
-/**
- * Contains information about job progress.
- *
- */
-public class JobProgress {
+
+public class JobProgress implements IJobProgress {
 	private FileJob job;
 	private TransferFileJob transferFileJob;
 
@@ -69,6 +66,7 @@ public class JobProgress {
 	 * @return <code>true</code> if full job progress has been updated,
 	 *         <code>false</code> if only label has been updated.
 	 */
+    @Override
 	public boolean calcJobProgress(boolean fullUpdate) {
 		int jobState = job.getState();
 		jobPauseStartDate = job.getPauseStartDate();
@@ -179,50 +177,62 @@ public class JobProgress {
 		return true;
 	}
 
+    @Override
 	public String getJobStatusString() {
 		return jobStatusString;
 	}
 
+    @Override
 	public boolean isTransferFileJob() {
 		return transferFileJob != null;
 	}
 
+    @Override
 	public int getFilePercentInt() {
 		return filePercentInt;
 	}
 
+    @Override
 	public String getFileProgressText() {
 		return fileProgressText;
 	}
 
+    @Override
 	public long getBytesTotal() {
 		return bytesTotal;
 	}
 
+    @Override
 	public long getTotalBps() {
 		return totalBps;
 	}
 
+    @Override
 	public long getLastTime() {
 		return lastTime;
 	}
 
+    @Override
 	public long getCurrentBps() {
 		return currentBps;
 	}
 
+    @Override
 	public int getTotalPercentInt() {
 		return totalPercentInt;
 	}
 
+    @Override
 	public String getTotalProgressText() {
 		return totalProgressText;
 	}
 
+    @Override
 	public long getEffectiveJobTime() {
 		return effectiveJobTime;
 	}
 
+    @Override
 	public long getJobPauseStartDate() {
 		return jobPauseStartDate;
 	}
