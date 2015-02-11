@@ -3,6 +3,7 @@ mainClassName = 'com.mucommander.Launcher'
 
 allprojects {
     apply plugin: 'java'
+	apply plugin: 'eclipse'
     group = 'org.mucommander'
     version = '0.9.0'
 }
