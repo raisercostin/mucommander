@@ -23,6 +23,9 @@ dependencies {
     compile project('mucommander-commons-file')
     compile project('mucommander-commons-conf')
     compile project('mucommander-commons-collections')
+    compile project('mucommander-commons-util')
+    compile project('mucommander-commons-io')
+    compile project('mucommander-commons-runtime')
     compile group: 'org.openjdk', name: 'java-extension', version: '6.0', configuration: 'runtime'
 
     compile 'jmdns:jmdns:3.1'
