@@ -18,44 +18,44 @@
 
 package com.mucommander.ui.dialog.pref.general;
 
-import com.mucommander.text.Translator;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionKeymapIO;
-import com.mucommander.ui.action.ActionProperties;
-import com.mucommander.ui.dialog.pref.PreferencesDialog;
-import com.mucommander.ui.dialog.pref.PreferencesPanel;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.Locale;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import javax.swing.event.*;
+
+import com.mucommander.commons.util.StringUtils;
+import com.mucommander.conf.MuConfigurations;
+import com.mucommander.conf.MuPreference;
+import com.mucommander.text.Translator;
+import com.mucommander.ui.action.*;
+import com.mucommander.ui.dialog.pref.PreferencesDialog;
+import com.mucommander.ui.dialog.pref.PreferencesPanel;
+import com.mucommander.ui.text.KeyStrokeUtils;
+import com.mucommander.ui.theme.ThemeCache;
 
 /**
  * 'Shortcuts' preferences panel.
- * 
+ *
  * @author Arik Hadas, Johann Schmitz
  */
 public class ShortcutsPanel extends PreferencesPanel {
-	
+
 	// The table with action mappings
 	private ShortcutsTable shortcutsTable;
-	
+
 	// Area in which tooltip texts and error messages are shown below the table
 	private TooltipBar tooltipBar;
-	
+
 	public ShortcutsPanel(PreferencesDialog parent) {
 		super(parent, Translator.get("shortcuts_panel" + ".title"));
 		initUI();
 		setPreferredSize(new Dimension(0,0));
-		
+
 		shortcutsTable.addDialogListener(parent);
 	}
-	
+
 	// - UI initialization ------------------------------------------------------
     // --------------------------------------------------------------------------
 	private void initUI() {
@@ -63,22 +63,22 @@ public class ShortcutsPanel extends PreferencesPanel {
 
 		tooltipBar = new TooltipBar();
 		shortcutsTable = new ShortcutsTable(tooltipBar);
-		
+
 		add(createNorthPanel(), BorderLayout.NORTH);
 		add(createCenterPanel(), BorderLayout.CENTER);
 		add(createSouthPanel(), BorderLayout.SOUTH);
 	}
-	
+
 	/**
-	 * Returns a panel that contains combo-box of action categories which is used for filtering 
+	 * Returns a panel that contains combo-box of action categories which is used for filtering
 	 * the actions shown at the shortcuts editor table.
 	 */
 	private JPanel createNorthPanel() {
 		JPanel panel = new JPanel(new BorderLayout());
 		panel.setBorder(BorderFactory.createEmptyBorder());
-		
+
 		panel.add(createFilteringPanel(), BorderLayout.WEST);
-		
+
 		return panel;
 	}
 
@@ -91,7 +91,7 @@ public class ShortcutsPanel extends PreferencesPanel {
 		panel.add(new JScrollPane(shortcutsTable));
 		return panel;
 	}
-	
+
 	/**
 	 * Returns a panel that contain the tooltip bar and the shortcuts editor buttons below it.
 	 */
@@ -99,83 +99,197 @@ public class ShortcutsPanel extends PreferencesPanel {
 		JPanel panel = new JPanel();
 		panel.setBorder(BorderFactory.createEmptyBorder());
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-		
+
 		JPanel tooltipBarPanel = new JPanel(new BorderLayout());
 		tooltipBarPanel.add(tooltipBar, BorderLayout.WEST);
-		
+
 		panel.add(tooltipBarPanel);
 		panel.add(createButtonsPanel());
-		
+
 		return panel;
 	}
-	
+
 	private JPanel createButtonsPanel() {
 		JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		panel.setBorder(BorderFactory.createEmptyBorder(0,0,0,5));
-		
-		RemoveButton removeButton = new RemoveButton();	
-		
+
+		RemoveButton removeButton = new RemoveButton();
+
 		final JButton restoreDefaultButton = new JButton();
 		restoreDefaultButton.setAction(new AbstractAction(Translator.get("shortcuts_panel" + ".restore_defaults")) {
-			
+
 			public void actionPerformed(ActionEvent e) {
 				shortcutsTable.restoreDefaults();
 			}
 		});
-		
+
 		panel.add(removeButton);
 		panel.add(restoreDefaultButton);
-		
+
 		return panel;
 	}
-	
+
 	private JPanel createFilteringPanel() {
 		JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 		panel.setBorder(BorderFactory.createEmptyBorder());
 		panel.add(new JLabel(Translator.get("shortcuts_panel" + ".show") + ":"));
-		
-		final JComboBox combo = new JComboBox();
+
+		JComboBox<ActionCategory> combo = new JComboBox<ActionCategory>();
 		combo.addItem(ActionCategories.ALL);
 	    for(ActionCategory category : ActionProperties.getActionCategories())
 	      combo.addItem(category);
-	    
-	    combo.addActionListener(new ActionListener() {
+
+		panel.add(combo);
+
+		JTextField searchText = new JTextField(20);
+		searchText.setToolTipText(Translator.get("quick_search"));
+
+		panel.add(searchText);
+
+		JTextField shortcutText = new JTextField(15);
+		resetShortcutFilterText(shortcutText);
+
+		shortcutText.setHorizontalAlignment(JTextField.CENTER);
+		shortcutText.setEditable(false);
+		shortcutText.setBackground(ThemeCache.backgroundColors[ThemeCache.ACTIVE][ThemeCache.SELECTED]);
+		shortcutText.setForeground(ThemeCache.foregroundColors[ThemeCache.ACTIVE][ThemeCache.SELECTED][ThemeCache.PLAIN_FILE]);
+
+		// It is required to disable the traversal keys in order to support keys combination that include the TAB key
+		setFocusTraversalKeysEnabled(false);
+
+		panel.add(shortcutText);
+
+		addCategoryFilter(searchText, combo, shortcutText);
+		addSearchTextFilter(searchText, combo, shortcutText);
+		addShortcutFilter(shortcutText);
+
+		combo.setSelectedIndex(0);//must be done at the end!
+
+		return panel;
+	}
+
+	private void resetShortcutFilterText(JTextField shortcutText) {
+		shortcutText.setText(Translator.get("shortcuts_table.type_in_a_shortcut"));
+	}
+
+	private void addShortcutFilter(final JTextField shortcutText) {
+		shortcutText.addKeyListener(new KeyListener() {
+			public void keyPressed(KeyEvent keyEvent) {
+
+				int keyCode = keyEvent.getKeyCode();
+				if (keyCode == KeyEvent.VK_SHIFT || keyCode == KeyEvent.VK_CONTROL || keyCode == KeyEvent.VK_ALT || keyCode == KeyEvent.VK_META)
+					return;
+
+				final KeyStroke pressedKeyStroke = KeyStroke.getKeyStrokeForEvent(keyEvent);
+
+				shortcutText.setText(KeyStrokeUtils.getKeyStrokeDisplayableRepresentation(pressedKeyStroke));
+
+				updateFilter(pressedKeyStroke);
+
+				keyEvent.consume();
+			}
+
+			public void keyReleased(KeyEvent e) {e.consume();}
+
+			public void keyTyped(KeyEvent e) {e.consume();}
+		});
+	}
+
+	private void resetShortcutFilterWhenFocusGained(JComponent componentGainingFocus, final JTextField searchText,
+			final JComboBox<ActionCategory> categoryCombo, final JTextField shortcutText) {
+
+		componentGainingFocus.addFocusListener(new FocusListener() {
+			@Override
+			public void focusLost(FocusEvent e) {
+			}
+			@Override
+			public void focusGained(FocusEvent e) {
+				updateFilter(searchText, categoryCombo, shortcutText);
+			}
+		});
+	}
+
+	private void addCategoryFilter(final JTextField searchText, final JComboBox<ActionCategory> combo, final JTextField shortcutText) {
+		combo.addActionListener(new ActionListener() {
 
 			public void actionPerformed(ActionEvent e) {
-				final ActionCategory selectedActionCategory = (ActionCategory) combo.getSelectedItem();
-				shortcutsTable.updateModel(new ShortcutsTable.ActionFilter() {
-					@Override
-                    public boolean accept(String actionId) {
-						return selectedActionCategory.contains(actionId);
-					}
-				});
-				tooltipBar.showDefaultMessage();
+				updateFilter(searchText, combo, shortcutText);
 			}
 	    });
 
-	    combo.setSelectedIndex(0);
-		
-		panel.add(combo);
-		
-		return panel;
+		resetShortcutFilterWhenFocusGained(combo, searchText, combo, shortcutText);
 	}
-	
+
+	private void addSearchTextFilter(final JTextField searchText, final JComboBox<ActionCategory> categoryCombo, final JTextField shortcutText) {
+		searchText.getDocument().addDocumentListener(new DocumentListener() {
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				updateFilter(searchText, categoryCombo, shortcutText);
+			}
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				updateFilter(searchText, categoryCombo, shortcutText);
+			}
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+			}
+		});
+
+		resetShortcutFilterWhenFocusGained(searchText, searchText, categoryCombo, shortcutText);
+	}
+
+	private void updateFilter(final JTextField searchText, final JComboBox<ActionCategory> categoryCombo, JTextField shortcutText) {
+		final ActionCategory selectedActionCategory = (ActionCategory) categoryCombo.getSelectedItem();
+		final String filterText = searchText.getText();
+
+		shortcutsTable.updateModel(new ShortcutsTable.ActionFilter() {
+			Locale currentLang = Locale.forLanguageTag(MuConfigurations.getPreferences().getVariable(MuPreference.LANGUAGE));
+			@Override
+			public boolean accept(String actionId) {
+				return selectedActionCategory.contains(actionId)
+						&& (
+								StringUtils.isNullOrBlank(filterText)
+								|| StringUtils.containsIgnoreCase(ActionProperties.getActionLabel(actionId), filterText, currentLang)
+								|| StringUtils.containsIgnoreCase(ActionProperties.getActionTooltip(actionId), filterText, currentLang)
+								// also search for id's to find typical english computer terms even in non english languages
+								|| StringUtils.containsIgnoreCase(ActionProperties.getActionLabelKey(actionId), filterText, currentLang)
+								|| StringUtils.containsIgnoreCase(actionId, filterText, currentLang)
+								);
+			}
+		});
+
+		resetShortcutFilterText(shortcutText);
+		tooltipBar.showDefaultMessage();
+	}
+
+	private void updateFilter(final KeyStroke pressedKeyStroke) {
+		shortcutsTable.updateModel(new ShortcutsTable.ActionFilter() {
+			@Override
+			public boolean accept(String actionId) {
+				KeyStroke accelerator = ActionKeymap.getAccelerator(actionId);
+				KeyStroke alternateAccelerator = ActionKeymap.getAlternateAccelerator(actionId);
+
+				return pressedKeyStroke.equals(accelerator) || pressedKeyStroke.equals(alternateAccelerator);
+			}
+		});
+	}
+
 	///////////////////////
     // PrefPanel methods //
     ///////////////////////
-	
+
 	@Override
     protected void commit() {
 		shortcutsTable.commitChanges();
 		ActionKeymapIO.setModified();
 	}
-	
+
 	class TooltipBar extends JLabel {
 		private String lastActionTooltipShown;
 		private String DEFAULT_MESSAGE;
 		private static final int MESSAGE_SHOWING_TIME = 3000;
 		private MessageRemoverThread currentRemoverThread;
-		
+
 		public TooltipBar() {
 			DEFAULT_MESSAGE = Translator.get("shortcuts_panel.default_message");
 			Font tableFont = UIManager.getFont("TableHeader.font");
@@ -184,58 +298,58 @@ public class ShortcutsPanel extends PreferencesPanel {
 			setBorder(BorderFactory.createEmptyBorder(3, 5, 3, 5));
 			setText(DEFAULT_MESSAGE);
 		}
-		
+
 		public void showActionTooltip(String text) {
 			setText(lastActionTooltipShown = text == null ? " " : text);
 		}
-		
+
 		public void showDefaultMessage() {
 			setText(DEFAULT_MESSAGE);
 		}
-		
+
 		public void showErrorMessage(String text) {
 			setText(text);
 			createMessageRemoverThread();
 		}
-		
+
 		private void createMessageRemoverThread() {
 			if (currentRemoverThread != null)
 				currentRemoverThread.neutralize();
 			(currentRemoverThread = new MessageRemoverThread()).start();
 		}
-		
+
 		private class MessageRemoverThread extends Thread {
 			private boolean stopped = false;
-			
+
 			public void neutralize() {
 				stopped = true;
 			}
-		
+
 			@Override
             public void run() {
 				try {
 					Thread.sleep(MESSAGE_SHOWING_TIME);
 				} catch (InterruptedException e) {}
-				
+
 				if (!stopped)
 					showActionTooltip(lastActionTooltipShown);
 			}
 		}
 	}
-	
+
 	private class RemoveButton extends JButton implements ListSelectionListener, TableModelListener {
-		
+
 		public RemoveButton() {
 			setEnabled(false);
 			setAction(new AbstractAction(Translator.get("remove")) {
-				
+
 				public void actionPerformed(ActionEvent e) {
 					shortcutsTable.setValueAt(ShortcutsTable.DELETE, shortcutsTable.getSelectedRow(), shortcutsTable.getSelectedColumn());
 					shortcutsTable.repaint();
 					shortcutsTable.requestFocus();
 				}
 			});
-			
+
 			shortcutsTable.getSelectionModel().addListSelectionListener(this);
 			shortcutsTable.getColumnModel().getSelectionModel().addListSelectionListener(this);
 			shortcutsTable.getModel().addTableModelListener(this);
@@ -246,9 +360,9 @@ public class ShortcutsPanel extends PreferencesPanel {
 		}
 
 		public void tableChanged(TableModelEvent e) {
-			updateButtonState();			
+			updateButtonState();
 		}
-		
+
 		private void updateButtonState() {
 			int column = shortcutsTable.getSelectedColumn();
 			int row = shortcutsTable.getSelectedRow();
