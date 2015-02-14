@@ -1,11 +1,37 @@
 apply plugin: 'application'
 mainClassName = 'com.mucommander.Launcher'
 
-allprojects {
+def javaSourceCompatibility = 1.5
+def javaTargetCompatibility = 1.5
+
+allprojects { project ->
     apply plugin: 'java'
 	apply plugin: 'eclipse'
     group = 'org.mucommander'
     version = '0.9.0'
+	
+	sourceCompatibility = javaSourceCompatibility
+	targetCompatibility = javaTargetCompatibility
+	
+	if (project.name != 'mucommander-commons-file')  {//NfsURLConnection uses non public API which would trigger restricted access error with default eclipse errors/warnings settings
+		eclipse {
+			classpath {
+				file.whenMerged { classpath ->
+					classpath.entries.removeAll { entry -> entry.kind == 'con' && entry.path =~ /^org.eclipse.jdt.launching.JRE_CONTAINER$/ }
+				}
+				containers 'org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/J2SE-' + javaSourceCompatibility
+			}
+		}
+	}
+	eclipse {
+		jdt {
+			sourceCompatibility = javaSourceCompatibility
+			targetCompatibility = javaTargetCompatibility
+			file.withProperties { 
+				it['org.eclipse.jdt.core.compiler.compliance'] = javaTargetCompatibility.toString()
+			}
+		}
+	}
 }
 
 repositories {
