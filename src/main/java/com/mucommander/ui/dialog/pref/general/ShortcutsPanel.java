@@ -199,10 +199,8 @@ public class ShortcutsPanel extends PreferencesPanel {
 			final JComboBox<ActionCategory> categoryCombo, final JTextField shortcutText) {
 
 		componentGainingFocus.addFocusListener(new FocusListener() {
-			@Override
 			public void focusLost(FocusEvent e) {
 			}
-			@Override
 			public void focusGained(FocusEvent e) {
 				updateFilter(searchText, categoryCombo, shortcutText);
 			}
@@ -222,15 +220,12 @@ public class ShortcutsPanel extends PreferencesPanel {
 
 	private void addSearchTextFilter(final JTextField searchText, final JComboBox<ActionCategory> categoryCombo, final JTextField shortcutText) {
 		searchText.getDocument().addDocumentListener(new DocumentListener() {
-			@Override
 			public void removeUpdate(DocumentEvent e) {
 				updateFilter(searchText, categoryCombo, shortcutText);
 			}
-			@Override
 			public void insertUpdate(DocumentEvent e) {
 				updateFilter(searchText, categoryCombo, shortcutText);
 			}
-			@Override
 			public void changedUpdate(DocumentEvent e) {
 			}
 		});
