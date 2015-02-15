@@ -1,4 +1,11 @@
+import org.apache.commons.lang3.SystemUtils
+
 apply plugin: 'application'
+apply plugin: 'launch4j'
+if (SystemUtils.IS_OS_MAC) { //plugin is broken on windows even if no task is executed
+	apply plugin: 'macAppBundle'
+}
+
 mainClassName = 'com.mucommander.Launcher'
 
 allprojects { project ->
@@ -58,4 +65,31 @@ dependencies {
 
     testCompile 'org.testng:testng:6.8.8'
     testCompile 'junit:junit:4.11'
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath( 
+			'edu.sc.seis.gradle:macappbundle:2.0.0', 
+			'edu.sc.seis.gradle:launch4j:1.0.6',
+			'org.apache.commons:commons-lang3:3.3.2'
+		)
+    }
+}
+
+launch4j {
+    mainClassName = project.mainClassName
+    icon = new File(project.projectDir, 'package/windows/mucommander.ico')
+    jar = project.tasks[JavaPlugin.JAR_TASK_NAME].archivePath
+}
+if (SystemUtils.IS_OS_MAC) {
+	macAppBundle {
+		mainClassName = project.mainClassName
+		icon = new File(project.projectDir, '/package/osx/icon.icns')
+		bundleJRE = true
+		javaProperties.put("apple.laf.useScreenMenuBar", "true")
+	}
 }
