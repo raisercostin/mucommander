@@ -40,10 +40,10 @@ repositories {
     jcenter()
     ivy {
         url = 'http://ivy.mucommander.com'
-	layout "pattern", {
-		ivy '[organisation]/[module]/[revision]/ivy.xml'
-		artifact '[organisation]/[module]/[revision]/[artifact].[ext]'
-	}
+        layout "pattern", {
+            ivy '[organisation]/[module]/[revision]/ivy.xml'
+            artifact '[organisation]/[module]/[revision]/[artifact].[ext]'
+        }
     }
 }
 
