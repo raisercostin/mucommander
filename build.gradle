@@ -12,7 +12,8 @@ allprojects { project ->
     apply plugin: 'java'
 	apply plugin: 'eclipse'
     group = 'org.mucommander'
-    version = '0.9.0'
+    version = '0.10.0'
+    sourceCompatibility = '1.5'
 	
 	sourceCompatibility = 1.7
 	targetCompatibility = 1.7
