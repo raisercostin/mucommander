@@ -65,6 +65,14 @@ dependencies {
 
     testCompile 'org.testng:testng:6.8.8'
     testCompile 'junit:junit:4.11'
+
+    // -- Dependencies awaiting cleanup (after which we can remove the dependency on ivy.mucommander.com) --
+
+    // This is a pure compile-time dependency so that muCommander can be compiled with Mac support on non-Macs.
+    // Unfortunately I don't know what the source of these Java extensions is; Apple provides its own stubs in
+    // 'com.apple:AppleJavaExtensions:1.4', but they're missing the com.apple.laf package.
+    compile group: 'org.openjdk', name: 'java-extension', version: '6.0', configuration: 'runtime'
+
 }
 
 buildscript {
