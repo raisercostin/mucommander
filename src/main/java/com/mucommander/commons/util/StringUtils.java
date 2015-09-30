@@ -95,6 +95,40 @@ public final class StringUtils {
     }
 
     /**
+     * <p>
+     * Checks if <code>str</code> contains a search string <code>searchStr</code> regardless of case, handling {@code null}.
+     * </p>
+     * <p>
+     * A {@code null} string will return {@code false}.
+     * </p>
+     *
+     * <pre>
+     * StringUtils.contains(null, *) = false
+     * StringUtils.contains(*, null) = false
+     * StringUtils.contains("", "") = true
+     * StringUtils.contains("abc", "") = true
+     * StringUtils.contains("abc", "a") = true
+     * StringUtils.contains("abc", "z") = false
+     * StringUtils.contains("abc", "A") = true
+     * StringUtils.contains("abc", "Z") = false
+     * </pre>
+     *
+     * @param str string to test, may be null.
+     * @param searchStr the string to find, may be null.
+     * @return <code>true</code> if <code>str</code> contains <code>b</code> regardless of the case, <code>false</code> otherwise.
+     */
+    public static boolean containsIgnoreCase(String str, String searchStr, Locale locale) {
+        if (str == null || searchStr == null) {
+            return false;
+        }
+        if (searchStr.isEmpty()) {
+            return true;
+        }
+
+        return str.toLowerCase(locale).contains(searchStr.toLowerCase(locale));
+    }
+
+    /**
      * Returns <code>true</code> if <code>a</code> ends with <code>b</code> regardless of the case.
      * <p>
      * This method has a known bug under some alphabets with peculiar capitalisation rules such as the Georgian one,
@@ -320,5 +354,17 @@ public final class StringUtils {
      */
     public static boolean isNullOrEmpty(String string) {
     	return string == null || string.isEmpty();
+    }
+
+    /**
+     * Returns true if the given string is null or empty or it's trimmed value is empty (i.e. it's length is 0)
+     *
+     * @param string - the given String to check
+     * @return true if the given string is null or empty or whitespace only, false otherwise
+     *
+     * @see String#trim()
+     */
+    public static boolean isNullOrBlank(String string) {
+        return isNullOrEmpty(string) || string.trim().isEmpty();
     }
 }

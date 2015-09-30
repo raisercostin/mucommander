@@ -21,9 +21,7 @@ package com.mucommander.commons.util;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Tests the {@link StringUtils} class.
@@ -109,7 +107,82 @@ public class StringUtilsTest {
         assert StringUtils.matchesIgnoreCase(a, b, pos) == expected;
     }
 
+    // - containsIgnoreCase tests --------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
+    /**
+     * Provides test cases for {@link #testContainsIgnoreCase(String, String, Locale, boolean)}.
+     * @return test cases for {@link #testContainsIgnoreCase(String, String, Locale, boolean)}.
+     */
+    @DataProvider(name = "containsIgnoreCase")
+    public Iterator<Object[]> containsTestCases() {
+      List<Object[]> data = new ArrayList<Object[]>();
+      
+      data.add(new Object[] {null, "abc",   Locale.ENGLISH, false});
+      data.add(new Object[] {null, "ABC",   Locale.ENGLISH, false});
+      data.add(new Object[] {null, "AbC",   Locale.ENGLISH, false});
+      data.add(new Object[] {null, null,    Locale.ENGLISH, false});
+      data.add(new Object[] {null, "",      Locale.ENGLISH, false});
+      
+      data.add(new Object[] {"abc", null,   Locale.ENGLISH, false});
+      data.add(new Object[] {"ABC", null,   Locale.ENGLISH, false});
+      data.add(new Object[] {"aBc", null,   Locale.ENGLISH, false});
+      data.add(new Object[] {"",    null,   Locale.ENGLISH, false});
 
+      data.add(new Object[] {"abc", "",     Locale.ENGLISH, true});
+      data.add(new Object[] {"ABC", "",     Locale.ENGLISH, true});
+      data.add(new Object[] {"aBc", "",     Locale.ENGLISH, true});
+      data.add(new Object[] {"",    "",     Locale.ENGLISH, true});
+      
+      data.add(new Object[] {"abc", "a",    Locale.ENGLISH, true});
+      data.add(new Object[] {"abc", "z",    Locale.ENGLISH, false});
+      data.add(new Object[] {"abc", "A",    Locale.ENGLISH, true});
+      data.add(new Object[] {"abc", "Z",    Locale.ENGLISH, false});
+
+      data.add(new Object[] {
+              "\u00c4BC",   // A-umlaut B C 
+              "\u00e4",     // a-umlaut    
+              Locale.GERMAN, 
+              true});
+      data.add(new Object[] {
+              "\u00e4bc",   // a-umlaut b c    
+              "\u00c4BC",   // A-umlaut 
+              Locale.GERMAN, 
+              true});
+      data.add(new Object[] {
+              "\u00c4BC",   // A-umlaut B C 
+              "a",          // a-umlaut    
+              Locale.GERMAN, 
+              false});
+      data.add(new Object[] {
+              "\u00e4bc",   // a-umlaut b c    
+              "A",          // A-umlaut 
+              Locale.GERMAN, 
+              false});
+      data.add(new Object[] {
+              "abc",        // a-umlaut b c  
+              "\u00c4",   // A-umlaut 
+              Locale.GERMAN, 
+              false});
+      data.add(new Object[] {
+              "ABC",         // A-umlaut B C 
+              "\u00e4",   // a-umlaut   
+              Locale.GERMAN, 
+              false});
+      
+      return data.iterator();
+    }
+    
+    /**
+     * Tests the {@link StringUtils#containsIgnoreCase(String, String, Locale)} method.
+     * @param str           string to test for search string.
+     * @param searchStr     string to search for in str.
+     * @param locale        locale to use for case insensitivity.
+     * @param expected expected return value of {@link StringUtils#containsIgnoreCase(String, String, Locale)}
+     */
+    @Test(dataProvider = "containsIgnoreCase")
+    public void testContainsIgnoreCase(String str, String searchStr, Locale locale, boolean expected) {
+        assert StringUtils.containsIgnoreCase(str, searchStr, locale) == expected;
+    }
 
     // - matches tests -------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
@@ -154,8 +227,6 @@ public class StringUtilsTest {
     public void testMatches(String a, String b, int pos, boolean expected) {
         assert StringUtils.matches(a, b.toCharArray(), pos) == expected;
     }
-
-
 
     // - parseIntDef tests ---------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
@@ -485,4 +556,39 @@ public class StringUtilsTest {
         assert null == StringUtils.flatten(null, "*");
         assert null == StringUtils.flatten(null);
     }
+
+    // - isNullOrBlank tests -------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
+    /**
+     * Provides test cases for {@link #testIsNullOrBlank(String, boolean)}.
+     * @return test cases for {@link #testIsNullOrBlank(String, boolean)}.
+     */
+    @DataProvider(name = "isNullOrBlank")
+    public Iterator<Object[]> isNullOrBlankTestCases() {
+        List<Object[]> data;
+
+        data = new ArrayList<Object[]>();
+
+        data.add(new Object[] {" x ",   false});
+        data.add(new Object[] {"x",     false});
+        
+        data.add(new Object[] {"",          true});
+        data.add(new Object[] {" ",         true});
+        data.add(new Object[] {"   ",       true});
+        data.add(new Object[] {"\t\r\n",    true});
+        data.add(new Object[] {null,        true});
+
+        return data.iterator();
+    }
+
+    /**
+     * Tests {@link StringUtils#isNullOrBlank(String)}.
+     * @param str       the string to check.
+     * @param expected  expected result.
+     */
+    @Test(dataProvider = "isNullOrBlank")
+    public void testIsNullOrBlank(String str, boolean expected) {
+        assert StringUtils.isNullOrBlank(str) == expected; 
+    }
+
 }
