@@ -26,8 +26,6 @@ Current release contains a merge of the following forks:
         * https://github.com/mucommander/mucommander
 
 To be integrated
- * https://github.com/raisercostin/muCommanderAll
- * merged muCommander-1 (https://github.com/raisercostin/muCommander-1)
  * https://github.com/raisercostin/muCommander-1 (mathiasimmer/muCommander - fathersson/muCommander) - mvn with subprojects
 	* https://github.com/mathiasimmer/muCommander
  * https://github.com/raisercostin/aether-framework/tree/master/aether-examples/mu-commander/mu-commander-original - mvn simple
