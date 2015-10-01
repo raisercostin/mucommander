@@ -2,7 +2,7 @@
 <suite verbose="1" name="all">
     <test name="io">
         <packages>
-            <package name="com.mucommander.commons.file.*"/>
+            <package name="com.mucommander.commons.io.*"/>
         </packages>
     </test>
 </suite>
