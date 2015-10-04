@@ -18,5 +18,36 @@ target/
 .idea/
 .classpath
 .project
+# Generated Directories
+tmp
+lib
+reports
+dist
+build
+.gradle
+bin
+.settings
+
+# Generated Files
+*class
+*log
+ivy*jar
+
+
+
+
+
+.idea
+/bin
+*.iml
+
+
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm
+*.iml
+## Directory-based project format:
+.idea/
+# IntelliJ
+out/
+
 test-output/
 .DS_Store

@@ -1,11 +1,12 @@
+    
+               _____                           _
+     _____ _ _|     |___ _____ _____ ___ ___ _| |___ ___
+    |     | | |   --| . |     |     | .'|   | . | -_|  _|
+    |_|_|_|___|_____|___|_|_|_|_|_|_|__,|_|_|___|___|_| 
+    
 
-           _____                           _
- _____ _ _|     |___ _____ _____ ___ ___ _| |___ ___
-|     | | |   --| . |     |     | .'|   | . | -_|  _|
-|_|_|_|___|_____|___|_|_|_|_|_|_|__,|_|_|___|___|_| 
-
-trolcommander
-=============
+trolCommander (former muCommander)
+-------------
 
 [![Build Status](https://travis-ci.org/raisercostin/mucommander.svg?branch=master)](https://travis-ci.org/raisercostin/mucommander)
 
@@ -13,31 +14,27 @@ Fork of muCommander file manager
 
 See a full description at http://trolsoft.ru/en/soft/trolcommander/
 
-muCommander
-===========
-https://github.com/raisercostin/muCommanderAll
- * merged muCommander-1 (https://github.com/raisercostin/muCommander-1)
- 
-A merge of the following forks:
-* https://github.com/raisercostin/mucommander (trol73/mucommander) - ant & maven (added by raisercostin)
-	
-* https://github.com/raisercostin/muCommander-1 (mathiasimmer/muCommander - fathersson/muCommander) - mvn with subprojects
+Forks
+-----
+
+Current release contains a merge of the following forks:
+ * https://github.com/raisercostin/mucommander (trol73/mucommander)
+    * ant build that still works (till complete mavenization)
+    * mavenized by raisercostin
+ * original mucommander is old enough and was clearly improved in trolCommander so in the integration I kept the trol version of files.
+    * https://github.com/raisercostin/muCommander-2 (mucommander/mucommander) - gradle with git submodules
+        * https://github.com/mucommander/mucommander
+
+To be integrated
+ * https://github.com/raisercostin/muCommander-1 (mathiasimmer/muCommander - fathersson/muCommander) - mvn with subprojects
 	* https://github.com/mathiasimmer/muCommander
-* https://github.com/raisercostin/muCommander-2 (mucommander/mucommander) - gradle with git submodules
-	* https://github.com/mucommander/mucommander
-* https://github.com/raisercostin/aether-framework/tree/master/aether-examples/mu-commander/mu-commander-original - mvn simple
+ * https://github.com/raisercostin/aether-framework/tree/master/aether-examples/mu-commander/mu-commander-original - mvn simple
+
 
 This repository is used as part of a Software Maintenance course in the University of the Southern Denmark. Please note that this repository might contain unfinished code.
 
 We try to use these practises: http://nvie.com/posts/a-successful-git-branching-model/
 
-Current repository contains also sources of all required libraries:
-* collections
-* conf
-* file
-* io
-* runtime
-* util
 
 --------------------
 trolCommander v0.9.6
@@ -156,6 +153,9 @@ muCommander is released under the terms of the GNU General Public License.
 Please refer to the 'license.txt' file bundled with muCommander.
 
 muCommander uses the following great third party works :
+
+- the Maven tool released under the Apache License.
+ Maven can be found at http://maven.apache.org .
 
 - the Ant library released under the Apache License.
  Ant can be found at http://ant.apache.org .
