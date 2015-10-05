@@ -799,6 +799,13 @@ public class TrolCommander {
                         if (versionChecker.isNewVersionAvailable()) {
                             new CheckVersionDialog(WindowManager.getCurrentMainFrame(), versionChecker, false);
                         }
+                    }catch(java.net.UnknownHostException e){
+                    	if(e.getMessage().equals("trolsoft.ru")){
+                    		LOGGER.info(RuntimeConstants.HOMEPAGE_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
+                    		LOGGER.debug(RuntimeConstants.HOMEPAGE_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+                    	}else{
+                    		e.printStackTrace();
+                    	}
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
