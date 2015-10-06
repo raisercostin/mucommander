@@ -18,6 +18,7 @@
 
 package com.mucommander.commons.file.impl.ftp;
 
+import com.google.common.io.Files;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.AbstractFileTest;
 import com.mucommander.commons.file.FileFactory;
@@ -49,7 +50,8 @@ public class FTPFileTest extends AbstractFileTest {
 
     @BeforeClass()
     public static void setupTemporaryFolder() {
-        tempFolder = FileFactory.getFile(System.getProperty(TEMP_FOLDER_PROPERTY));
+        tempFolder = FileFactory.getFile(Files.createTempDir().getAbsolutePath());
+//        tempFolder = FileFactory.getFile(System.getProperty(TEMP_FOLDER_PROPERTY));
     }
     
     /////////////////////////////////////
