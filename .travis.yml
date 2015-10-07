@@ -4,5 +4,7 @@ cache:
 
 language: java
 
+script: "mvn test -DskipTests=true"
+
 jdk:
   - oraclejdk8
