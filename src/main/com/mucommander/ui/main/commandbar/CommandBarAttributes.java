@@ -155,7 +155,7 @@ public class CommandBarAttributes {
      * @param modifier           command-bar modifier.
      */
     public static void setAttributes(String[] actionIds, String[] alternateActionIds, KeyStroke modifier) {
-System.out.println("!!! setAttributes " + actionIds);
+//System.out.println("!!! setAttributes " + actionIds);
     	CommandBarAttributes.actionIds = actionIds;
     	CommandBarAttributes.alternateActionIds = alternateActionIds;
     	CommandBarAttributes.modifier = modifier;

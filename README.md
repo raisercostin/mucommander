@@ -39,7 +39,7 @@ We try to use these practises: http://nvie.com/posts/a-successful-git-branching-
 TODO
 ----
 - integrate changes from other forks
-- improve logging in case debug is enabled 
+- improve logging in case debug is enabled
 - release (all releases from ant migrated to mvn)
 	- generic binary - trolcommander.jar
 	- portable - trolcommander-0_9_6-portable.tar.gz
@@ -49,6 +49,14 @@ TODO
 - compare files
 - compare folders
 - add proxy support
+- fix tests
+- add dynamic scala execution
+- decide packager
+  - onejar
+  - assembly
+  - proguard
+  - launch4j
+  - appbundler
 
 trolCommander v0.9.6
 --------------------

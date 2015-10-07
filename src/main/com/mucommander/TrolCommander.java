@@ -26,7 +26,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
-
 import com.mucommander.profiler.Profiler;
 import com.mucommander.ui.action.ActionKeymapIO;
 import com.mucommander.ui.icon.FileIcons;
@@ -34,7 +33,6 @@ import com.mucommander.ui.theme.ThemeManager;
 import com.mucommander.utils.MuLogging;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.bookmark.file.BookmarkProtocolProvider;
 import com.mucommander.command.Command;
@@ -61,7 +59,6 @@ import com.mucommander.ui.main.commandbar.CommandBarIO;
 import com.mucommander.ui.main.frame.CommandLineMainFrameBuilder;
 import com.mucommander.ui.main.frame.DefaultMainFramesBuilder;
 import com.mucommander.ui.main.toolbar.ToolBarIO;
-
 import javax.swing.SwingUtilities;
 
 /**
@@ -801,13 +798,20 @@ public class TrolCommander {
                         }
                     }catch(java.net.UnknownHostException e){
                     	if(e.getMessage().equals("trolsoft.ru")){
-                    		LOGGER.info(RuntimeConstants.HOMEPAGE_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
-                    		LOGGER.debug(RuntimeConstants.HOMEPAGE_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+                    		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
+                    		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     	}else{
-                    		e.printStackTrace();
+                    		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     	}
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    }catch(IOException e){
+                    	if(e.getMessage().equals("Not Found")){
+                    		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
+                    		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+                    	}else{
+                    		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+                    	}                    	
+                    }catch (Exception e) {
+                		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     }
             });
         }
