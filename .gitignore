@@ -10,16 +10,12 @@
 *.pid
 *.pid.lock
 *.pyc
-*.sql
 *.sqlite
 *.swp
 *.war
 *.bak
-*/*/target
-*/target
-*/target/
 *class
-*log
+*.log
 *~
 .classpath
 .DS_Store
@@ -53,7 +49,7 @@ out/*
 parts
 reports
 reports/*
-target
+target/
 test/.coverage
 test/coverage.xml
 test/nosetests.xml

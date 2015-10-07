@@ -717,14 +717,14 @@
 				<!--see proguard options at http://proguard.sourceforge.net/manual/usage.html -->
 				<groupId>com.github.wvengen</groupId>
 				<artifactId>proguard-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>proguard</goal>
-						</goals>
-					</execution>
-				</executions>
+<!--				<executions>-->
+<!--					<execution>-->
+<!--						<phase>package</phase>-->
+<!--						<goals>-->
+<!--							<goal>proguard</goal>-->
+<!--						</goals>-->
+<!--					</execution>-->
+<!--				</executions>-->
 				<configuration>
 					<obfuscate>false</obfuscate>
 					<outjar>${project.build.finalName}-out.jar</outjar>
