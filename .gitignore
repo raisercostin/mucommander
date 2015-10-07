@@ -57,5 +57,6 @@ target
 test/.coverage
 test/coverage.xml
 test/nosetests.xml
+test-output/
 tmp
 tmp/*
