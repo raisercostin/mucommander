@@ -410,7 +410,7 @@ public class TrolCommander {
 
             // - Logging configuration ------------------------------------
             // ------------------------------------------------------------
-            MuLogging.configureLogging();
+            //MuLogging.configureLogging();
 
             // - MAC OS X specific init -----------------------------------
             // ------------------------------------------------------------

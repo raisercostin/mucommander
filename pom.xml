@@ -138,14 +138,7 @@
 	<version>7.3.4</version>
 </dependency>
  -->
-        <dependency>
-            <!-- Dirty hack: there is no place to download it from -->
-            <groupId>vim25</groupId>
-            <artifactId>vim25</artifactId>
-            <version>2.5</version>
-            <scope>system</scope>
-            <systemPath>${libs.path}/vim25-2.5.jar</systemPath>
-        </dependency>
+
         <dependency>
             <!-- Dirty hack: there is no place to download it from -->
             <groupId>jets</groupId>
@@ -162,6 +155,7 @@
             <scope>system</scope>
             <systemPath>${libs.path}/ui.jar</systemPath>
         </dependency>
+        <!--
         <dependency>
             <groupId>javafx</groupId>
             <artifactId>javafx</artifactId>
@@ -169,6 +163,7 @@
             <scope>system</scope>
             <systemPath>${libs.path}/ui.jar</systemPath>
         </dependency>
+    -->
 <!--         <dependency>
             <groupId>com.apple</groupId>
             <artifactId>AppleJavaExtensions</artifactId>
@@ -629,8 +624,28 @@
 	<version>1.10.19</version>
     <scope>test</scope>
 </dependency>
-
-	</dependencies>
+<!--
+<dependency>
+	<groupId>org.apache.directory.api</groupId>
+	<artifactId>api-all</artifactId>
+	<version>1.0.0-M31</version>
+	<exclusions>
+		<exclusion>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+		</exclusion>
+		<exclusion>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+		</exclusion>
+		<exclusion>
+			<groupId>net.java.dev.jets3t</groupId>
+			<artifactId>jets3t</artifactId>
+		</exclusion>
+	</exclusions>
+</dependency>
+-->
+</dependencies>
 	<build>
 		<sourceDirectory>src/main</sourceDirectory>
 		<testSourceDirectory>src/test</testSourceDirectory>
@@ -711,6 +726,7 @@
 					</archive>
 				</configuration>
 			</plugin>
+            <!--
             <plugin>
                 <groupId>io.github.appbundler</groupId>
                 <artifactId>appbundle-maven-plugin</artifactId>
@@ -721,15 +737,18 @@
                     <iconFile>src/main/resources/icon.icns</iconFile>
                     <jvmVersion>1.7+</jvmVersion>
                 </configuration>
-                <!--<executions>-->
-                <!--<execution>-->
-                <!--<phase>package</phase>-->
-                <!--<goals>-->
-                <!--<goal>bundle</goal>-->
-                <!--</goals>-->
-                <!--</execution>-->
-                <!--</executions>-->
+                -
+                <executions>
+                <execution>
+                <phase>package</phase>
+                <goals>
+                <goal>bundle</goal>
+                </goals>
+                </execution>
+                </executions>
+                -
             </plugin>
+            -->
 
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -750,7 +769,8 @@
                 <!--</execution>-->
                 <!--</executions>-->
             </plugin>
-            <plugin>
+            <!--
+             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.7.2.201409121644</version>
@@ -770,7 +790,7 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <!--  implmentation is needed only for Maven 2  -->
+                                -  implmentation is needed only for Maven 2  -
                                 <rule implementation="org.jacoco.maven.RuleConfiguration">
                                     <element>BUNDLE</element>
                                     <limits>
@@ -779,7 +799,7 @@
                                             <value>COVEREDRATIO</value>
                                             <minimum>0.00</minimum>			
                                         </limit>
-                                        <!--  implmentation is needed only for Maven 2  -->
+                                        -  implmentation is needed only for Maven 2  -
                                         <limit implementation="org.jacoco.report.check.Limit">
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
@@ -792,7 +812,140 @@
                     </execution>
                 </executions>
             </plugin>
-		</plugins>
+        	-->
+        	<!--
+            <plugin>
+                <groupId>com.github.wvengen</groupId>
+                <artifactId>proguard-maven-plugin</artifactId>
+                <version>2.0.11</version>
+				<executions>
+					<execution>
+						<id>execution_proguard_package</id>
+						<phase>package</phase>
+						<goals>
+							<goal>proguard</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<proguardVersion>5.2.1</proguardVersion>
+					<assembly>
+						<inclusions>
+							<inclusion>
+								<groupId>ru.methuselah</groupId>
+								<artifactId>securitylibrary</artifactId>
+								<library>false</library>
+							</inclusion>
+						</inclusions>
+					</assembly>
+					<options>
+						<option>-overloadaggressively</option>
+						<option>-allowaccessmodification</option>
+						<option>-mergeinterfacesaggressively</option>
+						<option>-useuniqueclassmembernames</option>
+						<option>-classobfuscationdictionary DictionaryClasses.txt</option>
+						<option>-obfuscationdictionary DictionaryFieldsMethods.txt</option>
+						<option>-adaptresourcefilenames</option>
+						<option>-keepattributes Signature</option>
+						<option>-repackageclasses ${project.groupId}.${project.artifactId}</option>
+						<option>-keepclassmembers public class ru.methuselah.securitylibrary.Data.** { *; }</option>
+						<option>-keepclassmembers @ru.methuselah.securitylibrary.ProGuardKeep class ** { @java.lang.Override *; }</option>
+						<option>-keep public class ${project.groupId}.${project.artifactId}.Wrapper { public static void main(java.lang.String[]); }</option>
+						<option>-keep public class ${project.groupId}.${project.artifactId}.Tweaker { *; }</option>
+						<option>-dontnote ru.methuselah.securitylibrary.Data.**</option>
+						<option>-dontnote ru.methuselah.securitylibrary.Hacks.**</option>
+						<option>-dontnote **-shaded.**</option>
+					</options>
+					<injar>${project.build.finalName}.jar</injar>
+					<outjar>${project.build.finalName}.jar</outjar>
+					<libs>
+						<lib>${java.home}/lib/rt.jar</lib>
+						<lib>${java.home}/lib/jce.jar</lib>
+						<lib>${java.home}/lib/jsse.jar</lib>
+					</libs>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>net.sf.proguard</groupId>
+						<artifactId>proguard-base</artifactId>
+						<version>5.2.1</version>
+						<scope>runtime</scope>
+					</dependency>
+				</dependencies>
+			</plugin>
+		-->
+            
+                <plugin>
+                	<!--see proguard options at    http://proguard.sourceforge.net/manual/usage.html -->
+                    <groupId>com.github.wvengen</groupId>
+                    <artifactId>proguard-maven-plugin</artifactId>
+                    <executions>
+                       <execution>
+                           <phase>package</phase>
+                           <goals><goal>proguard</goal></goals>
+                       </execution>
+                    </executions>
+                    <configuration>
+                        <obfuscate>false</obfuscate>
+                        <outjar>${project.build.finalName}-out.jar</outjar>
+						<libs>
+							<lib>${java.home}/lib/rt.jar</lib>
+							<lib>${java.home}/lib/jsse.jar</lib>
+							<lib>${java.home}/lib/jce.jar</lib>
+						</libs>
+						<includeDependencyInjar>true</includeDependencyInjar>
+						<addMavenDescriptor>true</addMavenDescriptor>
+						<options>
+							<!--don't do anything-->
+	                        <option>-dontpreverify</option>
+	                        <option>-dontoptimize</option>
+	                        <option>-dontshrink</option>
+
+	                        <option>-ignorewarnings</option>
+	                        <option>-defaultpackage ''</option>
+	                        <option>-allowaccessmodification</option>
+	                        <option>-verbose</option>
+	                        <option>-printmapping ${project.build.directory}/proguard-mapping.txt</option>
+	                        <option>-printusage ${project.build.directory}/proguard-usage.txt</option>
+	                        <option>-printseeds ${project.build.directory}/proguard-seeds.txt</option>
+	                        <option>-skipnonpubliclibraryclasses</option>
+	                    </options>
+						<!--
+	                        <option>-shrink</option>
+                        overloadaggressively="false" 
+			optimize="false" 
+               allowaccessmodification="false" 
+               skipnonpubliclibraryclasses="false" 
+               repackageclasses=""
+-->
+                    </configuration>
+                </plugin>            
+				<plugin>
+					<groupId>org.dstovall</groupId>
+					<artifactId>onejar-maven-plugin</artifactId>
+					<version>1.4.4</version>
+					<executions>
+						<execution>
+							<configuration>
+								<!-- Optional -->
+								<onejarVersion>0.97</onejarVersion>
+								<mainClass>com.mucommander.TrolCommander</mainClass>
+								<!-- Optional, use only if you need to include native libraries 
+									(dll's) -->
+								<!-- <binlibs> <fileSet> <directory>${project.build.directory}/dllextract</directory> 
+									<includes> <include>test.dll</include> </includes> </fileSet> </binlibs> -->
+								<!-- Optional, default is false -->
+								<attachToBuild>false</attachToBuild>
+								<!-- Optional, default is "onejar" -->
+								<classifier>onejar</classifier>
+							</configuration>
+							<goals>
+								<goal>one-jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
 	</build>
 	<profiles>
 		<profile>
@@ -880,4 +1033,10 @@
 			</snapshots>
 		</repository>
 	</repositories>
+  <pluginRepositories>
+		<pluginRepository>
+			<id>onejar-maven-plugin.googlecode.com</id>
+			<url>http://onejar-maven-plugin.googlecode.com/svn/mavenrepo</url>
+		</pluginRepository>
+	</pluginRepositories>
 </project>

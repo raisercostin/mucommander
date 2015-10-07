@@ -53,6 +53,7 @@ out/*
 parts
 reports
 reports/*
+target
 test/.coverage
 test/coverage.xml
 test/nosetests.xml

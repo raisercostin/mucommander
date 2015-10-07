@@ -36,7 +36,20 @@ This repository is used as part of a Software Maintenance course in the Universi
 We try to use these practises: http://nvie.com/posts/a-successful-git-branching-model/
 
 
---------------------
+TODO
+----
+- integrate changes from other forks
+- improve logging in case debug is enabled 
+- release (all releases from ant migrated to mvn)
+	- generic binary - trolcommander.jar
+	- portable - trolcommander-0_9_6-portable.tar.gz
+	- windows - trolcommander-0_9_6-setup.exe
+	- linux - trolcommander-0_9_6.app.tar.gz
+	- osx - trolcommander_0.9.6_all.deb
+- compare files
+- compare folders
+- add proxy support
+
 trolCommander v0.9.6
 --------------------
 
