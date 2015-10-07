@@ -39,6 +39,7 @@ public class HDFSFileTest extends AbstractFileTest {
 
     @BeforeClass
     public static void setupTemporaryFolder() {
+        //tempFolder = FileFactory.getFile("hdfs://emoroozv@hbase01dev/user/emorozov");
         tempFolder = FileFactory.getFile(System.getProperty(TEMP_FOLDER_PROPERTY));
     }
 
