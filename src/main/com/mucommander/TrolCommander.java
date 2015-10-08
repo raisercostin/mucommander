@@ -796,20 +796,27 @@ public class TrolCommander {
                         if (versionChecker.isNewVersionAvailable()) {
                             new CheckVersionDialog(WindowManager.getCurrentMainFrame(), versionChecker, false);
                         }
-                    }catch(java.net.UnknownHostException e){
+                    }catch(java.net.UnknownHostException|java.net.ConnectException|IOException e){
                     	if(e.getMessage().equals("trolsoft.ru")){
                     		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
                     		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     	}else{
                     		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     	}
-                    }catch(IOException e){
-                    	if(e.getMessage().equals("Not Found")){
-                    		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
-                    		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
-                    	}else{
-                    		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
-                    	}                    	
+//                    }catch(java.net.ConnectException e){
+//                    	if(e.getMessage().equals("Connection refused: connect")){
+//                    		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
+//                    		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+//                    	}else{
+//                    		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+//                    	}
+//                    }catch(IOException e){
+//                    	if(e.getMessage().equals("Not Found")){
+//                    		LOGGER.info(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.");
+//                    		LOGGER.debug(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+//                    	}else{
+//                    		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
+//                    	}                    	
                     }catch (Exception e) {
                 		LOGGER.warn(RuntimeConstants.VERSION_URL+" cannot be accessed. You're offline or the server is down for now. Enable debug to get the full error.",e);
                     }
