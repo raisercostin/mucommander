@@ -57,6 +57,8 @@ TODO
   - proguard
   - launch4j
   - appbundler
+- refactor
+  - replace in tests "assert\s(.*)[.]equals[(]" with "Assert.assertEquals(\1,"
 
 trolCommander v0.9.6
 --------------------

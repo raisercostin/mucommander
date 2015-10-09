@@ -26,9 +26,8 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import static org.testng.Assert.assertEquals;
+
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -38,6 +37,7 @@ import org.testng.annotations.Test;
 
 @Test
 public class MuCreateISOTest {
+	private final static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MuCreateISOTest.class);
     private static File tempFile1 = null;
     private static File tempFile2 = null;
     private static File tempFile3 = null;
@@ -88,7 +88,7 @@ public class MuCreateISOTest {
             iso9660Config.setDataPreparer(System.getProperty("user.name"));
             iso9660Config.forceDotDelimiter(true);
         } catch (ConfigException ex) {
-            Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error("", ex);
         }
         
         RockRidgeConfig rrConfig = new RockRidgeConfig();
@@ -104,13 +104,13 @@ public class MuCreateISOTest {
                 try {
                     jolietConfig.setPublisher((File) iso9660Config.getPublisher());
                 } catch (HandlerException ex) {
-                    Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error("",ex);
                 }
             } 
             jolietConfig.setVolumeID(iso9660Config.getVolumeID());
             jolietConfig.forceDotDelimiter(true);
         } catch (ConfigException ex) {
-            Logger.getLogger(ISOArchiver.class.getName()).log(Level.SEVERE, null, ex);
+        	logger.error("",ex);
         }
         
         ElToritoConfig elToritoConfig = null;
@@ -161,7 +161,7 @@ public class MuCreateISOTest {
             pw.close();
             
         } catch (IOException ex) {
-            Logger.getLogger(MuCreateISOTest.class.getName()).log(Level.SEVERE, null, ex);
+        	logger.error("",ex);
         }
         return file;
     }
