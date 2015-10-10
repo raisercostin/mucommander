@@ -23,8 +23,9 @@ import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.AbstractFileTest;
 import com.mucommander.commons.file.FileFactory;
 import com.mucommander.commons.file.FileOperation;
+import com.mucommander.test.Assumes;
 import org.testng.annotations.BeforeClass;
-
+import org.testng.annotations.Test;
 import java.io.IOException;
 
 /**
@@ -33,6 +34,7 @@ import java.io.IOException;
  *
  * @author Maxence Bernard
  */
+@Test
 public class FTPFileTest extends AbstractFileTest {
 
     /** The system property that holds the URI to the temporary FTP folder */
@@ -47,11 +49,10 @@ public class FTPFileTest extends AbstractFileTest {
         // annotations which we don't use for java 1.4 backward compatibility.
 //        FTPFile.setAttributeCachingPeriod(5000);
     }
-
     @BeforeClass()
     public static void setupTemporaryFolder() {
-        tempFolder = FileFactory.getFile(Files.createTempDir().getAbsolutePath());
-//        tempFolder = FileFactory.getFile(System.getProperty(TEMP_FOLDER_PROPERTY));
+//        tempFolder = FileFactory.getFile(Files.createTempDir().getAbsolutePath());
+        tempFolder = getTemporaryFolder(TEMP_FOLDER_PROPERTY);
     }
     
     /////////////////////////////////////
