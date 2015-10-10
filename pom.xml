@@ -234,7 +234,7 @@
 		<dependency>
 			<groupId>com.jidesoft</groupId>
 			<artifactId>jide-oss</artifactId>
-			<version>3.6.2</version>
+			<version>3.6.11</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-net</groupId>
@@ -643,10 +643,14 @@
 							<classpathPrefix>lib/</classpathPrefix>
 						</manifest>
 						<manifestEntries>
-							<Specification-Title>muCommander</Specification-Title>
-							<Specification-Vendor>Maxence Bernard</Specification-Vendor>
+							<Specification-Title>${project.name}</Specification-Title>
+							<Specification-Vendor>${project.groupId}</Specification-Vendor>
 							<Specification-Version>${project.version}</Specification-Version>
-							<Implementation-Title>muCommander</Implementation-Title>
+							<Implementation-Title>${project.name}</Implementation-Title>
+							<Implementation-Version>${project.version}</Implementation-Version>
+							<Implementation-Vendor-Id>${project.groupId}</Implementation-Vendor-Id>
+							<Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
+							<Implementation-URL>${project.url}</Implementation-URL>
 						</manifestEntries>
 					</archive>
 				</configuration>
