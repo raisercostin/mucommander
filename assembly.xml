@@ -2,12 +2,12 @@
 	xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
-	<id>zip-release</id>
+	<id>jar-release</id>
 	<formats>
-		<format>zip</format>
+		<format>jar</format>
 	</formats>
-	<includeBaseDirectory>false</includeBaseDirectory>
-	<fileSets>
+ 	<includeBaseDirectory>false</includeBaseDirectory>
+<!--	<fileSets>
 		<fileSet>
 			<outputDirectory>main</outputDirectory>
 			<includes></includes>
@@ -28,12 +28,20 @@
 			<filtered>true</filtered>
 		</file>
 	</files>
-	<dependencySets>
+ -->
+ 	<dependencySets>
 		<dependencySet>
-			<outputDirectory>lib</outputDirectory>
+			<!-- <outputDirectory>lib</outputDirectory> -->
+			<outputDirectory>.</outputDirectory>
 			<useProjectArtifact>true</useProjectArtifact>
-			<unpack>false</unpack>
+			<unpack>true</unpack>
 			<scope>runtime</scope>
+		</dependencySet>
+		<dependencySet>
+			<outputDirectory>.</outputDirectory>
+			<useProjectArtifact>true</useProjectArtifact>
+			<unpack>true</unpack>
+			<scope>system</scope>
 		</dependencySet>
 	</dependencySets>
 </assembly>

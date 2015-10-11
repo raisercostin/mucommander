@@ -777,9 +777,9 @@
 							<!-- Optional, default is "onejar" -->
 							<classifier>onejar</classifier>
 						</configuration>
-						<goals>
+						<!-- <goals>
 							<goal>one-jar</goal>
-						</goals>
+						</goals> -->
 					</execution>
 				</executions>
 			</plugin>
@@ -787,7 +787,19 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.4</version>
 				<configuration>
-					<descriptors>
+					 <archive>
+		<!-- <addMavenDescriptor>true</addMavenDescriptor> -->
+      <manifest>
+        <mainClass>com.mucommander.TrolCommander</mainClass>
+		<!-- <addClasspath>true</addClasspath> -->
+		<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+		<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+      </manifest>
+    </archive>
+    <!-- <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs> -->
+ 					<descriptors>
 						<descriptor>assembly.xml</descriptor>
 					</descriptors>
 <!--					<executions>-->
