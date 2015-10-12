@@ -27,22 +27,24 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.commons.file.util.PathUtils;
+import com.mucommander.commons.runtime.OsFamily;
 import com.mucommander.job.MakeDirectoryFileJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.ActionProperties;
-import com.mucommander.ui.action.impl.MkdirAction;
+import com.mucommander.ui.action.impl.EditAction;
 import com.mucommander.ui.action.impl.MakeFileAction;
+import com.mucommander.ui.action.impl.MakeDirectoryAction;
 import com.mucommander.ui.chooser.SizeChooser;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
@@ -50,13 +52,14 @@ import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.FilePathField;
+import com.mucommander.ui.viewer.EditorRegistrar;
 
 
 /**
  * Dialog invoked when the user wants to create a new folder or an empty file in the current folder.
  *
- * @see MkdirAction
- * @see MakeFileAction
+ * @see MakeDirectoryAction
+ * @see MkfileAction
  * @author Maxence Bernard
  */
 public class MakeDirectoryFileDialog extends FocusDialog implements ActionListener, ItemListener {
@@ -66,17 +69,26 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
     private JTextField pathField;
 
     private JCheckBox allocateSpaceCheckBox;
+    private JCheckBox openTextEditorCheckBox;
+    private JCheckBox makeExecutableCheckBox;
     private SizeChooser allocateSpaceChooser;
 
     private JButton okButton;
 
     private boolean mkfileMode;
+    private boolean autoExecutableSelect;
+    private static boolean openInTextEditor = true;
 
-    // Dialog size constraints
-    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(320,0);	
-    // Dialog width should not exceed 360, height is not an issue (always the same)
-    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(400,10000);
-    
+    /**
+     * Dialog size constraints
+     */
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(320, 0);
+
+    /**
+     * Dialog width should not exceed 360, height is not an issue (always the same)
+     */
+    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(400, 10000);
+
     private JCheckBox convertWhiteSpaceCheckBox;
     /**
      * As a developer, it is annoy to meet with Folder name that contains whitespace
@@ -91,14 +103,15 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
      * @param mkfileMode if true, the dialog will operate in 'mkfile' mode, if false in 'mkdir' mode
      */
     public MakeDirectoryFileDialog(MainFrame mainFrame, boolean mkfileMode) {
-        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MakeFileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID,mainFrame).getLabel(), mainFrame);
+        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MakeFileAction.$.ACTION_ID:MakeDirectoryAction.$.ACTION_ID,mainFrame).getLabel(), mainFrame);
         this.mainFrame = mainFrame;
         this.mkfileMode = mkfileMode;
+        setStorageSuffix(mkfileMode ? "file" : "dir");
 
         Container contentPane = getContentPane();
 
         YBoxPanel mainPanel = new YBoxPanel();
-        mainPanel.add(new JLabel(ActionProperties.getActionTooltip(mkfileMode?MakeFileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID)+" :"));
+        mainPanel.add(new JLabel(ActionProperties.getActionTooltip(mkfileMode ? MakeFileAction.$.ACTION_ID:MakeDirectoryAction.$.ACTION_ID)+" :"));
 
         // Create a path field with auto-completion capabilities
         pathField = new FilePathField();
@@ -119,18 +132,53 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
         pathField.setSelectionEnd(pathField.getText().length());
         mainPanel.add(pathField);
 
-        if(mkfileMode) {
-            JPanel tempPanel = new JPanel(new BorderLayout());
+        if (mkfileMode) {
+            JPanel allocPanel = new JPanel(new BorderLayout());
 
             allocateSpaceCheckBox = new JCheckBox(Translator.get("mkfile_dialog.allocate_space")+":", false);
             allocateSpaceCheckBox.addItemListener(this);
-            tempPanel.add(allocateSpaceCheckBox, BorderLayout.WEST);
+            allocPanel.add(allocateSpaceCheckBox, BorderLayout.WEST);
 
             allocateSpaceChooser = new SizeChooser(false);
             allocateSpaceChooser.setEnabled(false);
-            tempPanel.add(allocateSpaceChooser, BorderLayout.EAST);
+            allocPanel.add(allocateSpaceChooser, BorderLayout.EAST);
 
-            mainPanel.add(tempPanel);
+            mainPanel.add(allocPanel);
+
+            openTextEditorCheckBox = new JCheckBox(Translator.get("mkfile_dialog.open_in_editor"), false);
+            openTextEditorCheckBox.addItemListener(this);
+            openTextEditorCheckBox.setSelected(openInTextEditor);
+            mainPanel.add(openTextEditorCheckBox);
+
+            if (OsFamily.getCurrent().isUnixBased()) {
+                makeExecutableCheckBox = new JCheckBox(Translator.get("mkfile_dialog.make_executable"), false);
+                makeExecutableCheckBox.addItemListener(this);
+                mainPanel.add(makeExecutableCheckBox);
+
+                pathField.getDocument().addDocumentListener(new DocumentListener() {
+                    @Override
+                    public void insertUpdate(DocumentEvent e) {
+                        check();
+                    }
+
+                    @Override
+                    public void removeUpdate(DocumentEvent e) {
+                        check();
+                    }
+
+                    @Override
+                    public void changedUpdate(DocumentEvent e) {
+                        check();
+                    }
+
+                    private void check() {
+                        if (!autoExecutableSelect && pathField.getText().endsWith(".sh")) {
+                            makeExecutableCheckBox.setSelected(true);
+                            autoExecutableSelect = true;
+                        }
+                    }
+                });
+            }
         } else {
             JPanel convertWhitespacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
             convertWhitespacePanel.add(new JLabel(Translator.get("mkfile_dialog.convert_whitespace")));
@@ -149,7 +197,7 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
             });
             convertWhitespacePanel.add(convertWhiteSpaceCheckBox);
             mainPanel.add(convertWhitespacePanel);
-        }
+       }
         
         mainPanel.addSpace(10);
         contentPane.add(mainPanel, BorderLayout.NORTH);
@@ -174,21 +222,21 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
         String enteredPath = pathField.getText();
 
         // Resolves destination folder
-        PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(enteredPath, mainFrame.getActivePanel().getCurrentFolder());
+        PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(enteredPath, mainFrame.getActivePanel().getCurrentFolder(), false);
         // The path entered doesn't correspond to any existing folder
-        if (resolvedDest==null) {
+        if (resolvedDest == null) {
             InformationDialog.showErrorDialog(mainFrame, Translator.get("invalid_path", enteredPath));
             return;
         }
 
         // Checks if the directory already exists and reports the error if that's the case
         int destinationType = resolvedDest.getDestinationType();
-        if(destinationType==PathUtils.ResolvedDestination.EXISTING_FOLDER) {
+        if (destinationType == PathUtils.ResolvedDestination.EXISTING_FOLDER) {
             InformationDialog.showErrorDialog(mainFrame, Translator.get("directory_already_exists", enteredPath));
             return;
         }
 
-        // Don't check for existing regular files, MkdirJob will take of it and popup a FileCollisionDialog 
+        // Don't check for existing regular files, MakeDirectoryFileJob will take of it and popup a FileCollisionDialog 
         AbstractFile destFile = resolvedDest.getDestinationFile();
 
         FileSet fileSet = new FileSet(destFile.getParent());
@@ -198,10 +246,23 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, getTitle());
 
         MakeDirectoryFileJob job;
-        if(mkfileMode)
-            job = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet, allocateSpaceCheckBox.isSelected()?allocateSpaceChooser.getValue():-1);
-        else
+        if (mkfileMode) {
+            long allocateSpace = allocateSpaceCheckBox.isSelected() ? allocateSpaceChooser.getValue() : -1;
+            boolean executable = makeExecutableCheckBox != null && makeExecutableCheckBox.isSelected();
+            openInTextEditor = openTextEditorCheckBox.isSelected();
+            job = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet, allocateSpace, executable) {
+                @Override
+                protected boolean processFile(AbstractFile file, Object recurseParams) {
+                    boolean result = super.processFile(file, recurseParams);
+                    if (result && openInTextEditor) {
+                        EditorRegistrar.createEditorFrame(mainFrame, file, EditAction.getStandardIcon(EditAction.class).getImage());
+                    }
+                    return result;
+                }
+            };
+        } else {
             job = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet);
+        }
 
         progressDialog.start(job);
     }
@@ -228,5 +289,10 @@ public class MakeDirectoryFileDialog extends FocusDialog implements ActionListen
 
     public void itemStateChanged(ItemEvent e) {
         allocateSpaceChooser.setEnabled(allocateSpaceCheckBox.isSelected());
+        if (e.getItem() == allocateSpaceCheckBox && allocateSpaceCheckBox.isSelected()) {
+            openTextEditorCheckBox.setSelected(false);
+        } else if (e.getItem() == openTextEditorCheckBox && openTextEditorCheckBox.isSelected()) {
+            allocateSpaceCheckBox.setSelected(false);
+        }
     }
 }

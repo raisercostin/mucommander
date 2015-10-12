@@ -133,8 +133,9 @@ public class ActionManager {
     	registerAction(new MaximizeWindowAction.Descriptor(),               new MaximizeWindowAction.Factory());
     	registerAction(new CombineFilesAction.Descriptor(),            		new CombineFilesAction.Factory());
     	registerAction(new MinimizeWindowAction.Descriptor(),               new MinimizeWindowAction.Factory());
-    	registerAction(new MkdirAction.Descriptor(),           			    new MkdirAction.Factory());
-    	registerAction(MkfileAction.factory());//new MkfileAction.Descriptor(),		                new MkfileAction.Factory());
+    	//autoregistered
+    	//registerAction(MakeDirectoryAction.factory);//Descriptor(),           			    new MakeDirectoryAction.Factory());
+    	//registerAction(MakeFileAction.factory());//new MkfileAction.Descriptor(),		                new MkfileAction.Factory());
     	registerAction(new MoveAction.Descriptor(),		                    new MoveAction.Factory());
     	registerAction(new MoveTabToOtherPanelAction.Descriptor(),			new MoveTabToOtherPanelAction.Factory());
     	registerAction(new NewWindowAction.Descriptor(),     		        new NewWindowAction.Factory());
@@ -246,13 +247,6 @@ public class ActionManager {
 		registerAction(new ToggleTableViewModeCompactAction.Descriptor(),   new ToggleTableViewModeCompactAction.Factory());
 		registerAction(new ToggleTableViewModeShortAction.Descriptor(),     new ToggleTableViewModeShortAction.Factory());
     }
-    public static interface ActionMetaFactory{
-		ActionDescriptor Descriptor();
-		ActionFactory Factory();
-	}
-    public static <T extends MuAction> void registerAction(ActionMetaFactory actionMetaFactory) {
-    	registerAction(actionMetaFactory.Descriptor(),actionMetaFactory.Factory());
-	}
 
 	public static void registerCommandsActions() {
 		// register "open with" commands as actions, to allow for keyboard shortcuts for them

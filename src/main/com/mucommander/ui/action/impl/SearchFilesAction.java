@@ -1,7 +1,6 @@
 package com.mucommander.ui.action.impl;
 
 import com.mucommander.ui.action.*;
-import com.mucommander.ui.action.impl.MakeFileAction.Descriptor;
 import com.mucommander.ui.dialog.file.SearchDialog;
 import com.mucommander.ui.main.MainFrame;
 
