@@ -32,6 +32,7 @@ import jcifs.smb.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 
 
 /**
@@ -63,27 +64,24 @@ import java.io.OutputStream;
     private AbstractFile parent;
     private boolean parentValSet;
 
-    private boolean isDirectory;
-    private boolean isDirectoryValSet;
-
-//    private String name;
-
 
     static {
         // Silence jCIFS's output if not in debug mode
         // To quote jCIFS's documentation : "0 - No log messages are printed -- not even crticial exceptions."
         if(!Debug.ON)
             System.setProperty("jcifs.util.loglevel", "0");
-    }
 
+    }
 
     public SMBFile(FileURL fileURL) throws IOException {
         this(fileURL, null);
     }
 
-
     private SMBFile(FileURL fileURL, SmbFile smbFile) throws IOException {
         super(fileURL);
+
+        if(!fileURL.containsCredentials())
+            throw new AuthException(fileURL);
 
         if(smbFile==null) {         // Called by public constructor
             while(true) {
@@ -114,11 +112,41 @@ import java.io.OutputStream;
         else {                      // Instanciated by this class
             file = smbFile;
         }
+    }
 
-//        // Cache SmbFile.getName()'s return value which parses name each time it is called
-//        this.name = file.getName();
-//        if(name.endsWith("/"))
-//            name = name.substring(0, name.length()-1);
+    /**
+     * Background information: <code>jcifs.smb.SmbFile</code> is a tad cumbersome to work with because it requires its
+     * file path to end with '/' when the file is a directory and vice-versa.
+     * This method ensures that the path of the current <code>jcifs.smb.SmbFile</code> instance matches the
+     * <code>directory</code> argument and if not, recreate it with the proper path.
+     *
+     * @param directory true if the current <code>jcifs.smb.SmbFile</code> designates a directory
+     */
+    private void checkSmbFile(boolean directory) {
+        try {
+            if(directory) {
+                if(!file.getPath().endsWith("/"))
+                    file = new SmbFile(file.getPath()+"/");
+            }
+            else {
+                if(file.getPath().endsWith("/"))
+                    file = new SmbFile(file.getPath());
+            }
+        }
+        catch(MalformedURLException e) {
+            // This should never happen. If some reason wicked reason it ever did, SmbFile would just not be changed.  
+        }
+    }
+
+    /**
+     * Sets the time period during which attributes values (e.g. isDirectory, last modified, ...) are cached by
+     * jcifs.smb.SmbFile. The higher this value, the lower the number of network requests but also the longer it takes
+     * before those attributes can be refreshed.
+     *
+     * @param period time period during which attributes values are cached, in milliseconds
+     */
+    public static void setAttributeCachingPeriod(long period) {
+        jcifs.Config.setProperty("jcifs.smb.client.attrExpirationPeriod", ""+period);
     }
 
 
@@ -135,15 +163,17 @@ import java.io.OutputStream;
         }
     }
 
+    public boolean canChangeDate() {
+        return true;
+    }
+
     public boolean changeDate(long lastModified) {
         try {
-            // SmbFile.setLastModified() returns "jcifs.smb.SmbAuthException: Access is denied" exceptions
-            // don't know if it's a bug in the library or a server limitation (tested with Samba)
             file.setLastModified(lastModified);
             return true;
         }
         catch(SmbException e) {
-            if(com.mucommander.Debug.ON) { com.mucommander.Debug.trace("return false "+e);}
+            if(com.mucommander.Debug.ON) { com.mucommander.Debug.trace("Exception caught while changing date, returning false: "+e);}
             return false;
         }
     }
@@ -158,34 +188,23 @@ import java.io.OutputStream;
     }
 
 
-    public AbstractFile getParent() {
+    public AbstractFile getParent() throws IOException {
         if(!parentValSet) {
-            try {
-                FileURL parentURL = fileURL.getParent();
-                // If parent URL as returned by fileURL.getParent() is null and URL's host is not null,
-                // create an 'smb://' parent to browse network workgroups
-                if(parentURL==null) {
-                    if(fileURL.getHost()!=null)
-                        parentURL = new FileURL(FileProtocols.SMB+"://");
-                    else
-                        return null;    // This file is already smb://
-                }
+            FileURL parentURL = fileURL.getParent();
+            // If parent URL as returned by fileURL.getParent() is null and URL's host is not null,
+            // create an 'smb://' parent to browse network workgroups
+            if(parentURL==null) {
+                if(fileURL.getHost()!=null)
+                    parentURL = new FileURL(FileProtocols.SMB+"://");
+                else
+                    return null;    // This file is already smb://
+            }
 
-//                this.parent = new SMBFile(parentURL, null, false);
-//                parentURL.setCredentials(fileURL.getCredentials());
-                this.parent = new SMBFile(parentURL, null);
-
-                return parent;
-            }
-            catch(IOException e) {
-                // this.parent and returned parent will be null
-            }
-            finally {
-                this.parentValSet = true;
-            }
+            parent = new SMBFile(parentURL, null);
+            parentValSet = true;
         }
 
-        return this.parent;
+        return parent;
     }
 
     public void setParent(AbstractFile parent) {
@@ -253,19 +272,12 @@ import java.io.OutputStream;
 
 
     public boolean isDirectory() {
-        // Cache SmbFile.isDirectory()'s return value as this method triggers network calls
-        // (calls exists() which checks file existence on the server) and will report
-        // false if connection is lost.
-        if(!isDirectoryValSet) {
-            try {
-                this.isDirectory = file.isDirectory();
-                this.isDirectoryValSet = true;
-            }
-            catch(SmbException e) {
-                return false;
-            }
+        try {
+            return file.isDirectory();
         }
-        return this.isDirectory;
+        catch(SmbException e) {
+            return false;
+        }
     }
 
     public boolean isSymlink() {
@@ -286,10 +298,13 @@ import java.io.OutputStream;
     }
 
     public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
-//        return new SMBRandomAccessInputStream(new SmbRandomAccessFile(file, "r"));
+        // This needs to be checked explicitely (SmbRandomAccessFile can be created even if the file does not exist)
+        if(!exists())
+            throw new IOException();
 
-        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
-        return new SMBRandomAccessInputStream(new SmbRandomAccessFile(fileURL.toString(true), "r", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
+//        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
+//        return new SMBRandomAccessInputStream(new SmbRandomAccessFile(fileURL.toString(true), "r", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
+        return new SMBRandomAccessInputStream(new SmbRandomAccessFile(file, "r"));
     }
 
     public boolean hasRandomAccessOutputStream() {
@@ -297,10 +312,9 @@ import java.io.OutputStream;
     }
 
     public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-//        return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(file, "rw"));
-
-        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
-        return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(fileURL.toString(true), "rw", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
+//        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
+//        return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(fileURL.toString(true), "rw", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
+        return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(file, "rw"));
     }
 
     public void delete() throws IOException {
@@ -328,11 +342,10 @@ import java.io.OutputStream;
 
             // Create SMBFile by using SmbFile instance and sharing parent instance among children
             AbstractFile children[] = new AbstractFile[nbSmbFiles-nbSmbFilesToExclude];
-            AbstractFile child;
             FileURL childURL;
             SmbFile smbFile;
             int currentIndex = 0;
-//            Credentials credentials = fileURL.getCredentials();
+
             for(int i=0; i<nbSmbFiles; i++) {
                 smbFile = smbFiles[i];
                 smbFileType = smbFile.getType();
@@ -341,13 +354,10 @@ import java.io.OutputStream;
                 
                 // Note: properties and credentials are cloned for every children's url
                 childURL = (FileURL)fileURL.clone();
+                childURL.setHost(smbFile.getServer());
                 childURL.setPath(smbFile.getURL().getPath());
-//                childURL = new FileURL(smbFile.getCanonicalPath());
-//                childURL.setCredentials(credentials);
 
-                child = FileFactory.wrapArchive(new SMBFile(childURL, smbFile));
-                child.setParent(this);
-                children[currentIndex++] = child;
+                children[currentIndex++] = FileFactory.getFile(childURL, this);
             }
 
             return children;
@@ -359,12 +369,12 @@ import java.io.OutputStream;
 
 
     public void mkdir() throws IOException {
+        // Ensure that the jcifs.smb.SmbFile's path ends with a '/' otherwise it will throw an exception
+        checkSmbFile(true);
+
         // Note: unlike java.io.File.mkdir(), SmbFile does not return a boolean value
         // to indicate if the folder could be created
         file.mkdir();
-
-        isDirectory = true;
-        isDirectoryValSet = true;
     }
 
 
@@ -430,13 +440,23 @@ import java.io.OutputStream;
         // Reuse the destination SmbFile instance
         SmbFile destSmbFile = ((SMBFile)destFile).file;
 
+        // Special tests to fail in situations where SmbFile#copyTo() does not, for instance:
+        // - when the destination file exists (the destination is simply overwritten)
+        // - when the source file doesn't exist
+        checkCopyPrerequisites(destFile, false);
+
+        // Everything cool, proceed with the copy
         try {
             // Copy the SMB file
             file.copyTo(destSmbFile);
+
+            // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
+            ((SMBFile)destFile).checkSmbFile(file.isDirectory());
+
             return true;
         }
         catch(SmbException e) {
-            return false;
+            throw new FileTransferException(FileTransferException.UNKNOWN_REASON);
         }
     }
 
@@ -461,13 +481,22 @@ import java.io.OutputStream;
             return super.moveTo(destFile);
         }
 
-        // Move file
+        // Special tests to fail in situations where SmbFile#renameTo() does not, for instance:
+        // - when the source and destination are the same
+        // - when the source file doesn't exist
+        checkCopyPrerequisites(destFile, true);
+
+        // Attempt to move the file using jcifs.smb.SmbFile#renameTo.
         try {
             file.renameTo(((SMBFile)destFile).file);
+
+            // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
+            ((SMBFile)destFile).checkSmbFile(file.isDirectory());
+
             return true;
         }
         catch(SmbException e) {
-            return false;
+            throw new FileTransferException(FileTransferException.UNKNOWN_REASON);
         }
     }
 

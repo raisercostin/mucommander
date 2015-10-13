@@ -20,6 +20,7 @@ package com.mucommander.conf;
 
 import java.util.Hashtable;
 import java.util.Enumeration;
+import java.util.List;
 
 /**
  * Represents a section in the configuration tree.
@@ -118,6 +119,16 @@ class ConfigurationSection {
     public static int getIntegerValue(String value) {return value == null ? 0 : Integer.parseInt(value);}
 
     /**
+     * Casts the specified value into a value list.
+     * <p>
+     * If <code>value</code> is <code>null</code>, this method will return <code>null</code>.
+     * </p>
+     * @param value value to cast to a value list.
+     * @return <code>value</code> as a value list.
+     */
+    public static ValueList getListValue(String value, String separator) {return value == null ? null : new ValueList(value, separator);}
+
+    /**
      * Casts the specified value into an float.
      * <p>
      * If <code>value</code> is <code>null</code>, this method will return <code>0</code>.
@@ -163,6 +174,14 @@ class ConfigurationSection {
      * @return <code>value</code> as a string.
      */
     public static String getValue(int value) {return Integer.toString(value);}
+
+    /**
+     * Casts the specified value into a string.
+     * @param  value     value to cast as a string.
+     * @param  separator string to use as a separator.
+     * @return           <code>value</code> as a string.
+     */
+    public static String getValue(List value, String separator) {return ValueList.toString(value, separator);}
 
     /**
      * Casts the specified value into a string.
@@ -224,6 +243,32 @@ class ConfigurationSection {
     public ConfigurationSection removeSection(String name) {return (ConfigurationSection)sections.remove(name);}
 
     /**
+     * Deletes the specified section.
+     * <p>
+     * Note that this method is very inefficient and should only be called when strictly necessary.
+     * </p>
+     * @param section section to remove.
+     */
+    public void removeSection(ConfigurationSection section) {
+        String      name;
+        Enumeration sectionNames;
+
+        sectionNames = sectionNames();
+
+        // Goes through each key / value pair and checks whether we've found the sectioon
+        // we were looking for.
+        while(sectionNames.hasMoreElements()) {
+            name = (String)sectionNames.nextElement();
+
+            // If we have, remove it and break.
+            if(getSection(name).equals(section)) {
+                removeSection(name);
+                break;
+            }
+        }
+    }
+
+    /**
      * Returns the subsection with the specified name.
      * @param  name name of the section to retrieve.
      * @return      the requested section if found, <code>null</code> otherwise.
@@ -241,4 +286,17 @@ class ConfigurationSection {
      * @return <code>true</code> if this section has subsections, <code>false</code> otherwise.
      */
     public boolean hasSections() {return !sections.isEmpty();}
+
+
+
+    // - Misc. -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    /**
+     * Returns <code>true</code> if the section doesn't contain either variables or sub-sections.
+     * <p>
+     * This method is meant for {@link Configuration} instances to prune dead branches.
+     * </p>
+     * @return <code>true</code> if the section doesn't contain either variables or sub-sections, <code>false</code> otherwise.
+     */
+    public boolean isEmpty() {return !hasSections() && !hasVariables();}
 }

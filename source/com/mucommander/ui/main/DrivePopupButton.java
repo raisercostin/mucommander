@@ -36,9 +36,11 @@ import com.mucommander.ui.button.PopupButton;
 import com.mucommander.ui.dialog.server.ServerConnectDialog;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
+import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.icon.FileIcons;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.Hashtable;
@@ -58,7 +60,21 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 	
     /** Root folders array */
     private static AbstractFile rootFolders[] = RootFolders.getRootFolders();
-	
+
+    /** static FileSystemView instance, has a (non-null) value only under Windows */
+    private static FileSystemView fileSystemView;
+
+    /** Caches extended drive names, has a (non-null) value only under Windows */
+    private static Hashtable extendedNameCache;
+
+
+    static {
+        if(PlatformManager.isWindowsFamily()) {
+            fileSystemView = FileSystemView.getFileSystemView();
+            extendedNameCache = new Hashtable();
+        }
+    }
+
 
     /**
      * Action that triggers the 'server connection dialog' for a specified protocol.
@@ -123,7 +139,8 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         FileURL currentURL = currentFolder.getURL();
 
         String newLabel = null;
-		
+//        String newToolTip = null;
+
         // First tries to find a bookmark matching the specified folder
         Vector bookmarks = BookmarkManager.getBookmarks();
         int nbBookmarks = bookmarks.size();
@@ -180,13 +197,37 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
                         }
                     }
                     newLabel = rootFolders[bestIndex].getName();
+
+                    // Not used because the call to FileSystemView is slow
+//                    if(fileSystemView!=null)
+//                        newToolTip = getWindowsExtendedDriveName(rootFolders[bestIndex]);
                 }
             }
         }
 		
         setText(newLabel);
+//        setToolTipText(newToolTip);
         // Set the folder icon based on the current system icons policy
         setIcon(FileIcons.getFileIcon(currentFolder));
+    }
+
+
+    /**
+     * Returns the extended name of the given local file, e.g. "Local Disk (C:)" for C:\. The returned value is
+     * interesting only under Windows. This method is I/O bound and very slow so it should not be called from the main
+     * event thread.
+     *
+     * @param localFile the file for which to return the extended name
+     * @return the extended name of the given local file
+     */
+    private static String getExtendedDriveName(AbstractFile localFile) {
+        // Note: fileSystemView.getSystemDisplayName(java.io.File) is unfortunately very very slow
+        String name = fileSystemView.getSystemDisplayName((java.io.File)localFile.getUnderlyingFileObject());
+
+        if(name==null || name.equals(""))   // This happens for CD/DVD drives when they don't contain any disc
+            return localFile.getName();
+
+        return name;
     }
 
 
@@ -195,19 +236,64 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     ////////////////////////////////////
 
     public JPopupMenu getPopupMenu() {
-        JPopupMenu popupMenu = new JPopupMenu();
+        final JPopupMenu popupMenu = new JPopupMenu();
 
         // Update root folders in case new volumes were mounted
         rootFolders = RootFolders.getRootFolders();
 
         // Add root volumes
-        int nbRoots = rootFolders.length;
+        final int nbRoots = rootFolders.length;
         MainFrame mainFrame = folderPanel.getMainFrame();
 
-        // Set system icon for volumes, only if system icons are available on the current platform
+        MnemonicHelper mnemonicHelper = new MnemonicHelper();   // Provides mnemonics and ensures uniqueness
+        JMenuItem item;
+
+        boolean useExtendedDriveNames = fileSystemView!=null;
+        final Vector itemsV = useExtendedDriveNames?new Vector():null;
+
         for(int i=0; i<nbRoots; i++) {
-            popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), rootFolders[i])).setIcon(
-                    FileIcons.hasProperSystemIcons()?FileIcons.getSystemFileIcon(rootFolders[i]):null);
+            item = popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), rootFolders[i]));
+            setMnemonic(item, mnemonicHelper);
+
+            // Set system icon for volumes, only if system icons are available on the current platform
+            item.setIcon(FileIcons.hasProperSystemIcons()?FileIcons.getSystemFileIcon(rootFolders[i]):null);
+
+            if(useExtendedDriveNames) {
+                // Use the last known value (if any) while we update it in a separate thread
+                String previousExtendedName = (String)extendedNameCache.get(rootFolders[i]);
+                if(previousExtendedName!=null)
+                    item.setText(previousExtendedName);
+
+                itemsV.add(item);   // JMenu offers no way to retrieve a particular JMenuItem, so we have to keep them
+            }
+        }
+
+        if(useExtendedDriveNames) {
+            // Calls to getExtendedDriveName(String) are very slow, so they are performed in a separate thread so as
+            // to not lock the main even thread. The popup menu gets first displayed with the short drive names, and
+            // then refreshed with the extended names as they are retrieved.
+
+            new Thread() {
+                public void run() {
+                    for(int i=0; i<nbRoots; i++) {
+                        // Under Windows, show the extended drive name (e.g. "Local Disk (C:)" instead of just "C:") but use
+                        // the simple drive name for the mnemonic (i.e. 'C' instead of 'L').
+                        String extendedName = getExtendedDriveName(rootFolders[i]);
+                        ((JMenuItem)itemsV.elementAt(i)).setText(extendedName);
+
+                        // Keep the extended name for later (see above)
+                        extendedNameCache.put(rootFolders[i], extendedName);
+                    }
+
+                    // Re-calculate the popup menu's dimensions
+                    SwingUtilities.invokeLater(new Runnable() {
+                        public void run() {
+                                popupMenu.pack();
+                        }
+                    });
+                }
+
+            }.start();
         }
 
         popupMenu.add(new JSeparator());
@@ -215,10 +301,14 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Add boookmarks
         Vector bookmarks = BookmarkManager.getBookmarks();
         int nbBookmarks = bookmarks.size();
+        Bookmark b;
 
         if(nbBookmarks>0) {
-            for(int i=0; i<nbBookmarks; i++)
-                popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), (Bookmark)bookmarks.elementAt(i)));
+            for(int i=0; i<nbBookmarks; i++) {
+                b = (Bookmark)bookmarks.elementAt(i);
+                item = popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), b));
+                setMnemonic(item, mnemonicHelper);
+            }
         }
         else {
             // No bookmark : add a disabled menu item saying there is no bookmark
@@ -228,15 +318,15 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         popupMenu.add(new JSeparator());
 
         // Add Bonjour services menu
-        popupMenu.add(new BonjourMenu(folderPanel.getMainFrame()));
+        setMnemonic(popupMenu.add(new BonjourMenu(folderPanel.getMainFrame())), mnemonicHelper);
         popupMenu.add(new JSeparator());
 
         // Add 'connect to server' shortcuts
-        popupMenu.add(new ServerConnectAction("SMB...", ServerConnectDialog.SMB_INDEX));
-        popupMenu.add(new ServerConnectAction("FTP...", ServerConnectDialog.FTP_INDEX));
-        popupMenu.add(new ServerConnectAction("SFTP...", ServerConnectDialog.SFTP_INDEX));
-        popupMenu.add(new ServerConnectAction("HTTP...", ServerConnectDialog.HTTP_INDEX));
-        popupMenu.add(new ServerConnectAction("NFS...", ServerConnectDialog.NFS_INDEX));
+        setMnemonic(popupMenu.add(new ServerConnectAction("SMB...", ServerConnectDialog.SMB_INDEX)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("FTP...", ServerConnectDialog.FTP_INDEX)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("SFTP...", ServerConnectDialog.SFTP_INDEX)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("HTTP...", ServerConnectDialog.HTTP_INDEX)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("NFS...", ServerConnectDialog.NFS_INDEX)), mnemonicHelper);
 
         // Temporarily make the FileTable which contains this DrivePopupButton the currently active one so that menu actions
         // are triggered on it. The previously active table will be restored when the popup menu is closed (focus is lost).
@@ -245,6 +335,17 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         mainFrame.setActiveTable(folderPanel.getFileTable());
 
         return popupMenu;
+    }
+
+
+    /**
+     * Convenience method that sets a mnemonic to the given JMenuItem, using the specified MnemonicHelper.
+     *
+     * @param menuItem the menu item for which to set a mnemonic
+     * @param mnemonicHelper the MnemonicHelper instance to be used to determine the mnemonic's character.
+     */
+    private void setMnemonic(JMenuItem menuItem, MnemonicHelper mnemonicHelper) {
+        menuItem.setMnemonic(mnemonicHelper.getMnemonic(menuItem.getText()));
     }
 
 

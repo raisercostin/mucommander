@@ -84,7 +84,7 @@ public class LocalFile extends AbstractFile {
 
     /** true if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...) instead
      * of having single a root folder '/' */
-    public final static boolean USES_ROOT_DRIVES = PlatformManager.isWindowsFamily() || PlatformManager.OS_FAMILY==PlatformManager.OS_2;
+    public final static boolean USES_ROOT_DRIVES = PlatformManager.isWindowsFamily() || PlatformManager.getOsFamily()==PlatformManager.OS_2;
 
     /** Are we running Windows ? */
     private final static boolean IS_WINDOWS;
@@ -125,6 +125,21 @@ public class LocalFile extends AbstractFile {
 
 
     /**
+     * Returns the user home folder. Most if not all OSes have one, but in the unlikely event that the OS doesn't have
+     * one or that the folder cannot be resolved, <code>null</code> will be returned.
+     *
+     * @return the user home folder
+     */
+    public static AbstractFile getUserHome() {
+        String userHomePath = System.getProperty("user.home");
+        if(userHomePath==null)
+            return null;
+
+        return FileFactory.getFile(userHomePath);
+    }
+
+
+    /**
      * Uses platform dependant commands to extract free and total space on the volume where this file resides.
      *
      * <p>This method has been made public as it is more efficient to retrieve both free space and volume space
@@ -146,7 +161,7 @@ public class LocalFile extends AbstractFile {
                 // 'dir' command returns free space on the last line
                 //Process process = PlatformManager.execute("dir \""+absPath+"\"", this);
                 //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
-                Process process = Runtime.getRuntime().exec(PlatformManager.DEFAULT_SHELL_COMMAND + " dir \""+absPath+"\"");
+                Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
 
                 // Check that the process was correctly started
                 if(process!=null) {
@@ -182,7 +197,7 @@ public class LocalFile extends AbstractFile {
                     }
                 }
             }
-            // Parses the output of 'df -k "filePath"' command on UNIX/BSD-based systems to retrieve free and total space information
+            // Parses the output of 'df -k "filePath"' command on UNIX-based systems to retrieve free and total space information
             else {
                 // 'df -k' returns totals in block of 1K = 1024 bytes
                 Process process = Runtime.getRuntime().exec(new String[]{"df", "-k", absPath}, null, file);
@@ -195,12 +210,19 @@ public class LocalFile extends AbstractFile {
                     String line = br.readLine();
 
                     // Sample lines:
-                    // /dev/disk0s2                      116538416 109846712  6179704    95%    /
-                    // automount -fstab [202]                    0         0        0   100%    /automount/Servers
+                    // /dev/disk0s2            116538416 109846712  6179704    95%    /
+                    // automount -fstab [202]          0         0        0   100%    /automount/Servers
+                    // /dev/disk2s2                 2520      1548      972    61%    /Volumes/muCommander 0.8
 
-                    // Filesystem field can have several tokens (e.g. 'automount -fstab [202]') whereas other fields
-                    // don't, so all tokens are fetched first, and only the values of the '1K-blocks' and 'Avail'
-                    // fields are used.
+                    // We're interested in the '1K-blocks' and 'Avail' fields (only).
+                    // The 'Filesystem' and 'Mounted On' fields can contain spaces (e.g. 'automount -fstab [202]' and
+                    // '/Volumes/muCommander 0.8' resp.) and therefore be made of several tokens. A stable way to
+                    // determine the position of the fields we're interested in is to look for the last token that
+                    // starts with a '/' character which should necessarily correspond to the first token of the 
+                    // 'Mounted on' field. The '1K-blocks' and 'Avail' fields are 4 and 2 tokens away from it
+                    // respectively.
+
+                    // Start by tokenizing the whole line
                     Vector tokenV = new Vector();
                     if(line!=null) {
                         StringTokenizer st = new StringTokenizer(line);
@@ -210,15 +232,27 @@ public class LocalFile extends AbstractFile {
 
                     int nbTokens = tokenV.size();
                     if(nbTokens<6) {
-                        // This should normally not happen
+                        // This shouldn't normally happen
                         if(Debug.ON) Debug.trace("Failed to parse output of df -k "+absPath+" line="+line);
                         return dfInfo;
                     }
 
+                    // Find the last token starting with '/'
+                    int pos = nbTokens-1;
+                    while(!((String)tokenV.elementAt(pos)).startsWith("/")) {
+                        if(pos==0) {
+                            // This shouldn't normally happen
+                            if(Debug.ON) Debug.trace("Failed to parse output of df -k "+absPath+" line="+line);
+                            return dfInfo;
+                        }
+
+                        --pos;
+                    }
+
                     // '1-blocks' field (total space)
-                    dfInfo[0] = Long.parseLong((String)tokenV.elementAt(nbTokens-5)) * 1024;
+                    dfInfo[0] = Long.parseLong((String)tokenV.elementAt(pos-4)) * 1024;
                     // 'Avail' field (free space)
-                    dfInfo[1] = Long.parseLong((String)tokenV.elementAt(nbTokens-3)) * 1024;
+                    dfInfo[1] = Long.parseLong((String)tokenV.elementAt(pos-2)) * 1024;
                 }
             }
         }
@@ -238,18 +272,18 @@ public class LocalFile extends AbstractFile {
 
 	
     /**
-     * Guesses if this drive is a floppy drive. This method will only return true when tested against the floppy drive's
-     * root folder (e.g. A:\ under Windows).
+     * Attemps to detect if this file is the root of a floppy drive.
+     * This method works only on platform that have root drives, such as Windows, and even on those the result is just 
+     * a guess.
      *
-//     * <p>The result of this method should be accurate under Java 1.4 and up, just a guess under Java 1.3
-//     * running under Windows, will return false for Java 1.3 running under a non-Windows platform.</p>
+     * @return <code>true</code> if this file looks like the root of a floppy drive. 
      */
     public boolean guessFloppyDrive() {
         if(PlatformManager.isWindowsFamily() && !isRoot())
             return false;
 
-        // Use FileSystemView.isFloppyDrive(File) to determine if this file
-        // is a floppy drive. This method being available only in Java 1.4 and up.
+        // Use FileSystemView.isFloppyDrive(File) to determine if this file is a floppy drive.
+        // This method is available only in Java 1.4 and up.
 //        if(PlatformManager.JAVA_VERSION>=PlatformManager.JAVA_1_4)
         return FileSystemView.getFileSystemView().isFloppyDrive(file);
 
@@ -262,25 +296,35 @@ public class LocalFile extends AbstractFile {
     }
 	
     /**
-     * Guesses if this drive is a removable media drive (Floppy/CD/DVD). This method will only return true when tested
-     * against the drive's root folder (e.g. D:\ under Windows).
+     * Attemps to detect if this file is the root of a removable media drive (floppy, CD, DVD, ...).
+     * This method works only on platform that have root drives, such as Windows, and even on those the result is just
+     * a guess.
      *
-     * <p>The result is just a guess that works rather well under Windows.</p>
+     * @return <code>true</code> if this file looks like the root of a removable media drive (floppy, CD, DVD, ...). 
      */
     public boolean guessRemovableDrive() {
         // A weak way to characterize such a drive is to check if the corresponding root folder is a floppy drive or 
         // read-only. A better way would be to create a JNI interface as described here: http://forum.java.sun.com/thread.jspa?forumID=256&threadID=363074
-        return guessFloppyDrive() || (IS_WINDOWS && isRoot() && !file.canWrite());
+        return guessFloppyDrive() || (hasRootDrives() && isRoot() && !file.canWrite());
     }
 
 
     /**
-     * Returns true if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...) instead
-     * of having single a root folder '/'. This method will return <code>true</code> for Windows and OS/2 systems,
-     * false for all other systems.
+     * Returns <code>true</code> if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...)
+     * instead of having a single root folder '/' under which mount points are attached.
+     * This is <code>true</code> for the following platforms:
+     * <ul>
+     *  <li>Windows</li>
+     *  <li>OS/2</li>
+     *  <li>Any other platform that has '\' for a path separator</li>
+     * </ul>
+     *
+     * @return <code>true</code> if the underlying local filesystem uses drives assigned to letters
      */
-    public static boolean usesRootDrives() {
-        return PlatformManager.isWindowsFamily() || PlatformManager.OS_FAMILY==PlatformManager.OS_2;
+    public static boolean hasRootDrives() {
+        return PlatformManager.isWindowsFamily()
+            || PlatformManager.getOsFamily()==PlatformManager.OS_2
+            || "\\".equals(SEPARATOR);
     }
 
 
@@ -311,7 +355,11 @@ public class LocalFile extends AbstractFile {
     public long getDate() {
         return file.lastModified();
     }
-	
+
+    public boolean canChangeDate() {
+        return true;
+    }
+
     public boolean changeDate(long lastModified) {
         // java.io.File#setLastModified(long) throws an IllegalArgumentException if time is negative.
         // If specified time is negative, set it to 0 (01/01/1970).
@@ -357,41 +405,46 @@ public class LocalFile extends AbstractFile {
             return file.canRead();
         else if(permission==WRITE_PERMISSION)
             return file.canWrite();
-        else if(permission==EXECUTE_PERMISSION && PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6)
+        else if(permission==EXECUTE_PERMISSION && PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
             return file.canExecute();
 
         return false;
     }
 
     public boolean setPermission(int access, int permission, boolean enabled) {
-        if(access!= USER_ACCESS || PlatformManager.JAVA_VERSION < PlatformManager.JAVA_1_6)
+        if(access!= USER_ACCESS || PlatformManager.getJavaVersion() < PlatformManager.JAVA_1_6)
             return false;
 
         if(permission==READ_PERMISSION)
             return file.setReadable(enabled);
         else if(permission==WRITE_PERMISSION)
             return file.setWritable(enabled);
-        else if(permission==EXECUTE_PERMISSION && PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6)
+        else if(permission==EXECUTE_PERMISSION && PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
             return file.setExecutable(enabled);
 
         return false;
     }
 
     public boolean canGetPermission(int access, int permission) {
-        // Get permission support is limited to the user access type. Executable permission flag is only available under
-        // Java 1.6 and up.
-        if(access!= USER_ACCESS)
+        // getPermission is limited to the user access type
+        if(access!=USER_ACCESS)
             return false;
 
-        return permission!=EXECUTE_PERMISSION || PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6;
+        // Windows only supports write permission: files are either read-only or read-write
+        if(PlatformManager.isWindowsFamily())
+            return permission==WRITE_PERMISSION;
+
+        // Execute permission is supported only under Java 1.6 (and on platforms other than Windows)
+        return permission!=EXECUTE_PERMISSION || PlatformManager.getJavaVersion()>=PlatformManager.JAVA_1_6;
     }
 
     public boolean canSetPermission(int access, int permission) {
-        // Set permission support is only available under Java 1.6 and up and is limited to the user access type
-        if(access!= USER_ACCESS)
+        // setPermission is limited to the user access type
+        if(access!=USER_ACCESS || PlatformManager.getJavaVersion()<PlatformManager.JAVA_1_6)
             return false;
 
-        return PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6;
+        // Windows only supports write permission: files are either read-only or read-write
+        return !PlatformManager.isWindowsFamily() || permission==WRITE_PERMISSION;
     }
 
 
@@ -448,14 +501,14 @@ public class LocalFile extends AbstractFile {
 	
 
     public long getFreeSpace() {
-        if(PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6)
+        if(PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
             return file.getFreeSpace();
 
         return getVolumeInfo()[1];
     }
 	
     public long getTotalSpace() {
-        if(PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6)
+        if(PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
             return file.getTotalSpace();
 
         return getVolumeInfo()[0];
@@ -489,7 +542,13 @@ public class LocalFile extends AbstractFile {
     ////////////////////////
 
     public String getName() {
-        return parentFilePath ==null?absPath+SEPARATOR:file.getName();
+        // If this file has no parent, return:
+        // - the drive's name under OSes with root drives such as Windows, e.g. "C:"
+        // - "/" under Unix-based systems
+        if(parentFilePath==null)
+            return hasRootDrives()?absPath:"/";
+
+        return file.getName();
     }
 
     public String getAbsolutePath() {
@@ -571,6 +630,11 @@ public class LocalFile extends AbstractFile {
             return super.moveTo(destFile);
         }
 
+        // Fail in some situations where java.io.File#renameTo() doesn't, such as if the destination already exists.
+        // Note that java.io.File#renameTo()'s implementation is system-dependant, so it's always a good idea to
+        // perform all those checks even if some are not necessary on this or that platform.
+        checkCopyPrerequisites(destFile, true);
+
         // Move file
         return file.renameTo(((LocalFile)destFile).file);
     }
@@ -585,9 +649,13 @@ public class LocalFile extends AbstractFile {
      * Overridden for performance reasons.
      */
     public int getPermissionGetMask() {
+        // Windows only supports write permission for user: files are either read-only or read-write
+        if(PlatformManager.isWindowsFamily())
+            return 128;
+
         // Get permission support is limited to the user access type. Executable permission flag is only available under
         // Java 1.6 and up.
-        return PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6?
+        return PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6?
                 448         // rwx------ (700 octal)
                 :384;       // rw------- (300 octal)
     }
@@ -596,8 +664,12 @@ public class LocalFile extends AbstractFile {
      * Overridden for performance reasons.
      */
     public int getPermissionSetMask() {
+        // Windows only supports write permission for user: files are either read-only or read-write
+        if(PlatformManager.isWindowsFamily())
+            return 128;
+
         // Set permission support is only available under Java 1.6 and up and is limited to the user access type
-        return PlatformManager.JAVA_VERSION >= PlatformManager.JAVA_1_6?
+        return PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6?
                 448         // rwx------ (700 octal)
                 :0;         // --------- (0 octal)
     }
@@ -606,7 +678,7 @@ public class LocalFile extends AbstractFile {
      * Overridden for performance reasons. This method doesn't iterate like {@link AbstractFile#getRoot()} to resolve
      * the root file.
      */
-    public AbstractFile getRoot() {
+    public AbstractFile getRoot() throws IOException {
         if(PlatformManager.isWindowsFamily()) {
             // Extract drive letter from the path
             Matcher matcher = windowsDriveRootPattern.matcher(absPath);
@@ -635,11 +707,19 @@ public class LocalFile extends AbstractFile {
         // Not doing this under Windows would mean files would get moved between drives with renameTo, which doesn't
         // allow the transfer to be monitored.
         // Note that Windows UNC paths are handled by the super method when comparing hosts for equality.  
-        if(PlatformManager.isWindowsFamily() && !getRoot().equals(destFile.getRoot()))
-            return SHOULD_NOT_HINT;
+        if(PlatformManager.isWindowsFamily()) {
+            try {
+                if(!getRoot().equals(destFile.getRoot()))
+                    return SHOULD_NOT_HINT; 
+            }
+            catch(IOException e) {
+                return SHOULD_NOT_HINT;
+            }
+        }
 
         return moveHint;
     }
+
 
     ///////////////////
     // Inner classes //

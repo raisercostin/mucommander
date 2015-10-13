@@ -36,6 +36,8 @@ import com.mucommander.ui.theme.Theme;
 import com.mucommander.ui.theme.ThemeManager;
 import com.mucommander.ui.viewer.EditorFrame;
 import com.mucommander.ui.viewer.ViewerFrame;
+import com.mucommander.ui.dialog.pref.theme.ThemeEditorDialog;
+import com.mucommander.conf.impl.MuConfiguration;
 
 import javax.swing.*;
 import javax.swing.event.MenuEvent;
@@ -78,6 +80,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
     private JCheckBoxMenuItem toggleDateColumnItem;
     private JCheckBoxMenuItem togglePermissionsColumnItem;
     private JCheckBoxMenuItem toggleShowFoldersFirstItem;
+    private JCheckBoxMenuItem toggleShowHiddenFiles;
 
     // Go menu
     private JMenu goMenu;
@@ -142,7 +145,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         MenuToolkit.addMenuItem(fileMenu, ActionManager.getActionInstance(ChangeDateAction.class, mainFrame), menuItemMnemonicHelper);
 
         // Under Mac OS X, 'Preferences' already appears in the application (muCommander) menu, do not display it again
-        if(PlatformManager.OS_FAMILY!=PlatformManager.MAC_OS_X) {
+        if(PlatformManager.getOsFamily()!=PlatformManager.MAC_OS_X) {
             fileMenu.add(new JSeparator());
             MenuToolkit.addMenuItem(fileMenu, ActionManager.getActionInstance(ShowPreferencesAction.class, mainFrame), menuItemMnemonicHelper);
         }
@@ -153,7 +156,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         fileMenu.add(new JSeparator());
         MenuToolkit.addMenuItem(fileMenu, ActionManager.getActionInstance(CloseWindowAction.class, mainFrame), menuItemMnemonicHelper);
         // Under Mac OS X, 'Quit' already appears in the application (muCommander) menu, do not display it again
-		if(PlatformManager.OS_FAMILY!=PlatformManager.MAC_OS_X)
+        if(PlatformManager.getOsFamily()!=PlatformManager.MAC_OS_X)
             MenuToolkit.addMenuItem(fileMenu, ActionManager.getActionInstance(QuitAction.class, mainFrame), menuItemMnemonicHelper);
 
         add(fileMenu);
@@ -196,6 +199,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
 
         viewMenu.add(new JSeparator());
         toggleShowFoldersFirstItem = MenuToolkit.addCheckBoxMenuItem(viewMenu, ActionManager.getActionInstance(ToggleShowFoldersFirstAction.class, mainFrame), menuItemMnemonicHelper);
+        toggleShowHiddenFiles = MenuToolkit.addCheckBoxMenuItem(viewMenu, ActionManager.getActionInstance(ToggleHiddenFilesAction.class, mainFrame), menuItemMnemonicHelper);
 
         viewMenu.add(new JSeparator());
         columnsMenu = MenuToolkit.addMenu(Translator.get("view_menu.show_hide_columns"), null, this);
@@ -204,7 +208,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         toggleDateColumnItem = MenuToolkit.addCheckBoxMenuItem(columnsMenu, ActionManager.getActionInstance(ToggleDateColumnAction.class, mainFrame), null);
         togglePermissionsColumnItem = MenuToolkit.addCheckBoxMenuItem(columnsMenu, ActionManager.getActionInstance(TogglePermissionsColumnAction.class, mainFrame), null);
         viewMenu.add(columnsMenu);
-        MenuToolkit.addCheckBoxMenuItem(viewMenu, ActionManager.getActionInstance(ToggleAutoSizeAction.class, mainFrame), menuItemMnemonicHelper).setSelected(mainFrame.getActiveTable().isAutoSizeColumnsEnabled());
+        MenuToolkit.addCheckBoxMenuItem(viewMenu, ActionManager.getActionInstance(ToggleAutoSizeAction.class, mainFrame), menuItemMnemonicHelper).setSelected(mainFrame.isAutoSizeColumnsEnabled());
 
         viewMenu.add(new JSeparator());
         MenuToolkit.addMenuItem(viewMenu, ActionManager.getActionInstance(ToggleToolBarAction.class, mainFrame), menuItemMnemonicHelper);
@@ -299,7 +303,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         }
 		
         // Under Mac OS X, 'About' already appears in the application (muCommander) menu, do not display it again
-        if(PlatformManager.OS_FAMILY!=PlatformManager.MAC_OS_X) {
+        if(PlatformManager.getOsFamily()!=PlatformManager.MAC_OS_X) {
             helpMenu.add(new JSeparator());
             MenuToolkit.addMenuItem(helpMenu, ActionManager.getActionInstance(ShowAboutAction.class, mainFrame), menuItemMnemonicHelper);
         }
@@ -351,6 +355,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
             }
 
             toggleShowFoldersFirstItem.setSelected(activeTable.isShowFoldersFirstEnabled());
+            toggleShowHiddenFiles.setSelected(MuConfiguration.getVariable(MuConfiguration.SHOW_HIDDEN_FILES, MuConfiguration.DEFAULT_SHOW_HIDDEN_FILES));
         }
         else if(source==columnsMenu) {
             // Update visible columns state: select menu item if column is currently visible in the active table
@@ -477,6 +482,8 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
             Iterator themes = ThemeManager.availableThemes();
             Theme theme;
             JCheckBoxMenuItem item;
+            themesMenu.add(new JMenuItem(new EditCurrentThemeAction()));
+            themesMenu.add(new JSeparator());
             while(themes.hasNext()) {
                 theme = (Theme)themes.next();
                 item = new JCheckBoxMenuItem(new ChangeCurrentThemeAction(theme));
@@ -513,6 +520,16 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
             catch(IllegalArgumentException e) {
                 JOptionPane.showMessageDialog(mainFrame, Translator.get("theme_could_not_be_loaded"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);
             }
+        }
+    }
+
+    /**
+     * Actions that edits the current theme.
+     */
+    private class EditCurrentThemeAction extends AbstractAction {
+        public EditCurrentThemeAction() {super(Translator.get("prefs_dialog.edit_current_theme"));}
+        public void actionPerformed(ActionEvent actionEvent) {
+            new ThemeEditorDialog(mainFrame, ThemeManager.getCurrentTheme()).editTheme();
         }
     }
 }

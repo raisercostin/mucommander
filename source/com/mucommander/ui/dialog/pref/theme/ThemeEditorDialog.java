@@ -36,7 +36,7 @@ public class ThemeEditorDialog extends PreferencesDialog {
     // - Action listening -------------------------------------------------------
     // --------------------------------------------------------------------------
     private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(580,0);
-    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(620,480);
+    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(620,500);
 
     private ThemeData data;
     private Theme     theme;
@@ -59,7 +59,7 @@ public class ThemeEditorDialog extends PreferencesDialog {
         data             = theme.cloneData();
         wasThemeModified = false;
 
-        addPreferencesPanel(new FolderPanePanel(this, data));
+        addPreferencesPanel(new FolderPanePanel(this, data), false);
         addPreferencesPanel(new LocationBarPanel(this, data));
         addPreferencesPanel(new StatusBarPanel(this, data));
         addPreferencesPanel(new ShellPanel(this, data));

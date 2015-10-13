@@ -37,7 +37,8 @@ import java.io.IOException;
 
 
 /**
- * 
+ * A specialized <code>JFrame</code> that displays a {@link FileEditor} for a given file and provides some common
+ * editing functionalities. The {@link FileEditor} instance is provided by {@link EditorRegistrar}.
  *
  * @author Maxence Bernard
  */
@@ -105,15 +106,12 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         new Thread(this, "com.mucommander.ui.viewer.EditorFrame's Thread").start();
     }
 
-
-
     public JMenu addMenu(String menuTitle) {
         JMenu menu = MenuToolkit.addMenu(menuTitle, menuMnemonicHelper, null);
         this.menuBar.add(menu);
         return menu;
     }
 	
-
     private void setEditor(FileEditor editor) {
         this.editor = editor;
 	
@@ -127,7 +125,7 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         setContentPane(scrollPane);
 
         // Catch Apple+W keystrokes under Mac OS X to try and close the window
-        if(com.mucommander.PlatformManager.OS_FAMILY==com.mucommander.PlatformManager.MAC_OS_X) {
+        if(com.mucommander.PlatformManager.getOsFamily()==com.mucommander.PlatformManager.MAC_OS_X) {
             scrollPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.META_MASK), CUSTOM_DISPOSE_EVENT);
             scrollPane.getActionMap().put(CUSTOM_DISPOSE_EVENT, new AbstractAction() {
                     public void actionPerformed(ActionEvent e){
@@ -137,49 +135,16 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         }
     }
 	
-
-    public void pack() {
-        super.pack();
-
-        setTitle(editor.getTitle());
-
-        DialogToolkit.fitToScreen(this);
-        DialogToolkit.fitToMinDimension(this, MIN_DIMENSION);
-    }
-	
-
-    public void dispose() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
-
-        // Has any change to the file been made ?
-        if (saveNeeded) {
-            QuestionDialog dialog = new QuestionDialog(this, null, Translator.get("file_editor.save_warning"), this, 
-                                                       new String[] {Translator.get("save"), Translator.get("dont_save"), Translator.get("cancel")},
-                                                       new int[]  {YES_ACTION, NO_ACTION, CANCEL_ACTION},
-                                                       0);
-            int ret = dialog.getActionValue();
-			
-            if ((ret==YES_ACTION && trySaveAs(file)) || ret==NO_ACTION) {   // Do not dispose editor if save failed
-                super.dispose();
-            }
-        }
-        else {
-            super.dispose();
-        }
-    }
-	
-
     public void setSaveNeeded(boolean saveNeeded) {
         if(this.saveNeeded!=saveNeeded) {
             this.saveNeeded = saveNeeded;
             // Marks/unmarks the window as dirty under Mac OS X (symbolized by a dot in the window closing icon)
-            if(PlatformManager.OS_FAMILY==PlatformManager.MAC_OS_X)
+            if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X)
                 this.getRootPane().putClientProperty("windowModified", saveNeeded?Boolean.TRUE:Boolean.FALSE);
         }
 		
     }
 
-	
     private void saveAs() {
         JFileChooser fileChooser = new JFileChooser();
 		
@@ -219,7 +184,7 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
     }
 
 	
-    private boolean trySaveAs(AbstractFile destFile) {
+    public boolean trySaveAs(AbstractFile destFile) {
         try {
             editor.saveAs(destFile);
             return true;
@@ -230,6 +195,7 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         }
     }
 	
+
     //////////////////////
     // Runnable methods //
     //////////////////////
@@ -259,6 +225,7 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
 
             // Sets panel to preferred size, without exceeding a maximum size and with a minumum size
             pack();
+            DialogToolkit.centerOnWindow(this, mainFrame);
             setVisible(true);
         }
         catch(Exception e) {
@@ -267,7 +234,8 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
             JOptionPane.showMessageDialog(mainFrame, Translator.get("file_editor.edit_error"), Translator.get("file_editor.edit_error_title"), JOptionPane.ERROR_MESSAGE);
         }
     }
-	
+
+
     ////////////////////////////
     // ActionListener methods //
     ////////////////////////////
@@ -288,10 +256,9 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
     }
 
 
-
-    ////////////////////////////
-    // WindowListener methods //
-    ////////////////////////////
+    ///////////////////////////////////
+    // WindowListener implementation //
+    ///////////////////////////////////
 
     public void windowClosing(WindowEvent e) {
         if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
@@ -318,5 +285,40 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
     }
 
     public void windowClosed(WindowEvent e) {
+    }
+
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    public void pack() {
+        super.pack();
+
+        setTitle(editor.getTitle());
+
+        DialogToolkit.fitToScreen(this);
+        DialogToolkit.fitToMinDimension(this, MIN_DIMENSION);
+    }
+
+
+    public void dispose() {
+        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+
+        // Has any change to the file been made ?
+        if (saveNeeded) {
+            QuestionDialog dialog = new QuestionDialog(this, null, Translator.get("file_editor.save_warning"), this,
+                                                       new String[] {Translator.get("save"), Translator.get("dont_save"), Translator.get("cancel")},
+                                                       new int[]  {YES_ACTION, NO_ACTION, CANCEL_ACTION},
+                                                       0);
+            int ret = dialog.getActionValue();
+
+            if ((ret==YES_ACTION && trySaveAs(file)) || ret==NO_ACTION) {   // Do not dispose editor if save failed
+                super.dispose();
+            }
+        }
+        else {
+            super.dispose();
+        }
     }
 }

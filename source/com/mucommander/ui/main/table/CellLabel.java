@@ -49,17 +49,20 @@ import java.awt.*;
  *
  * @author Maxence Bernard, Sun Microsystems
  */
-class CellLabel extends JLabel {
-
+public class CellLabel extends JLabel {
+    // - Constants -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
     /** Amount of border space on the left and right of the cell */
     public static final int CELL_BORDER_WIDTH = 4;
-
     /** Amount of border space on the top and bottom of the cell */
     public static final int CELL_BORDER_HEIGHT = 1;
-
     /** Empty border to give more space around cells */
     private static final Border CELL_BORDER = new EmptyBorder(CELL_BORDER_HEIGHT, CELL_BORDER_WIDTH, CELL_BORDER_HEIGHT, CELL_BORDER_WIDTH);
 
+
+
+    // - Instance fields -----------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
     /** Last text set by the setText method */
     private String    lastText;
     /** Last icon set by the setIcon method */
@@ -70,15 +73,23 @@ class CellLabel extends JLabel {
     private Color     lastForegroundColor;
     /** Last background color set by the setBackground method */
     private Color     lastBackgroundColor;
+    /** Outline color (top and bottom). */
+    private Color     outlineColor;
+    /** Gradient color for the background. */
+    private Color     gradientColor;
 
+
+
+    // - Initialisation ------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
     /**
      * Creates a new blank CellLabel.
      */
-    public CellLabel() {
-        setOpaque(true);	
-        setBorder(CELL_BORDER);
-    }
+    public CellLabel() {setBorder(CELL_BORDER);}
 
+
+    // - Color changing ------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
     /**
      * Overrides <code>JComponent.setForeground</code> to call 
      * the super method only if the value has changed since last call.
@@ -91,7 +102,6 @@ class CellLabel extends JLabel {
             lastForegroundColor = c;
         }
     }
-
     
     /**
      * Overrides <code>JComponent.setBackground</code> to call 
@@ -103,10 +113,35 @@ class CellLabel extends JLabel {
         if((c != null && !c.equals(lastBackgroundColor)) || (lastBackgroundColor != null && !lastBackgroundColor.equals(c))) {
             super.setBackground(c); 
             lastBackgroundColor = c;
+            gradientColor       = null;
         }
     }
 
-	
+    /**
+     * Sets the background to a gradient between the two specified colors.
+     * @param c1 first component of the gradient.
+     * @param c2 second component of the gradient.
+     */
+    public void setBackground(Color c1, Color c2) {
+        if(c1.equals(c2))
+            setBackground(c1);
+        else {
+            lastBackgroundColor = c1;
+            gradientColor       = c2;
+        }
+    }
+
+
+    /**
+     * Sets the label outline color.
+     * @param c the new background's color for this label
+     */
+    public void setOutline(Color c) {outlineColor = c;}
+
+
+
+    // - Label content -------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
     /**
      * Overrides <code>JLabel.setText</code> to call 
      * the super method only if the value has changed since last call.
@@ -147,11 +182,48 @@ class CellLabel extends JLabel {
             lastTooltip = tooltip;
         }
     }
-	
 
-    //////////////////////////////////////////////////////////////////
-    // Copy/paste from Sun's DefaultTableCellRender implementation  //
-    //////////////////////////////////////////////////////////////////
+
+
+    // - Painting ------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+    /**
+     * Paints the label.
+     * @param g where to paint the label.
+     */
+    public void paint(Graphics g) {
+        // Checks whether we need to paint a gradient background.
+        if(gradientColor != null) {
+            Graphics2D g2;       // Allows us to use the setPaint and getPaint methods.
+            Paint      oldPaint; // Used to restore the graphics's Paint component after filling the background.
+
+            // Initialisation.
+            g2       = (Graphics2D)g;
+            oldPaint = g2.getPaint();
+
+            // Paints the gradient background.
+            g2.setPaint(new GradientPaint(0, 0, lastBackgroundColor, 0, getHeight(), gradientColor, false));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+
+            // Restores the Graphics instance to its previous state.
+            g2.setPaint(oldPaint);
+        }
+
+        // Normal painting.
+        super.paint(g);
+
+        // If necessary, paints the outline color.
+        if(outlineColor != null && !outlineColor.equals(lastBackgroundColor)) {
+            g.setColor(outlineColor);
+            g.drawLine(0, 0, getWidth(), 0);
+            g.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+        }
+    }	
+
+
+
+    // - DefaultTableCellRenderer implementation -----------------------------------------
+    // -----------------------------------------------------------------------------------
     /*
      * The following methods are overridden as a performance measure to 
      * to prune code-paths are often called in the case of renders
@@ -164,14 +236,24 @@ class CellLabel extends JLabel {
      * Overridden for performance reasons.
      */
     public boolean isOpaque() {
-        Color     back;
-        Component p;
+        // If we're not using a gradient background, the component's opaque
+        // status is context dependant.
+        if(gradientColor == null) {
+            Color     back;
+            Component p;
 
-        back = lastBackgroundColor;
-        if((p = getParent()) != null)
-            p = p.getParent();
+            back = lastBackgroundColor;
+            if((p = getParent()) != null)
+                p = p.getParent();
 
-        return !((back != null) && (p != null) && back.equals(p.getBackground()) && p.isOpaque());
+            // The label does not need to be opaque if it has an opaque parent component
+            // of the same background color.
+            return !((back != null) && (p != null) && back.equals(p.getBackground()) && p.isOpaque());
+        }
+
+        // We must consider the label not to be opaque, otherwise the gradient would be overpainted by
+        // the component's background color.
+        return false;
     }
 
     /**

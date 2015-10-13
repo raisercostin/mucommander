@@ -18,15 +18,16 @@
 
 package com.mucommander.conf.impl;
 
-import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.PlatformManager;
 import com.mucommander.RuntimeConstants;
 import com.mucommander.conf.Configuration;
-import com.mucommander.conf.ConfigurationFormatException;
 import com.mucommander.conf.ConfigurationException;
 import com.mucommander.conf.ConfigurationListener;
+import com.mucommander.conf.ValueList;
+import com.mucommander.ui.icon.FileIcons;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @author Nicolas Rinaudo
@@ -66,9 +67,11 @@ public class MuConfiguration {
     public static final String  LOOK_AND_FEEL                     = "lookAndFeel";
     /** Controls whether system notifications are enabled. */
     public static final String  ENABLE_SYSTEM_NOTIFICATIONS       = "enable_system_notifications";
-    /** Default for enable system notifications. */
+    /** System notifications are enabled by default on platforms where a notifier is available and works well enough.
+     * In particular, the system tray notifier is available under Linux+Java 1.6, but it doesn't work well so it is not
+     * enabled by default. */
     public static final boolean DEFAULT_ENABLE_SYSTEM_NOTIFICATIONS = com.mucommander.ui.notifier.AbstractNotifier.isAvailable()
-            && (PlatformManager.OS_FAMILY==PlatformManager.MAC_OS_X || PlatformManager.OS_FAMILY==PlatformManager.WINDOWS_NT);
+        && (PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X || PlatformManager.isWindowsFamily());
     /** Controls whether files should be moved to trash or permanently erased */
     public static final String DELETE_TO_TRASH                    = "delete_to_trash";
     /** Default 'delete to trash' behavior */
@@ -88,8 +91,12 @@ public class MuConfiguration {
     public static final boolean DEFAULT_USE_CUSTOM_SHELL          = false;
     /** Maximum number of items that should be present in the shell history. */
     public static final String  SHELL_HISTORY_SIZE                = SHELL_SECTION + '.' + "history_size";
-    /** Endoding used to read the shell output. */
+    /** Encoding used to read the shell output. */
     public static final String  SHELL_ENCODING                    = SHELL_SECTION + '.' + "encoding";
+    /** Whether or not shell encoding should be auto-detected. */
+    public static final String  AUTODETECT_SHELL_ENCODING         = SHELL_SECTION + '.' + "autodect_encoding";
+    /** Default shell encoding auto-detection behaviour. */
+    public static final boolean DEFAULT_AUTODETECT_SHELL_ENCODING = true;
     /** Default maximum shell history size. */
     public static final int     DEFAULT_SHELL_HISTORY_SIZE        = 100;
 
@@ -152,51 +159,107 @@ public class MuConfiguration {
     // - Folders variables ---------------------------------------------------
     // -----------------------------------------------------------------------
     /** Section describing the folders view configuration. */
-    public static final String  FILE_TABLE_SECTION                = "file_table";
+    public static final String  FILE_TABLE_SECTION                 = "file_table";
     /** Whether or not to display hidden files. */
-    public static final String  SHOW_HIDDEN_FILES                 = FILE_TABLE_SECTION + '.' + "show_hidden_files";
+    public static final String  SHOW_HIDDEN_FILES                  = FILE_TABLE_SECTION + '.' + "show_hidden_files";
     /** Default hidden files visibility. */
-    public static final boolean DEFAULT_SHOW_HIDDEN_FILES         = true;
+    public static final boolean DEFAULT_SHOW_HIDDEN_FILES          = true;
     /** Whether or not to display OS X .DS_Store files. */
-    public static final String  SHOW_DS_STORE_FILES               = FILE_TABLE_SECTION + '.' + "show_ds_store_files";
+    public static final String  SHOW_DS_STORE_FILES                = FILE_TABLE_SECTION + '.' + "show_ds_store_files";
     /** Default .DS_Store files visibility. */
-    public static final boolean DEFAULT_SHOW_DS_STORE_FILES       = true;
+    public static final boolean DEFAULT_SHOW_DS_STORE_FILES        = true;
     /** Whether or not to display system folders. */
-    public static final String  SHOW_SYSTEM_FOLDERS               = FILE_TABLE_SECTION + '.' + "show_system_folders";
+    public static final String  SHOW_SYSTEM_FOLDERS                = FILE_TABLE_SECTION + '.' + "show_system_folders";
     /** Default system folders visibility. */
-    public static final boolean DEFAULT_SHOW_SYSTEM_FOLDERS       = true;
+    public static final boolean DEFAULT_SHOW_SYSTEM_FOLDERS        = true;
     /** Scale factor of file table icons. */
-    public static final String  TABLE_ICON_SCALE                  = FILE_TABLE_SECTION + '.' + "icon_scale";
+    public static final String  TABLE_ICON_SCALE                   = FILE_TABLE_SECTION + '.' + "icon_scale";
     /** Default scale factor of file table icons. */
-    public static final float   DEFAULT_TABLE_ICON_SCALE          = 1.0f;
+    public static final float   DEFAULT_TABLE_ICON_SCALE           = 1.0f;
     /** Whether or not columns should resize themselves automatically. */
-    public static final String  AUTO_SIZE_COLUMNS                 = FILE_TABLE_SECTION + '.' + "auto_size_columns";
+    public static final String  AUTO_SIZE_COLUMNS                  = FILE_TABLE_SECTION + '.' + "auto_size_columns";
     /** Default columns auto-resizing behavior. */
-    public static final boolean DEFAULT_AUTO_SIZE_COLUMNS         = true;
+    public static final boolean DEFAULT_AUTO_SIZE_COLUMNS          = true;
     /** Controls if and when system file icons should be used instead of custom file icons */
-    public static final String  USE_SYSTEM_FILE_ICONS             = FILE_TABLE_SECTION + '.' + "use_system_file_icons";
+    public static final String  USE_SYSTEM_FILE_ICONS              = FILE_TABLE_SECTION + '.' + "use_system_file_icons";
     /** Default system file icons policy */
-    public static final String  DEFAULT_USE_SYSTEM_FILE_ICONS     = FileIcons.USE_SYSTEM_ICONS_APPLICATIONS;
+    public static final String  DEFAULT_USE_SYSTEM_FILE_ICONS      = FileIcons.USE_SYSTEM_ICONS_APPLICATIONS;
     /** Controls whether folders are displayed first in the FileTable or mixed with regular files */
-    public static final String  SHOW_FOLDERS_FIRST                = FILE_TABLE_SECTION + '.' + "show_folders_first";
+    public static final String  SHOW_FOLDERS_FIRST                 = FILE_TABLE_SECTION + '.' + "show_folders_first";
     /** Default value for 'Show folders first' option */
-    public static final boolean DEFAULT_SHOW_FOLDERS_FIRST        = true;
+    public static final boolean DEFAULT_SHOW_FOLDERS_FIRST         = true;
     /** Controls whether symlinks should be followed when changing directory */
-    public static final String  CD_FOLLOWS_SYMLINKS               = FILE_TABLE_SECTION + '.' + "cd_follows_symlinks";
+    public static final String  CD_FOLLOWS_SYMLINKS                = FILE_TABLE_SECTION + '.' + "cd_follows_symlinks";
     /** Default value for 'Follow symlinks when changing directory' option */
-    public static final boolean DEFAULT_CD_FOLLOWS_SYMLINKS       = false;
+    public static final boolean DEFAULT_CD_FOLLOWS_SYMLINKS        = false;
+    /** Identifier of the left file table. */
+    public static final String  LEFT                               = "left";
+    /** Identifier of the right file table. */
+    public static final String  RIGHT                              = "right";
     /** Section describing the left table's configuration. */
-    public static final String  LEFT_FILE_TABLE_SECTION            = FILE_TABLE_SECTION + '.' + "left";
+    public static final String  LEFT_FILE_TABLE_SECTION            = FILE_TABLE_SECTION + '.' + LEFT;
     /** Section describing the right table's configuration. */
-    public static final String  RIGHT_FILE_TABLE_SECTION           = FILE_TABLE_SECTION + '.' + "right";
-    /** Name of the 'show extension' variable. */
-    public static final String  SHOW_EXTENSION                     = "show_extension";
-    /** Name of the 'show size' variable. */
-    public static final String  SHOW_SIZE                          = "show_size";
-    /** Name of the 'show date' variable. */
-    public static final String  SHOW_DATE                          = "show_date";
-    /** Name of the 'show permissions' variable. */
-    public static final String  SHOW_PERMISSIONS                   = "show_permissions";
+    public static final String  RIGHT_FILE_TABLE_SECTION           = FILE_TABLE_SECTION + '.' + RIGHT;
+    /** Identifier of the sort section in a file table's configuration. */
+    public static final String  SORT                               = "sort";
+    /** Identifier of the sort criteria in a file table's configuration. */
+    public static final String  SORT_BY                            = "by";
+    /** Identifier of the sort order in a file table's configuration. */
+    public static final String  SORT_ORDER                         = "order";
+    /** Section described the sort order of the right file table. */
+    public static final String  RIGHT_FILE_TABLE_SORT_SECTION      = LEFT_FILE_TABLE_SECTION + '.' + SORT;
+    /** Section described the sort order of the left file table. */
+    public static final String  LEFT_FILE_TABLE_SORT_SECTION       = RIGHT_FILE_TABLE_SECTION + '.' + SORT;
+    /** Controls the column on which the left file table should be sorted. */
+    public static final String  LEFT_SORT_BY                       = LEFT_FILE_TABLE_SORT_SECTION + '.' + SORT_BY;
+    /** Controls the column on which the right file table should be sorted. */
+    public static final String  RIGHT_SORT_BY                      = RIGHT_FILE_TABLE_SORT_SECTION + '.' + SORT_BY;
+    /** Controls the column on which the left file table should be sorted. */
+    public static final String  LEFT_SORT_ORDER                    = LEFT_FILE_TABLE_SORT_SECTION + '.' + SORT_ORDER;
+    /** Controls the column on which the right file table should be sorted. */
+    public static final String  RIGHT_SORT_ORDER                   = RIGHT_FILE_TABLE_SORT_SECTION + '.' + SORT_ORDER;
+    /** Describes an ascending sort order. */
+    public static final String  SORT_ORDER_ASCENDING               = "asc";
+    /** Describes a descending sort order. */
+    public static final String  SORT_ORDER_DESCENDING              = "desc";
+    /** Default 'sort order' column for the file table. */
+    public static final String  DEFAULT_SORT_ORDER                 = SORT_ORDER_DESCENDING;
+    /** Identifier of the extension column. */
+    public static final String  EXTENSION_COLUMN                   = "extension";
+    /** Identifier of the name column. */
+    public static final String  NAME_COLUMN                        = "name";
+    /** Identifier of the date column. */
+    public static final String  DATE_COLUMN                        = "date";
+    /** Identifier of the size column. */
+    public static final String  SIZE_COLUMN                        = "size";
+    /** Identifier of the permissions column. */
+    public static final String  PERMISSIONS_COLUMN                 = "permissions";
+    /** Name of the 'show column' variable. */
+    public static final String  SHOW_COLUMN                        = "show";
+    /** Name of the 'column position' variable. */
+    public static final String  COLUMN_POSITION                    = "position";
+    /** Name of the 'column width' variable. */
+    public static final String  COLUMN_WIDTH                       = "width";
+    /** Section containing the left extension column configuration. */
+    public static final String  LEFT_EXTENSION_SECTION             = LEFT_FILE_TABLE_SECTION + '.' + EXTENSION_COLUMN;
+    /** Section containing the left name column configuration. */
+    public static final String  LEFT_NAME_SECTION                  = LEFT_FILE_TABLE_SECTION + '.' + NAME_COLUMN;
+    /** Section containing the left size column configuration. */
+    public static final String  LEFT_SIZE_SECTION                  = LEFT_FILE_TABLE_SECTION + '.' + SIZE_COLUMN;
+    /** Section containing the left date column configuration. */
+    public static final String  LEFT_DATE_SECTION                  = LEFT_FILE_TABLE_SECTION + '.' + DATE_COLUMN;
+    /** Section containing the left permissions column configuration. */
+    public static final String  LEFT_PERMISSIONS_SECTION           = LEFT_FILE_TABLE_SECTION + '.' + PERMISSIONS_COLUMN;
+    /** Section containing the right extension column configuration. */
+    public static final String  RIGHT_EXTENSION_SECTION            = RIGHT_FILE_TABLE_SECTION + '.' + EXTENSION_COLUMN;
+    /** Section containing the right name column configuration. */
+    public static final String  RIGHT_NAME_SECTION                 = RIGHT_FILE_TABLE_SECTION + '.' + NAME_COLUMN;
+    /** Section containing the right size column configuration. */
+    public static final String  RIGHT_SIZE_SECTION                 = RIGHT_FILE_TABLE_SECTION + '.' + SIZE_COLUMN;
+    /** Section containing the right date column configuration. */
+    public static final String  RIGHT_DATE_SECTION                 = RIGHT_FILE_TABLE_SECTION + '.' + DATE_COLUMN;
+    /** Section containing the right permissions column configuration. */
+    public static final String  RIGHT_PERMISSIONS_SECTION          = RIGHT_FILE_TABLE_SECTION + '.' + PERMISSIONS_COLUMN;
     /** Default value for the 'show extensions' variable. */
     public static final boolean DEFAULT_SHOW_EXTENSION             = true;
     /** Default value for the 'show size' variable. */
@@ -205,22 +268,60 @@ public class MuConfiguration {
     public static final boolean DEFAULT_SHOW_DATE                  = true;
     /** Default value for the 'show permissions' variable. */
     public static final boolean DEFAULT_SHOW_PERMISSIONS           = true;
+    /** Controls the width of the 'extension' column in the left table. */
+    public static final String  LEFT_EXTENSION_WIDTH               = LEFT_EXTENSION_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'date' column in the left table. */
+    public static final String  LEFT_DATE_WIDTH                    = LEFT_DATE_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'size' column in the left table. */
+    public static final String  LEFT_SIZE_WIDTH                    = LEFT_SIZE_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'permissions' column in the left table. */
+    public static final String  LEFT_PERMISSIONS_WIDTH             = LEFT_PERMISSIONS_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'extension' column in the right table. */
+    public static final String  RIGHT_EXTENSION_WIDTH              = RIGHT_EXTENSION_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'date' column in the right table. */
+    public static final String  RIGHT_DATE_WIDTH                   = RIGHT_DATE_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'size' column in the right table. */
+    public static final String  RIGHT_SIZE_WIDTH                   = RIGHT_SIZE_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the width of the 'permissions' column in the right table. */
+    public static final String  RIGHT_PERMISSIONS_WIDTH            = RIGHT_PERMISSIONS_SECTION + '.' + COLUMN_WIDTH;
+    /** Controls the position of the 'extension' column in the left table. */
+    public static final String  LEFT_EXTENSION_POSITION            = LEFT_EXTENSION_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'name' column in the left table. */
+    public static final String  LEFT_NAME_POSITION                 = LEFT_NAME_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'size' column in the left table. */
+    public static final String  LEFT_SIZE_POSITION                 = LEFT_SIZE_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'date' column in the left table. */
+    public static final String  LEFT_DATE_POSITION                 = LEFT_DATE_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'permissions' column in the left table. */
+    public static final String  LEFT_PERMISSIONS_POSITION          = LEFT_PERMISSIONS_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'extension' column in the right table. */
+    public static final String  RIGHT_EXTENSION_POSITION           = RIGHT_EXTENSION_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'name' column in the right table. */
+    public static final String  RIGHT_NAME_POSITION                = RIGHT_NAME_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'size' column in the right table. */
+    public static final String  RIGHT_SIZE_POSITION                = RIGHT_SIZE_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'date' column in the right table. */
+    public static final String  RIGHT_DATE_POSITION                = RIGHT_DATE_SECTION + '.' + COLUMN_POSITION;
+    /** Controls the position of the 'permissions' column in the right table. */
+    public static final String  RIGHT_PERMISSIONS_POSITION         = RIGHT_PERMISSIONS_SECTION + '.' + COLUMN_POSITION;
     /** Controls whether the extension column is visible in the left table. */
-    public static final String  SHOW_LEFT_EXTENSION                = LEFT_FILE_TABLE_SECTION + '.' + SHOW_EXTENSION;
+    public static final String  SHOW_LEFT_EXTENSION                = LEFT_EXTENSION_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the size column is visible in the left table. */
-    public static final String  SHOW_LEFT_SIZE                     = LEFT_FILE_TABLE_SECTION + '.' + SHOW_SIZE;
+    public static final String  SHOW_LEFT_SIZE                     = LEFT_SIZE_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the date column is visible in the left table. */
-    public static final String  SHOW_LEFT_DATE                     = LEFT_FILE_TABLE_SECTION + '.' + SHOW_DATE;
+    public static final String  SHOW_LEFT_DATE                     = LEFT_DATE_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the permissions column is visible in the left table. */
-    public static final String  SHOW_LEFT_PERMISSIONS              = LEFT_FILE_TABLE_SECTION + '.' + SHOW_PERMISSIONS;
+    public static final String  SHOW_LEFT_PERMISSIONS              = LEFT_PERMISSIONS_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the extension column is visible in the right table. */
-    public static final String  SHOW_RIGHT_EXTENSION               = RIGHT_FILE_TABLE_SECTION + '.' + SHOW_EXTENSION;
+    public static final String  SHOW_RIGHT_EXTENSION               = RIGHT_EXTENSION_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the size column is visible in the right table. */
-    public static final String  SHOW_RIGHT_SIZE                    = RIGHT_FILE_TABLE_SECTION + '.' + SHOW_SIZE;
+    public static final String  SHOW_RIGHT_SIZE                    = RIGHT_SIZE_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the date column is visible in the right table. */
-    public static final String  SHOW_RIGHT_DATE                    = RIGHT_FILE_TABLE_SECTION + '.' + SHOW_DATE;
+    public static final String  SHOW_RIGHT_DATE                    = RIGHT_DATE_SECTION + '.' + SHOW_COLUMN;
     /** Controls whether the permissions column is visible in the right table. */
-    public static final String  SHOW_RIGHT_PERMISSIONS             = RIGHT_FILE_TABLE_SECTION + '.' + SHOW_PERMISSIONS;
+    public static final String  SHOW_RIGHT_PERMISSIONS             = RIGHT_PERMISSIONS_SECTION + '.' + SHOW_COLUMN;
+    /** Default 'sort by' column for the file table. */
+    public static final String  DEFAULT_SORT_BY                    = NAME_COLUMN;
 
 
 
@@ -244,9 +345,9 @@ public class MuConfiguration {
     /** Section describing muCommander's Mac OS X integration. */
     public static final String  STARTUP_FOLDER_SECTION            = "startup_folder";
     /** Section describing the right panel's startup folder. */
-    public static final String  RIGHT_STARTUP_FOLDER_SECTION      = STARTUP_FOLDER_SECTION + '.' + "right";
+    public static final String  RIGHT_STARTUP_FOLDER_SECTION      = STARTUP_FOLDER_SECTION + '.' + RIGHT;
     /** Section describing the left panel's startup folder. */
-    public static final String  LEFT_STARTUP_FOLDER_SECTION       = STARTUP_FOLDER_SECTION + '.' + "left";
+    public static final String  LEFT_STARTUP_FOLDER_SECTION       = STARTUP_FOLDER_SECTION + '.' + LEFT;
     /** Name for variables that describe the last visited folder of a panel. */
     public static final String  LAST_FOLDER                       = "last_folder";
     /** Last visited folder in the left panel. */
@@ -270,7 +371,7 @@ public class MuConfiguration {
     /** Type of startup folder that should be used in the right panel. */
     public static final String  RIGHT_STARTUP_FOLDER              = RIGHT_STARTUP_FOLDER_SECTION + '.' + STARTUP_FOLDER;
     /** Default startup folder type. */
-    public static final String DEFAULT_STARTUP_FOLDER             = STARTUP_FOLDER_LAST;
+    public static final String  DEFAULT_STARTUP_FOLDER            = STARTUP_FOLDER_LAST;
 
 
 
@@ -334,13 +435,13 @@ public class MuConfiguration {
     // - Variables used for caches -------------------------------------------
     // -----------------------------------------------------------------------
     /** Section controlling the caching mechanisms used throughout the application */
-    public static final String  CACHE_SECTION                     = "cache";
+    public static final String  CACHE_SECTION                      = "cache";
     /** Capacity of the AbstractFile instances cache */
-    public static final String  FILE_CACHE_CAPACITY               = CACHE_SECTION + '.' + "file_cache_capacity";
+    public static final String  FILE_CACHE_CAPACITY                = CACHE_SECTION + '.' + "file_cache_capacity";
     /** Default capacity of the AbstractFile instances cache */
-    public static final int     DEFAULT_FILE_CACHE_CAPACITY       = 1000;
+    public static final int     DEFAULT_FILE_CACHE_CAPACITY        = 1000;
     /** Capacity of the system file icon cache */
-    public static final String  SYSTEM_ICON_CACHE_CAPACITY       = CACHE_SECTION + '.' + "system_icon_cache_capacity";
+    public static final String  SYSTEM_ICON_CACHE_CAPACITY         = CACHE_SECTION + '.' + "system_icon_cache_capacity";
     /** Default capacity of the system file icon cache */
     public static final int     DEFAULT_SYSTEM_ICON_CACHE_CAPACITY = 100;
 
@@ -443,6 +544,14 @@ public class MuConfiguration {
                 renameVariable("show_command_bar",  COMMAND_BAR_VISIBLE);
                 setVariable(VERSION, RuntimeConstants.VERSION);
             }
+
+            // Initialises mac os x specific values
+            if(PlatformManager.getOsFamily() == PlatformManager.MAC_OS_X) {
+                if(getVariable(SHELL_ENCODING) == null) {
+                    setVariable(SHELL_ENCODING, "UTF-8");
+                    setVariable(AUTODETECT_SHELL_ENCODING, false);
+                }
+            }
         }
     }
 
@@ -465,6 +574,8 @@ public class MuConfiguration {
 
     public static boolean setVariable(String name, double value) {return configuration.setVariable(name, value);}
 
+    public static boolean setVariable(String name, List value, String separator) {return configuration.setVariable(name, value, separator);}
+
 
 
     // - Variable retrieval ----------------------------------------------------
@@ -480,6 +591,8 @@ public class MuConfiguration {
     public static double getDoubleVariable(String name) {return configuration.getDoubleVariable(name);}
 
     public static boolean getBooleanVariable(String name) {return configuration.getBooleanVariable(name);}
+
+    public static ValueList getListVariable(String name, String separator) {return configuration.getListVariable(name, separator);}
 
     public static boolean isVariableSet(String name) {return configuration.isVariableSet(name);}
 
@@ -499,6 +612,8 @@ public class MuConfiguration {
 
     public static boolean removeBooleanVariable(String name) {return configuration.removeBooleanVariable(name);}
 
+    public static ValueList removeListVariable(String name, String separator) {return configuration.removeListVariable(name, separator);}
+
 
 
     // - Advanced variable retrieval -------------------------------------------
@@ -514,6 +629,8 @@ public class MuConfiguration {
     public static boolean getVariable(String name, boolean defaultValue) {return configuration.getVariable(name, defaultValue);}
 
     public static double getVariable(String name, double defaultValue) {return configuration.getVariable(name, defaultValue);}
+
+    public static ValueList getVariable(String name, List defaultValue, String separator) {return configuration.getVariable(name, defaultValue, separator);}
 
 
     // - Configuration listening -----------------------------------------------

@@ -23,11 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <project>
   <!-- = Task loading ======================================== -->
   <!-- ======================================================= -->
-  <!-- Loads the mkresources task.                             -->
-  <target name="load-mkresources" depends="compress-tools">
-    <taskdef name="mkresources" classname="com.mucommander.ant.res.ResourceTask" classpath="${tools.jar.cmp}"/>
-  </target>
-
   <!-- Loads the javaw task.                                   -->
   <target name="load-javaw" depends="compress-tools">
     <taskdef name="javaw" classname="com.mucommander.ant.java.JavaTask" classpath="${tools.jar.cmp}"/>
@@ -55,7 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   <!-- Copies the project's resources.                         -->
   <!-- All resources will be copied in ${classes.normal}.      -->
-  <target name="resources" depends="load-mkresources">
+  <target name="resources">
     <echo>Copying resources...</echo>
     <!-- Copies the images.                                    -->
     <copy todir="${classes.normal}" overwrite="true">
@@ -74,11 +69,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     <!-- Generates the themes.                                 -->
     <echo>Creating themes...</echo>
-    <mkresources outfile="${classes.normal}/${themes.desc}" outdir="${classes.normal}">
-      <file out="${themes.out}/ClassicCommander.xml" in="${themes.in}/ClassicCommander.xml"/>
-      <file out="${themes.out}/Native.xml"           in="${themes.in}/Native.xml"/>
-      <file out="${themes.out}/RetroCommander.xml"   in="${themes.in}/RetroCommander.xml"/>
-    </mkresources>
+    <mkdir dir="${classes.normal}/${themes.out}"/>
+    <copy todir="${classes.normal}/${themes.out}" overwrite="true">
+      <fileset dir="${themes.in}">
+        <include name="**/*.xml"/>
+      </fileset>
+    </copy>
   </target>
 
 
@@ -100,13 +96,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="include-libs" depends="check-libs" unless="libs.up-to-date">
     <echo>Unpacking external libraries...</echo>
     <unjar dest="${classes.normal}">
-      <fileset dir="${lib}">
-        <include name="**/*.jar"/>
-        <!-- Exclude APIs that are used only at compile time.  -->
-        <exclude name="osx-eawt-stubs.jar"/>
-        <exclude name="osx-cocoa.jar"/>
-        <exclude name="servlet-api.jar"/>
-        <exclude name="junit.jar"/>
+      <fileset dir="${lib}/include">
+        <include name="*.jar"/>
     </fileset>
     </unjar>
 
@@ -187,7 +178,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       <field name="FORUMS_URL"          value="${url.forums}"/>
       <field name="DONATION_URL"        value="${url.donation}"/>
       <field name="DICTIONARY_FILE"     value="/dictionary.txt"/>
-      <field name="THEMES_FILE"         value="${themes.desc}"/>
       <field name="THEMES_PATH"         value="${themes.out}"/>
       <field name="BUG_REPOSITORY_URL"  value="${url.bug-repository}"/>
       <field name="DEFAULT_THEME"       value="Native"/>
@@ -208,34 +198,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       <!-- classpath.                                          -->
       <classpath>
          <fileset dir="${lib}">
-          <include name="**/*.jar"/>
+           <include name="*include/*.jar"/>
          </fileset>
       </classpath>
     </javac>
-  </target>
-
-  <!-- Runs all JUnit test cases and halts if one test fails.  -->
-  <!-- Test cases are classes whose name ends with 'Test'.     -->
-  <!-- A summary of all test cases is printed to the standard  -->
-  <!-- Ant output and full reports are generated to disk       -->
-  <!-- in the ${junit.reports} folder.                         -->
-  <target name="unit-test" depends="load-junit,fail-junit,compile">
-  <echo>Running all JUnit test cases...</echo>
-  <mkdir dir="${junit.reports}"/>
-    <junit printsummary="yes" haltonfailure="yes">
-      <formatter type="plain"/>
-      <classpath>
-        <pathelement location="${classes.normal}"/>
-        <fileset dir="${lib}">
-          <include name="**/*.jar"/>
-        </fileset>
-      </classpath>
-      <batchtest fork="yes" todir="${junit.reports}">
-        <fileset dir="${classes.normal}">
-          <include name="**/*Test.class"/>
-        </fileset>
-      </batchtest>
-    </junit>
   </target>
 
   <!-- Generates the application's uncompressed, unobfuscated  -->
@@ -244,7 +210,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="jar" depends="compile,include-libs,resources">
     <tstamp/>
     <echo>Creating JAR file...</echo>
-    <jar jarfile="${jar.normal}" basedir="${classes.normal}">
+    <jar jarfile="${jar.normal}" basedir="${classes.normal}" excludes="**/*Test.class">
       <manifest>
         <attribute name="Main-Class"             value="${app.main}"/>
         <attribute name="Specification-Title"    value="muCommander"/>
@@ -277,34 +243,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   <!-- Obfuscates the clear JAR file and stores the result in  -->
   <!-- ${jar.obf}.                                             -->
-  <target name="obfuscate-bytecode" if="proguard.available">
+  <target name="obfuscate-bytecode" depends="load-libpath" if="proguard.available">
     <echo>Creating obfuscated JAR file...</echo>
-    <proguard overloadaggressively="false" usemixedcaseclassnames="true" ignorewarnings="true" optimize="true" shrink="true" obfuscate="true"
+
+    <proguard overloadaggressively="false" usemixedcaseclassnames="${proguard.mixed-case}" ignorewarnings="false" optimize="true" shrink="true" obfuscate="true"
               printmapping="${tmp.compile}/obfuscate.map" printusage="${tmp.compile}/obf-usage.txt" printseeds="${tmp.compile}/obf-seeds.txt"
-              allowaccessmodification="true" defaultpackage="" skipnonpubliclibraryclasses="false">
+              allowaccessmodification="false" repackageclasses="" skipnonpubliclibraryclasses="true" target="${app.jvm}">
       <injar name="${jar.normal}"/> 
       <outjar name="${jar.obf}"/>
-      <libraryjar name="${java.lib}"/>
-      <libraryjar name="${lib}/osx-eawt-stubs.jar"/>
-      <libraryjar name="${lib}/osx-cocoa.jar"/>
-      <libraryjar name="${lib}/servlet-api.jar"/>
 
+      <libraryjar path="${java.lib}"/>
+      <libraryjar name="${lib}/noinclude" jarfilter="*.jar"/>
 
-      <!-- Viewer API uses reflection                          -->
-      <keep name="com.mucommander.file.AbstractFile"/>
-      <keepclasseswithmembers extends="com.mucommander.ui.viewer.FileViewer">
-	<method access="public static" type="boolean" name="canViewFile" parameters="com.mucommander.file.AbstractFile"/>
-      </keepclasseswithmembers>
-      <!-- Editor API uses reflection                          -->
-      <keepclasseswithmembers extends="com.mucommander.ui.viewer.FileEditor">
-	<method access="public static" type="boolean" name="canEditFile" parameters="com.mucommander.file.AbstractFile"/>
-      </keepclasseswithmembers>
+      <keepattribute name="exceptions"/>
+
       <!-- Action API uses reflection                          -->
       <keepclasseswithmembers extends="com.mucommander.ui.action.MuAction">
-        <constructor access="public" name="*"/>
-      </keepclasseswithmembers>
-      <!-- File API uses reflection                            -->
-      <keepclasseswithmembers extends="com.mucommander.file.AbstractFile">
         <constructor access="public" name="*"/>
       </keepclasseswithmembers>
       <!-- Yanfs uses reflection                               -->
@@ -315,12 +269,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	<method access="public static" type="void" name="main" parameters="java.lang.String[]"/>
       </keep>
     </proguard>
-  </target>
-
-  <!-- Disables debug instructions in the generated binaries.  -->
-  <target name="disable-debug">
-    <echo>Disabling debug...</echo>
-    <property name="is-debug" value="false"/>
   </target>
 
   <!-- Generates the application's obfuscated jar file.        -->
@@ -367,6 +315,85 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- Generates the final appliation JAR depending on the     -->
   <!-- availability of 7za.                                    -->
   <target name="compress" depends="obfuscate,check-7za,copy-obfuscated,compress-obfuscated"/>
+
+
+
+  <!-- = JUnit management ==================================== -->
+  <!-- ======================================================= -->
+
+  <!-- Notifies user that unit tests are being skipped if      -->
+  <!-- junit is not available.                                 -->
+  <target name="skip-unit-test" unless="junit.available">
+    <echo>JUnit not available, skipping test cases...</echo>
+  </target>
+
+  <!-- Runs all JUnit test cases and halts if one test fails.  -->
+  <!-- Test cases are classes whose name ends with 'Test'.     -->
+  <!-- A summary of all test cases is printed to the standard  -->
+  <!-- Ant output and full reports are generated to disk       -->
+  <!-- in the ${junit.reports} folder.                         -->
+  <target name="do-unit-test" if="junit.available">
+    <echo>Running test cases...</echo>
+    <mkdir dir="${junit.reports}"/>
+    <junit printsummary="yes" haltonfailure="yes">
+      <formatter type="plain"/>
+      <formatter type="xml"/>
+      <classpath>
+        <pathelement location="${classes.normal}"/>
+        <fileset dir="${lib}">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+      <batchtest fork="yes" todir="${junit.reports}">
+        <fileset dir="${classes.normal}">
+          <include name="**/*Test.class"/>
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+
+  <!-- Runs JUnit test cases if junit is available.            -->
+  <target name="unit-test" depends="jar,check-junit,skip-unit-test,do-unit-test"/>
+
+
+  <!-- = Simian integration (similarity checker) ============= -->
+  <!-- ======================================================= -->
+
+  <!-- Checks if Simian is available. The result is stored in  -->
+  <!-- ${simian.available}.                                    -->
+  <target name="check-simian">
+    <!-- If the value is not set, use built-in jar.            -->
+    <property name="simian.lib" value="${tools}/simian.jar"/>
+
+    <!-- Checks for Simian availability.                       -->
+    <!-- If Simian is available, the ${simian.available}       -->
+    <!-- property will be set to true.                         -->
+    <condition property="simian.available" value="true">
+      <available resource="simiantask.properties" classpath="${simian.lib}"/>
+    </condition>
+  </target>
+
+  <!-- Loads the Simian task if it's available.                -->
+  <target name="load-simian" depends="check-simian" if="simian.available">
+    <taskdef resource="simiantask.properties" classpath="${simian.lib}"/>
+  </target>
+
+  <!-- Notifies user that unit tests are being skipped if      -->
+  <!-- junit is not available.                                 -->
+  <target name="skip-similarity-test" unless="simian.available">
+    <echo>Simian not available, skipping similarity check...</echo>
+  </target>
+
+  <!-- Run similarity test                                     -->
+  <target name="do-similarity-test" depends="load-simian" if="simian.available">
+    <echo>Running similarity check...</echo>    
+    <simian>
+      <fileset dir="${source}" includes="**/*.java"/>
+    </simian>
+  </target>
+
+  <!-- Runs similarity test only if Simian is available.       -->
+  <target name="similarity-test" depends="check-simian,skip-similarity-test,do-similarity-test"/>
 
 
 
@@ -472,7 +499,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="make-exe" depends="compress" if="launch4j.available">
     <echo>Creating Win32 executable...</echo>
     <launch4j>
-      <config outfile="${exe.file}" jarpath="${jar.cmp}" icon="${nsis.icon}">
+      <config outfile="${exe.file}" jarpath="mucommander.jar" icon="${nsis.icon}" dontwrapjar="true" chdir=".">
         <jre minversion="${app.jvm}.0"/>
       </config>
     </launch4j>
@@ -506,6 +533,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <!-- Prepares the NSIS directory.                          -->
     <mkdir dir="${nsis.tmp}"/>
     <copy file="${exe.file}"             tofile="${nsis.tmp}/muCommander.exe" overwrite="true"/>
+    <copy file="${jar.cmp}"              tofile="${nsis.tmp}/mucommander.jar" overwrite="true"/>
     <copy file="${nsis.icon}"            tofile="${nsis.tmp}/mucommander.ico" overwrite="true"/>
 
     <!-- Makes sure readme.txt and license.txt contain         -->
@@ -517,6 +545,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       <filterset>
         <filter token="MU_VERSION" value="${app.version}${app.subversion}"/>
         <filter token="MU_EXE"     value="muCommander.exe"/>
+        <filter token="MU_JAR"     value="mucommander.jar"/>
         <filter token="MU_ICON"    value="mucommander.ico"/>
         <filter token="MU_OUT"     value="mucommander-setup.exe"/>
         <filter token="MU_README"  value="readme.txt"/>
@@ -667,7 +696,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <istrue value="${is-release}"/>
           </not>
           <not>
-            <istrue value="${store..available}"/>
+            <istrue value="${store.available}"/>
           </not>
         </and>
       </condition>
@@ -757,7 +786,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <javadoc destdir="${doc.api}" author="true" windowtitle="muCommander API" encoding="UTF-8" access="protected">
       <bottom>
          <![CDATA[
-           <p>This file is part of <a href="http://www.mucommander.com" target="_top">muCommander</a> - Copyright (C) 2002-2007 Maxence Bernard</p>
+           <p>This file is part of <a href="http://www.mucommander.com" target="_top">muCommander</a> - Copyright (C) ${app.copyright} Maxence Bernard</p>
          ]]>
       </bottom>
       <classpath>
@@ -765,13 +794,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
          <include name="**/*.jar"/>
          </fileset>
       </classpath>
-      <packageset dir="${source}">
-        <include name="com/mucommander/**"/>
+      <!-- 'Static' sources, excluding the Ant tools and JUnit -->
+      <!-- test cases.                                         -->
+      <fileset dir="${source}">
+        <patternset refid="non-test-sources"/>
         <exclude name="com/mucommander/ant/**"/>
-      </packageset>
-      <packageset dir="${tmp.source}">
-        <include name="com/mucommander/**"/>
-      </packageset>
+      </fileset>
+
+      <!-- Dynamically generated sources.                      -->
+      <fileset dir="${tmp.source}"/>
     </javadoc>
   </target>
 
@@ -964,6 +995,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   </target>
 
 
+  <!-- = Interaction with the CVS repository ================= -->
+  <!-- ======================================================= -->
+  <!-- Brings the local project tree in sync with the          -->
+  <!-- repository.                                             -->
+  <target name="update">
+    <cvs command="update -dP"/>
+  </target>
+
 
   <!-- = Bulk release ======================================== -->
   <!-- ======================================================= -->
@@ -980,8 +1019,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- JDeb wasn't properly configured, release builds will    -->
   <!-- will just print a warning out and skip the              -->
   <!-- corresponding target, while normal ones will fail.      -->
-  <target name="set-release">
+  <target name="set-release" depends="disable-debug">
     <property name="is-release" value="true"/>
+  </target>
+
+  <!-- Disables debug instructions in the generated binaries.  -->
+  <target name="disable-debug">
+    <echo>Disabling debug...</echo>
+    <property name="is-debug" value="false"/>
   </target>
 
   <!-- Sets the current build as a 'nightly' one.              -->
@@ -998,7 +1043,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   </target>
 
   <!-- Generates all available release files.                  -->
-  <target name="all" depends="source,release-tools,release-conf,tgz,setup-exe,deb,portable,version,sign,jnlp,app.tgz,api-doc-tgz"/>
+  <!-- This target will also try and start the resulting JAR   -->
+  <!-- to make sure it boots properly.                         -->
+  <target name="all" depends="source,release-tools,release-conf,unit-test,tgz,setup-exe,deb,portable,version,sign,jnlp,app.tgz,api-doc-tgz">
+    <java jar="${jar.cmp}" failonerror="true" fork="true">
+      <arg value="--help"/>
+    </java>
+  </target>
 
   <!-- Generates all the available release files.              -->
   <!-- This target is meant for official releases. Nightly     -->
@@ -1026,27 +1077,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- ======================================================= -->
   <!-- The following tasks are meant for development purposes  -->
   <!-- only, and are just shorcuts for starting muCommander in -->
-  <!-- various modes (stress test, icon test, ...).            -->
+  <!-- various special modes such as stress-test mode.         -->
 
   <!-- Launches muCommander in stress test mode, changing      -->
   <!-- current folder every second or so.                      -->
-  <target name="stresstest" depends="compile,resources">
+  <target name="stress-test" depends="compile,resources">
     <java classname="com.mucommander.StressTester" fork="true">
       <classpath>
         <pathelement location="${classes.normal}"/>
          <fileset dir="lib">
-          <include name="**/*.jar"/>
-         </fileset>
-      </classpath>
-    </java>
-  </target>
-
-  <!-- Makes sure all of the required icons are present.       -->
-  <target name="testicons" depends="compile,resources">
-    <java classname="com.mucommander.ui.icon.FileIcons" fork="true">
-      <classpath>
-        <pathelement location="${classes.normal}"/>
-         <fileset dir="${lib}">
           <include name="**/*.jar"/>
          </fileset>
       </classpath>

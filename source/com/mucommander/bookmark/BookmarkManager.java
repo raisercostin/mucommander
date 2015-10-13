@@ -42,6 +42,8 @@ import java.util.WeakHashMap;
  * @author Maxence Bernard, Nicolas Rinaudo
  */
 public class BookmarkManager implements VectorChangeListener {
+    /** Whether we're currently loading the bookmarks or not. */
+    private static boolean isLoading = false;
 
     /** Bookmarks file location */
     private static File bookmarksFile;
@@ -147,14 +149,18 @@ public class BookmarkManager implements VectorChangeListener {
 
         // Parse the bookmarks file
         in = null;
+        isLoading = true;
         try {readBookmarks(in = new BackupInputStream(getBookmarksFile()), new Loader());}
         finally {
             if(in != null) {
                 try {in.close();}
                 catch(Exception e) {}
             }
+            isLoading = false;
         }
     }
+
+    public static synchronized void readBookmarks(InputStream in) throws Exception {readBookmarks(in, new Loader());}
 
     public static synchronized void readBookmarks(InputStream in, BookmarkBuilder builder) throws Exception {new BookmarkParser().parse(in, builder);}
 
@@ -268,7 +274,8 @@ public class BookmarkManager implements VectorChangeListener {
      */
     public static void fireBookmarksChanged() {
         // Bookmarks file will need to be saved
-        saveNeeded = true;
+        if(!isLoading)
+            saveNeeded = true;
 
         lastBookmarkChangeTime = System.currentTimeMillis();
 

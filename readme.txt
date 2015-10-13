@@ -4,9 +4,9 @@
 |_|_|_|___|_____|___|_|_|_|_|_|_|__,|_|_|___|___|_| 
 
 
-----------------
-muCommander v0.8  
-----------------
+------------------
+muCommander v0.8.2
+------------------
 
 muCommander is a cross-platform file manager featuring a Norton Commander
 style interface and running on any operating system with Java support
@@ -42,17 +42,20 @@ Please refer to the 'license.txt' file bundled with muCommander.
 
 muCommander uses the following great third party works :
 
-- the jCIFS library released under the GNU LGPL.
- jCIFS can be found at http://jcifs.samba.org .
+- the Ant library released under the Apache License.
+ Ant can be found at http://ant.apache.org .
 
-- the Jakarta Commons Net library released under the Apache License.
- Jarkata Commons Net can be found at http://jakarta.apache.org .
+- the ICU4J library released under the ICU License.
+ the ICU project can be found at http://icu-project.org .
 
 - the J2SSH library released under the GNU LGPL license.
  J2SSH can be found at http://www.sshtools.com .
 
-- the Ant library released under the Apache License.
- Ant can be found at http://ant.apache.org .
+- the Jakarta Commons Net library released under the Apache License.
+ Jarkata Commons Net can be found at http://jakarta.apache.org .
+
+- the jCIFS library released under the GNU LGPL.
+ jCIFS can be found at http://jcifs.samba.org .
 
 - the JmDNS library released under the GNU LGPL.
  JmDNS can be found at http://jmdns.sourceforge.net .
@@ -72,7 +75,9 @@ Lead developers:
 - Nicolas Rinaudo
 
 Code contributors:
-- Xavier Martin (ISO and NRG archives support)
+- Mariusz Jakubowski
+- Xavier Martin
+- Alejandro Scandroli
 
 Translators: 
 - Tony Klüver and Frank Berger (German)
@@ -96,90 +101,40 @@ Many thanks to all of you who suggested new features, reported bugs, sent warm
 emails or generously donated to the project !
 
 
-What's new since v0.8 beta 3 ?
-------------------------------
+What's new since v0.8.1 ?
+-------------------------
 
 New features:
-- Added 'Use system file icons' option to 'Appearance' preferences, allowing
-  to display file icons as they are displayed on the system's desktop
-- Added 'Show folders first' option to 'View' menu, allowing to control whether
-  folders are displayed first (default) or mixed with regular files
-- System notifications (Growl under Mac OS X, System tray under other platforms)
-  are sent when transfers are complete or an error has occurred
-- Added support for the NFS protocol
-- New 'Follow symlinks when changing current directory' option in the
-  preferences
-- New and improved theme editor, now allows to edit all theme attributes and to
-  manage themes
-- Mac OS X and KDE: 'Delete' can now move files to the system's trash (enabled
-  by default), and open or empty the trash
-- Zip files can now be modified 'on-the-fly' as if they were regular 
-  directories (on local and SMB filesystems)
-- Smart encoding detection used for Zip files, text viewer and editor
-- muCommander is now free software, licensed under the GNU GPL v3
+- Files can be marked/unmarked using Regexp
 
 Improvements:
-- Added 'Go to' buttons to 'Edit bookmarks', 'Edit credentials' and 'Show open
-  connections' dialogs to go to the selected location
-- Added 'Show seconds' and 'Show century' options to 'Date & time' preferences,
-  to show seconds/century in file dates
-- FTP encoding can now be specified in the 'Connect to server' dialog ;
-  connection properties are saved with credentials
-- Updated Ant Tar and Bzip2 libraries to version 1.7.0
-- Added 'share' field to 'Connect to server' SMB panel
-- Added 'Open with' item to 'File' menu
-- 'Copy' is now the default action instead of 'Move' for drag-and-drop within
-  muCommander
-- Improved keyboard accessibility of 'File collision' and 'Transfer progress'
-  dialogs
-- Added 'Bring all to front' item to 'Window' menu
-- Improved UI responsiveness on slow filesystems
-- Added icons to language preferences
-- Delete dialog warns more explicitly about the consequences of deleting files
-  permanently
-- Added folder icons to drive button and its popup menu
-- Quick search now dims the non-matching files
-- Improved Zip performance: up to 15x speed increase when extracting Zip files
-- Added Control+Backspace shortcut to 'Go to root' action
-- Filename in Mkdir/Mkfile dialog now defaults to currently selected filename
+- 
 
 Localization:
-- Korean translation contributed by Jioh L. Jung
-- Brazilian Portuguese translation contributed by Cristiano Duarte
-- Dutch translation contributed by Pieter Kristensen
-- Slovak translation contributed by Ján Ľudvík
-- British English translation contributed by Jonathan Murphy
+-
 
 Bug fixes:
-- FTP filenames containing extended characters are now properly handled if the
-  proper encoding is specified when the connection is created
-- HTTP files can now be properly archived
-- Windows can now be properly recalled when they are minimized
-- Fixed individual file progress and transfer speed not showing when moving
-  files between different drives under Windows
-- Fixed slow startup and directory access times that could occur under Windows
-  when network drives are present but unreachable
-- Fixed issues with local folders under Windows that would occur when a path 
-  with a trailing space was entered in the location field
-- Fixed some flickering that would randomly occur while changing the current
-  folder
-- Fixed improper handling of custom-defined mappings in action_keymap.xml file
+- 
 
 Known issues:
-- Italian, Korean and Polish translations are not up-to-date
+- Korean translation is not up-to-date.
 - Executable permissions are not preserved properly for local files prior to
-  Java 1.6
-- Some BZ2 archives can not be properly opened
-- SMB support may not work properly on non multi-language JRE
+  Java 1.6.
+- SMB support may not work properly on non multi-language JRE.
 - 'Copy files to clipboard' not working with some applications (files are not
-  pasted)
+  pasted).
 - Mac OS X : 'Sort by' keyboard shortcuts in menu show Command modifier instead
   of Ctrl, OS X's keyboard navigation shortcuts must be disabled in 'System
-  Preferences' for them to work properly
+  Preferences' for them to work properly.
 - Mac OS X : text fields don't work correctly when using a fractionally-scaled
   font (known Java bug,
-   http://lists.apple.com/archives/Java-dev/2005/May/msg00670.html)
-- Editable combo boxes have keyboard navigation issues under Java 1.6
+   http://lists.apple.com/archives/Java-dev/2005/May/msg00670.html).
+- Editable combo boxes have keyboard navigation issues under Java 1.6.
+- The bookmark file system doesn't allow users to specify which credentials
+  they wish to use when selecting a bookmark that needs authentification, it
+  will default to the first in the list.
+- Authentication issues when using several sets of credentials (login/password)
+  on the same server.
 
 
 Command Line Interface
@@ -197,8 +152,8 @@ The following options are available:
  -n, --no-debug                    Disable debug output to stdout
  -d, --debug                       Enable debug output to stdout (default)
  -p FOLDER, --preferences FOLDER   Store configuration files in FOLDER
- -o, --no-splash                   Disable splashscreen on startup
- -O, --splash                      Enable splashscreen on startup (default)
+ --no-splash                       Disable splashscreen on startup
+ --splash                          Enable splashscreen on startup (default)
  -S, --silent                      Do not print verbose error messages
  -s FILE, --shell-history FILE     Load shell history from FILE
  -t FILE, --toolbar FILE           Load toolbar from FILE

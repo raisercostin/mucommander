@@ -30,7 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <property name="app.version"         value="0.8"/>
   <!-- Minor version number of the application.                -->
   <!-- Note that this should be empty for major releases.      -->
-  <property name="app.subversion"      value=""/>
+  <property name="app.subversion"      value=".2"/>
   <!-- Copyright line of the application.                      -->
   <!-- This should typically be 2002-<current-year>            -->
   <property name="app.copyright"       value="2002-2007"/>
@@ -79,7 +79,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <property name="classes.normal"      location="${tmp.compile}/classes/"/>
   <!-- Where to store the obfuscated bytecode.                 -->
   <property name="classes.obf"         location="${tmp.compile}/obf"/>
-    <!-- Folder where Junit test reports are generated.        -->
+  <!-- Folder where Junit test reports are generated.        -->
   <property name="junit.reports"       location="${tmp}/test-reports"/>
   <property name="tmp.source"          location="${tmp}/source"/>
   <property name="doc.api"             location="${doc}/api"/>
@@ -104,9 +104,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   <!-- = Theme values ======================================== -->
   <!-- ======================================================= -->
-  <!-- Where to generate the predefined themes description     -->
-  <!-- file.                                                   -->
-  <property name="themes.desc"         value="/themes.xml"/>
   <!-- Where to load the themes from.                          -->
   <property name="themes.in"           location="${res}/themes"/>
   <!-- Where to write the themes to.                           -->
@@ -239,6 +236,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <property name="tools.classes.normal" location="${tools.tmp}/classes"/>
   <!-- Where to store the obfuscated Ant tools bytecode.       -->
   <property name="tools.classes.obf"    location="${tools.tmp}/obf"/>
+  <!-- Folder where Junit test reports are generated.        -->
+  <property name="tools.junit.reports"  location="${tools.tmp}/test-reports"/>
 
 
 
@@ -272,4 +271,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <property name="conf.classes.normal"  location="${conf.tmp}/classes"/>
   <!-- Where to store obfuscated Configuration API bytecode.   -->
   <property name="conf.classes.obf"     location="${conf.tmp}/obf"/>
+  <!-- Folder where Junit test reports are generated.        -->
+  <property name="conf.junit.reports"   location="${conf.tmp}/test-reports"/>
 </project>

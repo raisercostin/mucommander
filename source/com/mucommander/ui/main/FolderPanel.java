@@ -28,11 +28,12 @@ import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.*;
 import com.mucommander.file.filter.AndFileFilter;
+import com.mucommander.file.filter.AttributeFileFilter;
 import com.mucommander.file.filter.DSStoreFileFilter;
-import com.mucommander.file.filter.HiddenFileFilter;
 import com.mucommander.file.filter.SystemFileFilter;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.border.MutableLineBorder;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.auth.AuthDialog;
 import com.mucommander.ui.dialog.file.DownloadDialog;
@@ -41,6 +42,7 @@ import com.mucommander.ui.dnd.FileDropTargetListener;
 import com.mucommander.ui.event.LocationManager;
 import com.mucommander.ui.main.menu.TablePopupMenu;
 import com.mucommander.ui.main.table.FileTable;
+import com.mucommander.ui.main.table.FileTableConfiguration;
 import com.mucommander.ui.main.table.FolderChangeMonitor;
 import com.mucommander.ui.progress.ProgressTextField;
 import com.mucommander.ui.theme.*;
@@ -87,6 +89,8 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     
     private FileDragSourceListener fileDragSourceListener;
 
+    private Color borderColor;
+    private Color unfocusedBorderColor;
     private Color backgroundColor;
     private Color unfocusedBackgroundColor;
     private Color unmatchedBackgroundColor;
@@ -103,8 +107,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     private final static String BROWSE_TEXT = Translator.get("browse");
     private final static String DOWNLOAD_TEXT = Translator.get("download");
 
-
-    public FolderPanel(MainFrame mainFrame, AbstractFile initialFolder) {
+    FolderPanel(MainFrame mainFrame, AbstractFile initialFolder, FileTableConfiguration conf) {
         super(new BorderLayout());
 
         if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(" initialFolder="+initialFolder);
@@ -138,7 +141,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         add(locationPanel, BorderLayout.NORTH);
 
         // Create the FileTable
-        fileTable = new FileTable(mainFrame, this);
+        fileTable = new FileTable(mainFrame, this, conf);
 
         // Init chained file filters used to filter out files in the current directory.
         // AndFileFilter is used, that means files must satisfy all the filters in order to be displayed.
@@ -146,7 +149,8 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
 
         // Filters out hidden files, null when 'show hidden files' option is enabled
         if(!MuConfiguration.getVariable(MuConfiguration.SHOW_HIDDEN_FILES, MuConfiguration.DEFAULT_SHOW_HIDDEN_FILES))
-            chainedFileFilter.addFileFilter(new HiddenFileFilter());
+            // This filter is inverted and matches non-hidden files
+            chainedFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.HIDDEN, true));
 
         // Filters out Mac OS X .DS_Store files, null when 'show DS_Store files' option is enabled
         if(!MuConfiguration.getVariable(MuConfiguration.SHOW_DS_STORE_FILES, MuConfiguration.DEFAULT_SHOW_DS_STORE_FILES))
@@ -184,10 +188,11 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         scrollPane = new JScrollPane(fileTable, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         // Sets the table border.
-        scrollPane.setBorder(BorderFactory.createLineBorder(ThemeManager.getCurrentColor(Theme.FILE_TABLE_BORDER_COLOR), 1));
+        scrollPane.setBorder(new MutableLineBorder(unfocusedBorderColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_INACTIVE_BORDER_COLOR), 1));
+        borderColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_BORDER_COLOR);
 
         // Set scroll pane's background color to match the one of this panel and FileTable
-        scrollPane.getViewport().setBackground(unfocusedBackgroundColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_UNFOCUSED_BACKGROUND_COLOR));
+        scrollPane.getViewport().setBackground(unfocusedBackgroundColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_INACTIVE_BACKGROUND_COLOR));
         backgroundColor          = ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR);
         unmatchedBackgroundColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_UNMATCHED_BACKGROUND_COLOR);
 
@@ -200,6 +205,8 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                 }
                 // Right-click brings a contextual popup menu
                 else if (PlatformManager.isRightMouseButton(e)) {
+                    if(!fileTable.hasFocus())
+                        fileTable.requestFocus();
                     AbstractFile currentFolder = getCurrentFolder();
                     new TablePopupMenu(FolderPanel.this.mainFrame, currentFolder, null, false, fileTable.getFileTableModel().getMarkedFiles()).show(scrollPane, e.getX(), e.getY());
                 }
@@ -276,7 +283,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
 
     /**
      * Returns the visited folders history wrapped in a FolderHistory object.
-\    */
+     */
     public FolderHistory getFolderHistory() {
         return this.folderHistory;
     }
@@ -385,12 +392,10 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
             if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(">>>>>>>>> THREAD NOT NULL = "+changeFolderThread, -1);
             return;
         }
-		
-        this.changeFolderThread = new ChangeFolderThread(folder);
 
+        this.changeFolderThread = new ChangeFolderThread(folder);
         if(selectThisFileAfter!=null)
             this.changeFolderThread.selectThisFileAfter(selectThisFileAfter);
-
         changeFolderThread.start();
     }
 
@@ -482,11 +487,11 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * @param fileToSelect file to be selected after the folder has been refreshed (if it exists in the folder), can be null in which case FileTable rules will be used to select current file
      */
     private synchronized void setCurrentFolder(AbstractFile folder, AbstractFile children[], AbstractFile fileToSelect) {
-        fileTable.setCurrentFolder(folder, children);
-
         // Select given file if not null
-        if(fileToSelect!=null)
-            fileTable.selectFile(fileToSelect);
+        if(fileToSelect == null)
+            fileTable.setCurrentFolder(folder, children);
+        else
+            fileTable.setCurrentFolder(folder, children, fileToSelect);
 
         this.currentFolder = folder;
 
@@ -534,10 +539,22 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * {@link com.mucommander.ui.main.table.FileTable.QuickSearch} when a quick search is over.
      */
     public void undimBackground() {
+        Color newColor;
+
+        // Identifies the new background color.
         if(fileTable.hasFocus())
-            scrollPane.getViewport().setBackground(backgroundColor);
+            newColor = backgroundColor;
         else
-            scrollPane.getViewport().setBackground(unfocusedBackgroundColor);
+            newColor = unfocusedBackgroundColor;
+
+        // If the old and new background color differ, set the new background
+        // color.
+        // Otherwise, repaint the table - if we were to skip that step, quicksearch
+        // cancellation might result in a corrupt display.
+        if(newColor.equals(scrollPane.getViewport().getBackground()))
+            fileTable.repaint();
+        else
+            scrollPane.getViewport().setBackground(newColor);
     }
 
 
@@ -560,13 +577,17 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     public void focusGained(FocusEvent e) {
         // Notify MainFrame that we are in control now! (our table/location field is active)
         mainFrame.setActiveTable(fileTable);
-        if(e.getSource() == fileTable)
+        if(e.getSource() == fileTable) {
+            ((MutableLineBorder)scrollPane.getBorder()).setLineColor(borderColor);
             scrollPane.getViewport().setBackground(backgroundColor);
+        }
     }
 
     public void focusLost(FocusEvent e) {
-        if(e.getSource() == fileTable)
+        if(e.getSource() == fileTable) {
+            ((MutableLineBorder)scrollPane.getBorder()).setLineColor(unfocusedBorderColor);
             scrollPane.getViewport().setBackground(unfocusedBackgroundColor);
+        }
         fileTable.getQuickSearch().cancel();
     }
 	
@@ -584,9 +605,10 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         // Show or hide hidden files
         if (var.equals(MuConfiguration.SHOW_HIDDEN_FILES)) {
             if(event.getBooleanValue())
-                removeFileFilter(HiddenFileFilter.class);
+                removeFileFilter(AttributeFileFilter.class);
             else
-                chainedFileFilter.addFileFilter(new HiddenFileFilter());
+                // This filter is inverted and matches non-hidden files
+                chainedFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.HIDDEN, true));
         }
         // Show or hide .DS_Store files (Mac OS X option)
         else if (var.equals(MuConfiguration.SHOW_DS_STORE_FILES)) {
@@ -666,8 +688,8 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
          * the preferences.
          */
         private boolean followCanonicalPath(AbstractFile file) {
-            if(MuConfiguration.getVariable(MuConfiguration.CD_FOLLOWS_SYMLINKS, MuConfiguration.DEFAULT_CD_FOLLOWS_SYMLINKS)
-                    || file.getURL().getProtocol().equals(FileProtocols.HTTP) && !file.getAbsolutePath(false).equals(file.getCanonicalPath(false)))
+            if((MuConfiguration.getVariable(MuConfiguration.CD_FOLLOWS_SYMLINKS, MuConfiguration.DEFAULT_CD_FOLLOWS_SYMLINKS)
+                || file.getURL().getProtocol().equals(FileProtocols.HTTP)) && !file.getAbsolutePath(false).equals(file.getCanonicalPath(false)))
                 return true;
 
             return false;
@@ -802,6 +824,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                                                                                0);
 
                                     int ret = dialog.getActionValue();
+
                                     if(ret==-1 || ret==CANCEL_ACTION)
                                         break;
 
@@ -984,14 +1007,25 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     public void colorChanged(ColorChangedEvent event) {
         switch(event.getColorId()) {
         case Theme.FILE_TABLE_BORDER_COLOR:
-            scrollPane.setBorder(BorderFactory.createLineBorder(event.getColor(), 1));
+            borderColor = event.getColor();
+            if(fileTable.hasFocus()) {
+                ((MutableLineBorder)scrollPane.getBorder()).setLineColor(borderColor);
+                scrollPane.repaint();
+            }
+            break;
+        case Theme.FILE_TABLE_INACTIVE_BORDER_COLOR:
+            unfocusedBorderColor = event.getColor();
+            if(!fileTable.hasFocus()) {
+                ((MutableLineBorder)scrollPane.getBorder()).setLineColor(unfocusedBorderColor);
+                scrollPane.repaint();
+            }
             break;
         case Theme.FILE_TABLE_BACKGROUND_COLOR:
             backgroundColor = event.getColor();
             if(fileTable.hasFocus())
                 scrollPane.getViewport().setBackground(backgroundColor);
             break;
-        case Theme.FILE_TABLE_UNFOCUSED_BACKGROUND_COLOR:
+        case Theme.FILE_TABLE_INACTIVE_BACKGROUND_COLOR:
             unfocusedBackgroundColor = event.getColor();
             if(!fileTable.hasFocus())
                 scrollPane.getViewport().setBackground(unfocusedBackgroundColor);

@@ -21,6 +21,7 @@ package com.mucommander.file.impl;
 import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
 
+import java.io.IOException;
 import java.util.Random;
 
 /**
@@ -193,18 +194,18 @@ public class DebugFile extends ProxyFile {
         return super.getCanonicalPath();
     }
 
+    public AbstractFile getCanonicalFile() {
+        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        lag();
+
+        return super.getCanonicalFile();
+    }
+
     public boolean isBrowsable() {
         if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
         lag();
 
         return super.isBrowsable();
-    }
-
-    public boolean isParentOf(AbstractFile f) {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
-        lag();
-
-        return super.isParentOf(f);
     }
 
     public boolean isHidden() {
@@ -221,7 +222,7 @@ public class DebugFile extends ProxyFile {
         return super.getPermissions();
     }
 
-    public AbstractFile getRoot() {
+    public AbstractFile getRoot() throws IOException {
         if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
         lag();
 
@@ -249,7 +250,7 @@ public class DebugFile extends ProxyFile {
         return super.toString();
     }
 
-    public AbstractFile getParent() {
+    public AbstractFile getParent() throws IOException {
         if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
         lag();
 

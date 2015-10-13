@@ -23,10 +23,12 @@ import com.mucommander.cache.LRUCache;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
+import com.mucommander.ui.border.MutableLineBorder;
 import com.mucommander.ui.event.ActivePanelListener;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
@@ -43,6 +45,7 @@ import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 
 /**
@@ -240,7 +243,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
         if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called, currentFolder="+currentFolder);
 
-        long cachedVolumeInfo[] = (long[])volumeInfoCache.get(currentFolder.getAbsolutePath());
+        long cachedVolumeInfo[] = (long[])volumeInfoCache.get(getVolumeInfoCacheKey(currentFolder));
         if(cachedVolumeInfo!=null) {
             if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Cache hit!");
             volumeSpaceLabel.setVolumeSpace(cachedVolumeInfo[0], cachedVolumeInfo[1]);
@@ -258,7 +261,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
                     // Folder is a local file and Java version is 1.5 or lower: call getVolumeInfo() instead of 
                     // separate calls to getFreeSpace() and getTotalSpace() as it is twice as fast.
-                    if(currentFolder instanceof LocalFile && PlatformManager.JAVA_VERSION<=PlatformManager.JAVA_1_5) {
+                    if(currentFolder instanceof LocalFile && PlatformManager.getJavaVersion()<=PlatformManager.JAVA_1_5) {
                         long volumeInfo[] = ((LocalFile)currentFolder).getVolumeInfo();
                         volumeTotal = volumeInfo[0];
                         volumeFree = volumeInfo[1];
@@ -272,10 +275,48 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                     volumeSpaceLabel.setVolumeSpace(volumeTotal, volumeFree);
 
                     if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Adding to cache");
-                    volumeInfoCache.add(currentFolder.getAbsolutePath(), new long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
+                    volumeInfoCache.add(getVolumeInfoCacheKey(currentFolder), new long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
                 }
             }.start();
         }
+    }
+
+    /**
+     * Returns the 'volume info cache' key for the specified folder.
+     *
+     * @param folder the folder for which to retrieve a key
+     * @return the 'volume info cache' key for the specified folder
+     */
+    private String getVolumeInfoCacheKey(AbstractFile folder) {
+        // - for archive entries or archive files on any file protocol, use the archive file as the key
+        // - for local file on platforms that use root drives (e.g. C:\), use the the drive's root
+        // - for local file on platforms that do not use root drives (Unix-based platforms), use the exact folder
+        //   as any folder could potentially be a mount point and have a different volume info
+        // - for non-local files, use the exact folder as any folder could have a different volume info
+
+        AbstractFile archive = folder.getParentArchive();
+        AbstractFile key;
+
+        if(archive!=null) {
+            key = archive;
+        }
+        else {
+            if(FileProtocols.FILE.equals(folder.getURL().getProtocol())) {
+                try {
+                    key = LocalFile.hasRootDrives()?
+                        folder.getRoot():
+                        folder;
+                }
+                catch(IOException e) {
+                    key = folder;
+                }
+            }
+            else {
+                key = folder;
+            }
+        }
+
+        return key.getAbsolutePath(false);
     }
 
 
@@ -500,7 +541,6 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         private long totalSpace;
 
         private Color backgroundColor;
-        private Color borderColor;
         private Color okColor;
         private Color warningColor;
         private Color criticalColor;
@@ -513,10 +553,11 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             super("");
             setHorizontalAlignment(CENTER);
             backgroundColor = ThemeManager.getCurrentColor(Theme.STATUS_BAR_BACKGROUND_COLOR);
-            borderColor     = ThemeManager.getCurrentColor(Theme.STATUS_BAR_BORDER_COLOR);
+            //            borderColor     = ThemeManager.getCurrentColor(Theme.STATUS_BAR_BORDER_COLOR);
             okColor         = ThemeManager.getCurrentColor(Theme.STATUS_BAR_OK_COLOR);
             warningColor    = ThemeManager.getCurrentColor(Theme.STATUS_BAR_WARNING_COLOR);
             criticalColor   = ThemeManager.getCurrentColor(Theme.STATUS_BAR_CRITICAL_COLOR);
+            setBorder(new MutableLineBorder(ThemeManager.getCurrentColor(Theme.STATUS_BAR_BORDER_COLOR)));
             ThemeManager.addCurrentThemeListener(this);
         }
 
@@ -580,14 +621,6 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                 int width = getWidth();
                 int height = getHeight();
 
-                // Fill background
-                g.setColor(backgroundColor);
-                g.fillRect(0, 0, width, height);
-
-                // Paint border
-                g.setColor(borderColor);
-                g.drawRect(0, 0, width-1, height-1);
-
                 // Paint amount of free volume space if both free and total space are available
                 float freeSpacePercentage = freeSpace/(float)totalSpace;
 
@@ -596,7 +629,11 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                            :okColor);
 
                 int freeSpaceWidth = Math.max(Math.round(freeSpacePercentage*(float)(width-2)), 1);
-                g.fillRect(1, 1, freeSpaceWidth, height-2);
+                g.fillRect(1, 1, freeSpaceWidth + 1, height - 2);
+
+                // Fill background
+                g.setColor(backgroundColor);
+                g.fillRect(freeSpaceWidth + 1, 1, width - freeSpaceWidth - 1, height - 2);
             }
 
             super.paint(g);
@@ -610,7 +647,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                 backgroundColor = event.getColor();
                 break;
             case Theme.STATUS_BAR_BORDER_COLOR:
-                borderColor = event.getColor();
+                ((MutableLineBorder)getBorder()).setLineColor(event.getColor());
                 break;
             case Theme.STATUS_BAR_OK_COLOR:
                 okColor = event.getColor();

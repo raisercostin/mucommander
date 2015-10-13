@@ -90,7 +90,7 @@ public class IconManager {
      * @param scaleFactor the icon scale factor, <code>1.0f</code> to have the icon in its original size (no rescaling)
      */
     public static ImageIcon getIcon(String iconPath, float scaleFactor) {
-        URL resourceURL = ResourceLoader.getResource(iconPath);
+        URL resourceURL = ResourceLoader.getResourceAsURL(iconPath);
         if(resourceURL==null) {
             if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Warning: attempt to load non-existing icon: "+iconPath+" , icon missing ?");
             return null;
@@ -121,6 +121,27 @@ public class IconManager {
 
         Image image = icon.getImage();
         return new ImageIcon(image.getScaledInstance((int)(scaleFactor*image.getWidth(null)), (int)(scaleFactor*image.getHeight(null)), Image.SCALE_AREA_AVERAGING));
+    }
+
+    /**
+     * Returns a 'composite' icon made by composing the two given icons: the <code>backgroundIcon</code> is painted
+     * first, and the <code>foregroundIcon</code> is superposed, letting its non-transparent pixels reveal the
+     * background icon.
+     * For this method to provide a meaningful result, the two icons should have the same dimensions and the
+     * <code>foreground</code> should have some transparent pixels.
+     *
+     * @param backgroundIcon the icon that is painted first
+     * @param foregroundIcon the icon that is superposed above backgroundIcon, should use transparency
+     * @return a 'composite' icon made by composing the two given icons
+     */
+    public static ImageIcon getCompositeIcon(Icon backgroundIcon, Icon foregroundIcon) {
+        BufferedImage bi = new BufferedImage(backgroundIcon.getIconWidth(), backgroundIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+
+        Graphics g = bi.getGraphics();
+        backgroundIcon.paintIcon(null, g, 0, 0);
+        foregroundIcon.paintIcon(null, g, 0, 0);
+
+        return new ImageIcon(bi);
     }
 
 

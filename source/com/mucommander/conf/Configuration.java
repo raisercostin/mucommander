@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Iterator;
 import java.util.WeakHashMap;
@@ -51,7 +52,17 @@ import java.util.EmptyStackException;
  * <h3>Variable types</h3>
  * While the <code>com.mucommander.conf</code> really only handles one type of variables, strings, it offers
  * tools to cast them as primitive Java types (int, long, float, double, boolean). This is done through the use
- * of the various primitive types' class implementation <code>parseXXX</code> method.
+ * of the various primitive types' class implementation <code>parseXXX</code> method.<br>
+ * When a variable hasn't been set but ant attempt is made to cast it, the standard Java default value will
+ * be returned:
+ * <ul>
+ *   <li>String: <code>null</code></li>
+ *   <li>Integer: <code>0</code></li>
+ *   <li>Long: <code>0</code></li>
+ *   <li>Float: <code>0</code></li>
+ *   <li>Double: <code>0</code></li>
+ *   <li>Boolean: <code>false</code></li>
+ * </ul>
  * </p>
  * <p>
  * <h3>Configuration file format</h3>
@@ -173,7 +184,7 @@ public class Configuration {
 
     /**
      * Returns the current configuration source.
-     * @return the current configuration source.
+     * @return the current configuration source, or <code>null</code> if it hasn't been set.
      */
     public ConfigurationSource getSource() {synchronized(sourceLock) {return source;}}
 
@@ -532,6 +543,7 @@ public class Configuration {
      *  <li>One when <code>fromVar</code> is removed.</li>
      *  <li>One when <code>toVar</code> is set.</li>
      * </ul>
+     * The removal event will always be triggered first.
      * </p>
      * @param fromVar fully qualified name of the variable to rename.
      * @param toVar   fully qualified name of the variable that will receive <code>fromVar</code>'s value.
@@ -583,6 +595,24 @@ public class Configuration {
      * @return       <code>true</code> if this call resulted in a modification of the variable's value, <code>false</code> otherwise.
      */
     public boolean setVariable(String name, int value) {return setVariable(name, ConfigurationSection.getValue(value));}
+
+    /**
+     * Sets the value of the specified variable.
+     * <p>
+     * This method will return <code>false</code> if it didn't modify <code>name</code>'s value. This, however, is not a way
+     * of indicating that the call failed: <code>false</code> is only ever returned if the previous value is equal to the
+     * new value.
+     * </p>
+     * <p>
+     * If the value of the specified variable is actually modified, an {@link ConfigurationEvent event} will be passed to all
+     * listeners.
+     * </p>
+     * @param  name      fully qualified name of the variable to set.
+     * @param  value     new value for the variable.
+     * @param  separator string used to separate each element of the list.
+     * @return           <code>true</code> if this call resulted in a modification of the variable's value, <code>false</code> otherwise.
+     */
+    public boolean setVariable(String name, List value, String separator) {return setVariable(name, ConfigurationSection.getValue(value, separator));}
 
     /**
      * Sets the value of the specified variable.
@@ -671,6 +701,13 @@ public class Configuration {
     }
 
     /**
+     * Returns the value of the specified variable as a {@link ValueList}.
+     * @param  name fully qualified name of the variable whose value should be retrieved.
+     * @return      the variable's value if set, <code>null</code> otherwise.
+     */
+    public ValueList getListVariable(String name, String separator) {return ConfigurationSection.getListValue(getVariable(name), separator);}
+
+    /**
      * Returns the value of the specified variable as an integer.
      * @param                        name fully qualified name of the variable whose value should be retrieved.
      * @return                       the variable's value if set, <code>0</code> otherwise.
@@ -721,6 +758,30 @@ public class Configuration {
     // - Variable removal ------------------------------------------------------
     // -------------------------------------------------------------------------
     /**
+     * Prunes dead branches from the specified configuration tree.
+     * @param explorer used to backtrack through the configuration tree.
+     */
+    private void prune(BufferedConfigurationExplorer explorer) {
+        ConfigurationSection current;
+        ConfigurationSection parent;
+
+        // If we're at the root level, nothing to prune.
+        if(!explorer.hasSections())
+            return;
+
+        current = explorer.popSection();
+
+        // Look for branches to prune until we've either found a non-empty one
+        // or reached the root of the three.
+        while(current.isEmpty() && current != root) {
+            // Gets the current section's parent and prune.
+            parent = explorer.hasSections() ? explorer.popSection() : root;
+            parent.removeSection(current);
+            current = parent;
+        }
+    }
+
+    /**
      * Deletes the specified variable from the configuration.
      * <p>
      * If the variable was set, a configuration {@link ConfigurationEvent event} will be passed to
@@ -730,19 +791,32 @@ public class Configuration {
      * @return      the variable's old value, or <code>null</code> if it wasn't set.
      */
     public synchronized String removeVariable(String name) {
-        ConfigurationExplorer explorer; // Used to navigate to the variable's parent section.
-        String                buffer;   // Buffer for the variable's name trimmed of section information.
+        BufferedConfigurationExplorer explorer; // Used to navigate to the variable's parent section.
+        String                        buffer;   // Buffer for the variable's name trimmed of section information.
 
         // If the variable's 'path' doesn't exist, return null.
-        if((buffer = moveToParent(explorer = new ConfigurationExplorer(root), name, false)) == null)
+        if((buffer = moveToParent(explorer = new BufferedConfigurationExplorer(root), name, false)) == null)
             return null;
 
         // If the variable was actually set, triggers an event.
-        if((buffer = explorer.getSection().removeVariable(buffer)) != null)
+        if((buffer = explorer.getSection().removeVariable(buffer)) != null) {
+            prune(explorer);
             triggerEvent(new ConfigurationEvent(this, name, null));
+        }
 
         return buffer;
     }
+
+    /**
+     * Deletes the specified variable from the configuration.
+     * <p>
+     * If the variable was set, a configuration {@link ConfigurationEvent event} will be passed to
+     * all registered listeners.
+     * </p>
+     * @param  name name of the variable to remove.
+     * @return      the variable's old value, or <code>null</code> if it wasn't set.
+     */
+    public ValueList removeListVariable(String name, String separator) {return ConfigurationSection.getListValue(removeVariable(name), separator);}
 
     /**
      * Deletes the specified variable from the configuration.
@@ -833,6 +907,23 @@ public class Configuration {
     }
 
     /**
+     * Retrieves the value of the specified variable as a {@link ValueList}.
+     * <p>
+     * If the variable isn't set, this method will set it to <code>defaultValue</code> before
+     * returning it. If this happens, a configuration {@link ConfigurationEvent event} will
+     * be sent to all registered listeners.
+     * </p>
+     * @param  name                  name of the variable to retrieve.
+     * @param  defaultValue          value to use if variable <code>name</code> is not set.
+     * @param  separator             separator to use for <code>defaultValue</code> if variable <code>name</code> is not set.
+     * @return                       the specified variable's value.
+     * @throws NumberFormatException if the variable's value cannot be cast to a {@link ValueList}.
+     */
+    public ValueList getVariable(String name, List defaultValue, String separator) {
+        return ConfigurationSection.getListValue(getVariable(name, ConfigurationSection.getValue(defaultValue, separator)), separator);
+    }
+
+    /**
      * Retrieves the value of the specified variable as an integer.
      * <p>
      * If the variable isn't set, this method will set it to <code>defaultValue</code> before
@@ -920,7 +1011,7 @@ public class Configuration {
      * @param  root where to start exploring from.
      * @param  name name of the variable to seek.
      * @param  create whether or not the path to the variable should be created if it doesn't exist.
-     * @return the name of the variable trimmed of section information, <code>null</code> if not found.
+     * @return        the name of the variable trimmed of section information, <code>null</code> if not found.
      */
     private String moveToParent(ConfigurationExplorer root, String name, boolean create) {
         StringTokenizer parser; // Used to parse the variable's path.
@@ -967,6 +1058,16 @@ public class Configuration {
         while(iterator.hasNext())
             ((ConfigurationListener)iterator.next()).configurationChanged(event);
     }
+
+
+
+    // - Misc. -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    /**
+     * Returns the configuration's root section.
+     * @return the configuration's root section.
+     */
+    ConfigurationSection getRoot() {return root;}
 
 
 

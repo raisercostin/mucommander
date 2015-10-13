@@ -20,16 +20,14 @@ package com.mucommander.ui.action;
 
 import com.mucommander.Debug;
 import com.mucommander.command.Command;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.job.TempCommandJob;
+import com.mucommander.file.util.FileSet;
+import com.mucommander.job.TempOpenWithJob;
 import com.mucommander.process.ProcessRunner;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
-import com.mucommander.ui.main.table.FileTable;
 
 import java.util.Hashtable;
 
@@ -37,8 +35,21 @@ import java.util.Hashtable;
  * @author Nicolas Rinaudo
  */
 public class CommandAction extends MuAction {
+    // - Instance fields -------------------------------------------------------
+    // -------------------------------------------------------------------------
+    /** Command to run. */
     private Command command;
 
+
+
+    // - Initialisation --------------------------------------------------------
+    // -------------------------------------------------------------------------
+    /**
+     * Creates a new <code>CommandAction</code> initialised with the specified parameters.
+     * @param mainFrame  frame that will be affected by this action.
+     * @param properties ignored.
+     * @param command    command to run when this action is called.
+     */
     public CommandAction(MainFrame mainFrame, Hashtable properties, Command command) {
         super(mainFrame, properties, false);
         this.command = command;
@@ -46,15 +57,22 @@ public class CommandAction extends MuAction {
     }
 
 
-    public void performAction() {
-        FileTable fileTable = mainFrame.getActiveTable();
-        AbstractFile selectedFile = fileTable.getSelectedFile(true);
 
-        if(selectedFile == null)
+    // - Action code -----------------------------------------------------------
+    // -------------------------------------------------------------------------
+    public void performAction() {
+        FileSet selectedFiles;
+
+        // Retrieves the current selection.
+        selectedFiles = mainFrame.getActiveTable().getSelectedFiles();
+
+        // If no files are either selected or marked, aborts.
+        if(selectedFiles.size() == 0)
             return;
 
-        if(selectedFile.getURL().getProtocol().equals(FileProtocols.FILE) && (selectedFile instanceof LocalFile)) {
-            try {ProcessRunner.execute(command.getTokens(selectedFile), selectedFile);}
+        // If we're working with local files, go ahead and runs the command.
+        if(selectedFiles.getBaseFolder().getURL().getProtocol().equals(FileProtocols.FILE) && (selectedFiles.getBaseFolder() instanceof LocalFile)) {
+            try {ProcessRunner.execute(command.getTokens(selectedFiles), selectedFiles.getBaseFolder());}
             catch(Exception e) {
                 if(Debug.ON) {
                     Debug.trace("Failed to execute command: " + command.getCommand());
@@ -62,10 +80,10 @@ public class CommandAction extends MuAction {
                 }
             }
         }
+        // Otherwise, copies the files locally before running the command.
         else {
             ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
-            TempCommandJob job = new TempCommandJob(progressDialog, mainFrame, selectedFile, FileFactory.getTemporaryFile(selectedFile.getName(), true), command);
-            progressDialog.start(job);
+            progressDialog.start(new TempOpenWithJob(new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying")), mainFrame, selectedFiles, command));
         }
     }
 }

@@ -171,7 +171,7 @@ public abstract class MuAction extends AbstractAction {
         if(lookupIconManager) {
             // Look for an icon image file with the /action/<classname>.png path and use it if it exists
             String iconPath = getIconPath(classInstance);
-            if(ResourceLoader.getResource(iconPath)!=null)
+            if(ResourceLoader.getResourceAsURL(iconPath)!=null)
                 setIcon(IconManager.getIcon(iconPath));
         }
     }
@@ -334,7 +334,7 @@ public abstract class MuAction extends AbstractAction {
         if((modifiers&KeyEvent.CTRL_MASK)!=0)
             modifiersString += (modifiersString.equals("")?"":"+")+CTRL_MODIFIER_STRING;
 
-        if(PlatformManager.OS_FAMILY==PlatformManager.MAC_OS_X) {
+        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X) {
             if((modifiers&KeyEvent.ALT_MASK)!=0)
                 modifiersString += (modifiersString.equals("")?"":"+")+ALT_MODIFIER_STRING;
 

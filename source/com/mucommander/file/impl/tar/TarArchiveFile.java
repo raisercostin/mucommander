@@ -24,6 +24,7 @@ import com.mucommander.file.ArchiveEntry;
 import org.apache.tools.bzip2.CBZip2InputStream;
 import org.apache.tools.tar.TarInputStream;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Vector;
@@ -40,7 +41,9 @@ import java.util.zip.GZIPInputStream;
 public class TarArchiveFile extends AbstractROArchiveFile {
 
     /**
-     * Creates a TarArchiveFile around the given file.
+     * Creates a TarArchiveFile on of the given file.
+     *
+     * @param file the underlying archive file
      */
     public TarArchiveFile(AbstractFile file) {
         super(file);
@@ -49,20 +52,37 @@ public class TarArchiveFile extends AbstractROArchiveFile {
 
     /**
      * Returns a TarInputStream which can be used to read TAR entries.
+     *
+     * @return a TarInputStream which can be used to read TAR entries
+     * @throws IOException if an error occurred while create the stream
      */
     private TarInputStream createTarStream() throws IOException {
-        InputStream inputStream = file.getInputStream();
+        InputStream in = file.getInputStream();
 
         String name = getName().toLowerCase();
             // Gzip-compressed file
         if(name.endsWith("tgz") || name.endsWith("tar.gz"))
                 // Note: this will fail for gz/tgz entries inside a tar file (IOException: Not in GZIP format),
                 // why is a complete mystery: the gz/tgz entry can be extracted and then properly browsed
-            inputStream = new GZIPInputStream(inputStream);
+            in = new GZIPInputStream(in);
 
         // Bzip2-compressed file
         else if(name.endsWith("tbz2") || name.endsWith("tar.bz2")) {
-            try { inputStream = new CBZip2InputStream(inputStream); }
+            try {
+                // Skips the 2 magic bytes 'BZ', as required by CBZip2InputStream. Quoted from CBZip2InputStream's Javadoc:
+                // "Although BZip2 headers are marked with the magic 'Bz'. this constructor expects the next byte in the
+                // stream to be the first one after the magic.  Thus callers have to skip the first two bytes. Otherwise
+                // this constructor will throw an exception."
+                // Note: the return value of read() is unchecked. In the unlikely event that EOF is reached in the first
+                // 2 bytes, CBZip2InputStream will throw an IOException.
+                in.read();
+                in.read();
+
+                // Quoted from CBZip2InputStream's Javadoc:
+                // "CBZip2InputStream reads bytes from the compressed source stream via the single byte {@link java.io.InputStream#read()
+                // read()} method exclusively. Thus you should consider to use a buffered source stream."
+                in = new CBZip2InputStream(new BufferedInputStream(in));
+            }
             catch(Exception e) {
                 // CBZip2InputStream is known to throw NullPointerException if file is not properly Bzip2-encoded
                 // so we need to catch those and throw them as IOException
@@ -73,7 +93,22 @@ public class TarArchiveFile extends AbstractROArchiveFile {
             }
         }
 
-        return new TarInputStream(inputStream);
+        return new TarInputStream(in);
+    }
+
+    /**
+     * Creates and return an {@link ArchiveEntry()} whose attributes are fetched from the given
+     * <code>org.apache.tools.tar.TarEntry</code>.
+     *
+     * @param tarEntry the object that serves to initialize the attributes of the returned ArchiveEntry
+     * @return an ArchiveEntry whose attributes are fetched from the given org.apache.tools.tar.TarEntry
+     */
+    private ArchiveEntry createArchiveEntry(org.apache.tools.tar.TarEntry tarEntry) {
+        ArchiveEntry entry = new ArchiveEntry(tarEntry.getName(), tarEntry.isDirectory(), tarEntry.getModTime().getTime(), tarEntry.getSize());
+        entry.setPermissions(tarEntry.getMode());
+        entry.setPermissionMask(511);     // Full UNIX permissions (777 octal)
+
+        return entry;
     }
 
 
@@ -91,7 +126,7 @@ public class TarArchiveFile extends AbstractROArchiveFile {
         Vector entries = new Vector();
         org.apache.tools.tar.TarEntry entry;
         while ((entry=tin.getNextEntry())!=null) {
-            entries.add(new TarEntry(entry));
+            entries.add(createArchiveEntry(entry));
         }
         tin.close();
 

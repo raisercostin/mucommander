@@ -48,7 +48,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <javac destdir="${conf.classes.normal}" debug="on" deprecation="on"
            encoding="utf-8" source="1.4" target="1.4"
            srcdir="${source}" includes="com/mucommander/conf/**,com/mucommander/xml/**"
-           excludes="com/mucommander/conf/impl/**"/>
+           excludes="com/mucommander/conf/impl/**">
+      <classpath>
+         <fileset dir="${lib}/">
+           <include name="*include/*.jar"/>
+         </fileset>
+      </classpath>
+    </javac>
   </target>
 
   <!-- Creates a JAR file containing the uncompressed,         -->
@@ -58,7 +64,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="jar-conf" depends="compile-conf">
     <echo>Creating the Configuration API JAR file...</echo>
     <copy file="${conf.license}" todir="${conf.classes.normal}" overwrite="true"/>
-    <jar destfile="${conf.jar.normal}" basedir="${conf.classes.normal}" compress="false">
+    <jar destfile="${conf.jar.normal}" basedir="${conf.classes.normal}" excludes="**/*Test.class">
       <manifest>
         <attribute name="Specification-Title"    value="muCommander Configuration API"/>
         <attribute name="Specification-Vendor"   value="Maxence Bernard"/>
@@ -94,14 +100,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- available.                                              -->
   <!-- The resulting JAR file will be stored in                -->
   <!-- ${conf.jar.obf}.                                        -->
-  <target name="obfuscate-conf-bytecode" if="proguard.available">
+  <target name="obfuscate-conf-bytecode" depends="conf-load-libpath" if="proguard.available">
     <echo>Creating the Configuration API obfuscated JAR file...</echo>
-    <proguard overloadaggressively="false" usemixedcaseclassnames="true" ignorewarnings="true" optimize="true" shrink="true" obfuscate="true"
-              allowaccessmodification="true" defaultpackage="" skipnonpubliclibraryclasses="false">
+    <proguard overloadaggressively="false" usemixedcaseclassnames="${case-sensitive-fs}" ignorewarnings="true" optimize="true" shrink="true" obfuscate="true"
+              allowaccessmodification="false" repackageclasses="" skipnonpubliclibraryclasses="false">
       <injar name="${conf.jar.normal}"/> 
       <outjar name="${conf.jar.obf}"/>
       <libraryjar name="${java.lib}"/>
-      <libraryjar name="${ant.lib}"/>
+      <libraryjar name="${lib}/noinclude" jarfilter="*.jar"/>
+      <keepattribute name="exceptions"/>
 
       <keep access="public">
         <field access="public,protected"/>
@@ -163,6 +170,35 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="compress-conf" depends="check-7za,obfuscate-conf,compress-obfuscated-conf,copy-obfuscated-conf"/>
 
 
+  <!-- = Configuration unit testing ========================== -->
+  <!-- ======================================================= -->
+
+  <target name="skip-unit-test-conf" unless="junit.available">
+    <echo>JUnit not available, skipping Configuration API test cases...</echo>
+  </target>
+
+  <target name="do-unit-test-conf" if="junit.available">
+    <echo>Running Configuration API test cases...</echo>
+    <mkdir dir="${conf.junit.reports}"/>
+    <junit printsummary="yes" haltonfailure="yes">
+      <formatter type="plain"/>
+      <classpath>
+        <pathelement location="${conf.classes.normal}"/>
+        <fileset dir="${lib}">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+      <batchtest fork="yes" todir="${conf.junit.reports}">
+        <fileset dir="${conf.classes.normal}">
+          <include name="**/*Test.class"/>
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+
+  <target name="unit-test-conf" depends="jar-conf,check-junit,skip-unit-test-conf,do-unit-test-conf"/>
+
+
 
   <!-- = Conf API documentation ============================== -->
   <!-- ======================================================= -->
@@ -175,11 +211,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <echo>Creating the Configuration API documentation...</echo>
     <mkdir dir="${conf.doc}"/>
     <javadoc destdir="${conf.doc}" author="true" windowtitle="muCommander Configuration API" encoding="UTF-8" access="protected">
-      <packageset dir="${source}">
-        <include name="com/mucommander/conf/**"/>
-        <include name="com/mucommander/xml/**"/>
-        <exclude name="com/mucommander/conf/impl/**"/>
-      </packageset>
+      <fileset dir="${source}/com/mucommander/conf/">
+        <patternset refid="non-test-sources"/>
+        <exclude name="impl/**"/>
+      </fileset>
+      <fileset dir="${source}/com/mucommander/xml/">
+        <patternset refid="non-test-sources"/>
+      </fileset>
     </javadoc>
   </target>
 
@@ -198,8 +236,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- The following targets are used to generate a release    -->
   <!-- of the muCommander Configuration API.                   -->
 
-  <target name="conf-load-strreplace" unless="conf.standalone">
-    <antcall target="compress-tools"/>
+  <target name="normal-load-strreplace" unless="conf.standalone">
+    <antcall target="load-strreplace"/>
+  </target>
+
+  <target name="conf-load-strreplace" depends="normal-load-strreplace">
+    <taskdef name="strreplace" classname="com.mucommander.ant.util.ReplaceTask" classpath="${tools.jar.cmp}"/>
+  </target>
+
+  <target name="normal-load-libpath" unless="conf.standalone">
+    <antcall target="load-libpath"/>
+  </target>
+  
+  <target name="conf-load-libpath" depends="normal-load-libpath">
+    <taskdef name="libpath" classname="com.mucommander.ant.util.SystemClasspathTask" classpath="${tools.jar.cmp}"/>
+    <libpath out="java.lib"/>
   </target>
 
   <!-- Stores the conf package and archive prefixes in         -->
@@ -210,16 +261,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <!-- the tar.gz release file.                                -->
   <target name="conf-prefixes" depends="conf-load-strreplace">
     <echo>Creating the Configuration API archive prefix...</echo>
-    <taskdef name="strreplace" classname="com.mucommander.ant.util.ReplaceTask" classpath="${tools.jar.cmp}"/>
     <strreplace from="muCommander-conf-${conf.version}${conf.subversion}" to="conf.archive-prefix" what="[ .]" with="_"/>
     <echo>Creating the Configuration API package name prefix...</echo>
     <strreplace from="mucommander-conf-${conf.version}${conf.subversion}" to="conf.package-prefix" what="[ .]" with="_"/>
   </target>
 
-  <target name="release-conf" depends="compress-conf,conf-prefixes,conf-doc-tgz">
+  <target name="release-conf" depends="unit-test-conf,compress-conf,conf-prefixes,conf-doc-tgz">
     <!-- Refreshes the release directory structure.            -->
     <delete dir="${conf.tmp}/release"/>
     <mkdir dir="${conf.tmp}/release/lib"/>
+    <mkdir dir="${conf.tmp}/release/lib/noinclude"/>
     <mkdir dir="${conf.tmp}/release/docs"/>
     <mkdir dir="${conf.tmp}/release/source"/>
     <mkdir dir="${conf.tmp}/release/tools"/>
@@ -231,6 +282,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     <!-- Adds the compressed JAR file.                         -->
     <copy file="${conf.jar.cmp}" todir="${conf.tmp}/release/lib"/>
+
+    <!-- Adds the JUnit JAR file.                              -->
+    <copy file="${lib}/noinclude/junit.jar" todir="${conf.tmp}/release/lib/noinclude"/>
 
     <!-- Adds the build files.                                 -->
     <copy file="${conf.build}" tofile="${conf.tmp}/release/build.xml"/>
@@ -255,6 +309,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <copy todir="${conf.tmp}/release/source">
       <fileset dir="${source}/">
         <include name="com/mucommander/conf/**/*"/>
+        <exclude name="com/mucommander/conf/impl/"/>
         <include name="com/mucommander/xml/**/*"/>
       </fileset>
     </copy>

@@ -31,19 +31,10 @@ import java.util.Hashtable;
  *
  * @author Maxence Bernard
  */
-public class GoBackAction extends MuAction implements ActivePanelListener, LocationListener {
+public class GoBackAction extends GoToAction {
 
     public GoBackAction(MainFrame mainFrame, Hashtable properties) {
         super(mainFrame, properties);
-
-        // Listen to active table change events
-        mainFrame.addActivePanelListener(this);
-
-        // Listen to location change events
-        mainFrame.getFolderPanel1().getLocationManager().addLocationListener(this);
-        mainFrame.getFolderPanel2().getLocationManager().addLocationListener(this);
-
-        toggleEnabledState();
     }
 
 
@@ -56,34 +47,7 @@ public class GoBackAction extends MuAction implements ActivePanelListener, Locat
      * Enables or disables this action based on the history of the currently active FolderPanel: if there is a previous
      * folder in the history, this action will be enabled, if not it will be disabled.
      */
-    private void toggleEnabledState() {
+    protected void toggleEnabledState() {
         setEnabled(mainFrame.getActiveTable().getFolderPanel().getFolderHistory().hasBackFolder());
-    }
-
-
-    /////////////////////////////////
-    // ActivePanelListener methods //
-    /////////////////////////////////
-
-    public void activePanelChanged(FolderPanel folderPanel) {
-        toggleEnabledState();
-    }
-
-
-    //////////////////////////////
-    // LocationListener methods //
-    //////////////////////////////
-
-    public void locationChanged(LocationEvent e) {
-        toggleEnabledState();
-    }
-
-    public void locationChanging(LocationEvent e) {
-    }
-
-    public void locationCancelled(LocationEvent e) {
-    }
-
-    public void locationFailed(LocationEvent e) {
     }
 }

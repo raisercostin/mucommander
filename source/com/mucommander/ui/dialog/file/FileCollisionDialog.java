@@ -185,7 +185,7 @@ public class FileCollisionDialog extends QuestionDialog {
         // 'Apply to all' is available only for 'destination file already exists' collision type
         if(multipleFilesMode && collisionType==FileCollisionChecker.DESTINATION_FILE_ALREADY_EXISTS) {
             applyToAllCheckBox = new JCheckBox(Translator.get("apply_to_all"));
-            addCheckBox(applyToAllCheckBox);
+            addComponent(applyToAllCheckBox);
         }
 
         // Send a system notification if a notifier is available and enabled
@@ -197,7 +197,8 @@ public class FileCollisionDialog extends QuestionDialog {
     private void addFileDetails(XAlignedComponentPanel panel, AbstractFile file, String nameLabel) {
         panel.addRow(nameLabel+":", new FilenameLabel(file), 0);
 
-        String parentLocation = file.getParent().getCanonicalPath();
+        AbstractFile parent = file.getParentSilently();
+        String parentLocation = (parent==null?file:parent).getCanonicalPath();
         JLabel label = new JLabel(parentLocation);
         label.setToolTipText(parentLocation);
         panel.addRow(Translator.get("location")+":", label, 0);

@@ -101,10 +101,10 @@ public class Launcher {
         System.out.println(" -p FOLDER, --preferences FOLDER   Store configuration files in FOLDER");
 
         // Disables the splash screen.
-        System.out.println(" -o, --no-splash                   Disable splashscreen on startup");
+        System.out.println(" --no-splash                       Disable splashscreen on startup");
 
         // Enables the splashscreen.
-        System.out.println(" -O, --splash                      Enable splashscreen on startup (default)");
+        System.out.println(" --splash                          Enable splashscreen on startup (default)");
 
         // muCommander will not print verbose error messages.
         System.out.println(" -S, --silent                      Do not print verbose error messages");
@@ -212,7 +212,7 @@ public class Launcher {
      * Main method used to startup muCommander.
      */
     public static void main(String args[]) {
-        int                     i;          // Index in the command line arguments.
+        int i; // Index in the command line arguments.
 
         // Initialises fields.
         fatalWarnings = false;
@@ -233,12 +233,12 @@ public class Launcher {
                 printUsage();
 
             // Disable splashscreen.
-            else if(args[i].equals("-o") || args[i].equals("--no-splash"))
+            else if(args[i].equals("--no-splash"))
                 useSplash = false;
 
             // Enables splashscreen.
-            else if(args[i].equals("-O") || args[i].equals("--splash"))
-                useSplash = false;
+            else if(args[i].equals("--splash"))
+                useSplash = true;
 
             // Associations handling.
             else if(args[i].equals("-a") || args[i].equals("--assoc")) {
@@ -349,13 +349,11 @@ public class Launcher {
                 break;
         }
 
-
-
         // - MAC OS init ----------------------------------------------
         // ------------------------------------------------------------
         // If muCommander is running under Mac OS X (how lucky!), add some
         // glue for the main menu bar and other OS X specifics.
-        if(PlatformManager.OS_FAMILY==PlatformManager.MAC_OS_X) {
+        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X) {
             // Configuration needs to be loaded before any sort of GUI creation
             // is performed - if we're to use the metal look, we need to know about
             // it right about now.
@@ -380,8 +378,13 @@ public class Launcher {
         if(useSplash)
             splashScreen = new SplashScreen(RuntimeConstants.VERSION, "Loading preferences...");
 
+        // This the property is supposed to have the java.net package use the proxy defined in the system settings
+        // to establish HTTP connections. This property is supported only under Java 1.5 and up.
+        // Note that Mac OS X already uses the system HTTP proxy, with or without this property being set.
+        System.setProperty("java.net.useSystemProxies", "true");
+
         // If we're not running under OS_X, preferences haven't been loaded yet.
-        if(PlatformManager.OS_FAMILY != PlatformManager.MAC_OS_X) {
+        if(PlatformManager.getOsFamily() != PlatformManager.MAC_OS_X) {
             try {MuConfiguration.read();}
             catch(Exception e) {printFileError("Could not load configuration", e, fatalWarnings);}
         }
@@ -424,8 +427,9 @@ public class Launcher {
 
         // Preload icons
         printStartupMessage("Loading icons...");
-        com.mucommander.ui.icon.FileIcons.setScaleFactor(MuConfiguration.getVariable(MuConfiguration.TABLE_ICON_SCALE,
-                                                                                          MuConfiguration.DEFAULT_TABLE_ICON_SCALE));
+        // The math.max(1.0f, ...) part is to workaround a bug which cause(d) this value to be set to 0.0 in the configuration file.
+        com.mucommander.ui.icon.FileIcons.setScaleFactor(Math.max(1.0f, MuConfiguration.getVariable(MuConfiguration.TABLE_ICON_SCALE,
+                                                                                          MuConfiguration.DEFAULT_TABLE_ICON_SCALE)));
         com.mucommander.ui.icon.FileIcons.setSystemIconsPolicy(MuConfiguration.getVariable(MuConfiguration.USE_SYSTEM_FILE_ICONS, MuConfiguration.DEFAULT_USE_SYSTEM_FILE_ICONS));
 
         // Loads the ActionKeymap file
@@ -470,7 +474,8 @@ public class Launcher {
         // a MainFrame instance
         if(MuConfiguration.getVariable(MuConfiguration.ENABLE_SYSTEM_NOTIFICATIONS, MuConfiguration.DEFAULT_ENABLE_SYSTEM_NOTIFICATIONS)) {
             printStartupMessage("Enabling system notifications...");
-            com.mucommander.ui.notifier.AbstractNotifier.getNotifier().setEnabled(true);
+            if(com.mucommander.ui.notifier.AbstractNotifier.isAvailable())
+                com.mucommander.ui.notifier.AbstractNotifier.getNotifier().setEnabled(true);
         }
 
         // Dispose splash screen.

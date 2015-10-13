@@ -122,8 +122,10 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertLineBreak(doc);
 
             // Contributors.
-            insertHeader(doc,         "Contributors");
-            insertDetailedString(doc, "Xavier Martin",       "ISO and NRG support");
+            insertHeader(doc,         "Code contributors");
+            insertNormalString(doc,   "Mariusz Jakubowski");
+            insertNormalString(doc,   "Xavier Martin");
+            insertNormalString(doc,   "Alejandro Scandroli");
             insertLineBreak(doc);
 
             // Translators.
@@ -160,25 +162,25 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
             // External Libraries.
             insertHeader(doc,         "External libraries");
-            insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
-            insertDetailedUrl(doc,    "Jakarta Commons Net", "Apache License",                       "http://jakarta.apache.org/commons/net");
-            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");
             insertDetailedUrl(doc,    "Ant",                 "Apache License",                       "http://ant.apache.org");
+            insertDetailedUrl(doc,    "ICU4J",               "ICU License",                          "http://www.icu-project.org");
+            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");
+            insertDetailedUrl(doc,    "Jakarta Commons Net", "Apache License",                       "http://jakarta.apache.org/commons/net");
+            insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
             insertDetailedUrl(doc,    "JmDNS",               "LGPL",                                 "http://jmdns.sourceforge.net");
             insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
             insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
-            insertDetailedUrl(doc,    "ICU4J",               "ICU License",                          "http://www.icu-project.org");
             insertLineBreak(doc);
 
             // External tools.
             insertHeader(doc,         "External tools");
             insertDetailedUrl(doc,    "Ant",                 "Apache Software License",              "http://ant.apache.org");
-            insertDetailedUrl(doc,    "ProGuard",            "GPL",                                  "http://proguard.sourceforge.net");
-            insertDetailedUrl(doc,    "NSIS",                "zlib/libpng license",                  "http://nsis.sourceforge.net");
-            insertDetailedUrl(doc,    "Launch4j",            "GPL",                                  "http://launch4j.sourceforge.net");
-            insertDetailedUrl(doc,    "p7zip",               "LGPL",                                 "http://p7zip.sourceforge.net");
             insertDetailedUrl(doc,    "AntDoclet",           "GPL",                                  "http://antdoclet.neuroning.com/");
             insertDetailedUrl(doc,    "jdeb",                "Apache Software License",              "http://vafer.org/projects/jdeb/");
+            insertDetailedUrl(doc,    "Launch4j",            "GPL",                                  "http://launch4j.sourceforge.net");
+            insertDetailedUrl(doc,    "NSIS",                "zlib/libpng license",                  "http://nsis.sourceforge.net");
+            insertDetailedUrl(doc,    "p7zip",               "LGPL",                                 "http://p7zip.sourceforge.net");
+            insertDetailedUrl(doc,    "ProGuard",            "GPL",                                  "http://proguard.sourceforge.net");
             insertLineBreak(doc);
             insertLineBreak(doc);
 
@@ -278,7 +280,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
         StyleConstants.setFontFamily(master, font.getFamily());
         StyleConstants.setFontSize(master, font.getSize());
         StyleConstants.setForeground(master, ThemeManager.getCurrentColor(Theme.FILE_FOREGROUND_COLOR));
-        StyleConstants.setBackground(master, ThemeManager.getCurrentColor(Theme.FILE_BACKGROUND_COLOR));
+        StyleConstants.setBackground(master, ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR));
         StyleConstants.setLeftIndent(master, 10);
         StyleConstants.setRightIndent(master, 10);
         StyleConstants.setLineSpacing(master, (float)0.2);
@@ -289,23 +291,23 @@ public class AboutDialog extends FocusDialog implements ActionListener {
         StyleConstants.setBold(currentStyle, true);
         StyleConstants.setFontSize(currentStyle, font.getSize() + 2);
         StyleConstants.setForeground(currentStyle, ThemeManager.getCurrentColor(Theme.FOLDER_FOREGROUND_COLOR));
-        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.FOLDER_BACKGROUND_COLOR));
+        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR));
 
         // Title style.
         currentStyle = doc.addStyle(STYLE_TITLE, currentStyle);
         StyleConstants.setAlignment(currentStyle, StyleConstants.ALIGN_CENTER);
         StyleConstants.setForeground(currentStyle, ThemeManager.getCurrentColor(Theme.ARCHIVE_FOREGROUND_COLOR));
-        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.ARCHIVE_BACKGROUND_COLOR));
+        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR));
 
         // Details style.
         currentStyle = doc.addStyle(STYLE_DETAILS, master);
         StyleConstants.setForeground(currentStyle, ThemeManager.getCurrentColor(Theme.HIDDEN_FILE_FOREGROUND_COLOR));
-        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.HIDDEN_FILE_BACKGROUND_COLOR));
+        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR));
 
         // URL style.
         currentStyle = doc.addStyle(STYLE_URL, master);
         StyleConstants.setForeground(currentStyle, ThemeManager.getCurrentColor(Theme.SYMLINK_FOREGROUND_COLOR));
-        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.SYMLINK_BACKGROUND_COLOR));
+        StyleConstants.setBackground(currentStyle, ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR));
         StyleConstants.setUnderline(currentStyle, true);
     }
 

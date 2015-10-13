@@ -21,6 +21,7 @@ package com.mucommander.file;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.impl.ProxyFile;
+import com.mucommander.util.StringUtils;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.io.IOException;
@@ -158,9 +159,17 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         if(entryNode!=null) {
             DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode)entryNode.getParent();
             parentNode.remove(entryNode);
-
-//            if(Debug.ON) Debug.trace("Removed entry from tree: "+entry.getPath());
         }
+    }
+
+    /**
+     * Returns the {@link ArchiveEntryTree} instance corresponding to the root of the archive entry tree.
+     * The returned value can be <code>null</code> if the tree hasn't been intialized yet.
+     *
+     * @return the ArchiveEntryTree instance corresponding to the root of the archive entry tree
+     */
+    ArchiveEntryTree getArchiveEntryTree() {
+        return entryTreeRoot;
     }
 
     /**
@@ -170,11 +179,12 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         // Make sure the entries tree is created and up-to-date
         checkEntriesTree();        
 
-        DefaultMutableTreeNode matchNode = entryTreeRoot.findEntryNode(entryFile.getEntry().getPath());
-        if(matchNode==null) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Error: no match found for "+entryFile.getEntry().getPath()+" , this is not supposed to happen!");
+        if(!entryFile.isBrowsable())
             throw new IOException();
-        }
+
+        DefaultMutableTreeNode matchNode = entryTreeRoot.findEntryNode(entryFile.getEntry().getPath());
+        if(matchNode==null)
+            throw new IOException();
 
         return ls(matchNode, entryFile, filenameFilter, fileFilter);
     }
@@ -227,7 +237,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         // the parent file's separator. For local files Under Windows, this allows entries' path to have '\' separators.
         String fileSeparator = getSeparator();
         if(!fileSeparator.equals("/"))
-            entryPath = entryPath.replace("/", fileSeparator);
+            entryPath = StringUtils.replaceCompat(entryPath, "/", fileSeparator);
 
         FileURL archiveURL = getURL();
         FileURL entryURL = (FileURL)archiveURL.clone();
@@ -269,7 +279,6 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         // Find the entry node corresponding to the given path
         DefaultMutableTreeNode entryNode = entryTreeRoot.findEntryNode(entryPath);
 
-//        if(entryNode==null && isWritableArchive()) {
         if(entryNode==null) {
             int depth = ArchiveEntry.getDepth(entryPath);
 
@@ -288,7 +297,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
                     throw new IOException();
             }
 
-            return getArchiveEntryFile(new SimpleArchiveEntry(entryPath, false), parentFile, false);
+            return getArchiveEntryFile(new ArchiveEntry(entryPath, false), parentFile, false);
         }
 
         DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode)entryNode.getParent();

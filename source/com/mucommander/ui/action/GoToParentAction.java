@@ -33,20 +33,10 @@ import java.util.Hashtable;
  *
  * @author Maxence Bernard
  */
-public class GoToParentAction extends MuAction implements ActivePanelListener, LocationListener {
+public class GoToParentAction extends GoToAction {
 
     public GoToParentAction(MainFrame mainFrame, Hashtable properties) {
         super(mainFrame, properties);
-
-        // Listen to active table change events
-        mainFrame.addActivePanelListener(this);
-
-        // Listen to location change events
-        mainFrame.getFolderPanel1().getLocationManager().addLocationListener(this);
-        mainFrame.getFolderPanel2().getLocationManager().addLocationListener(this);
-
-        // Set initial state
-        toggleEnabledState();
     }
 
 
@@ -54,8 +44,8 @@ public class GoToParentAction extends MuAction implements ActivePanelListener, L
      * Enables or disables this action based on the currently active folder's
      * has a parent, this action will be enabled, if not it will be disabled.
      */
-    private void toggleEnabledState() {
-        setEnabled(mainFrame.getActiveTable().getFolderPanel().getCurrentFolder().getParent()!=null);
+    protected void toggleEnabledState() {
+        setEnabled(mainFrame.getActiveTable().getFolderPanel().getCurrentFolder().getParentSilently()!=null);
     }
 
 
@@ -68,34 +58,7 @@ public class GoToParentAction extends MuAction implements ActivePanelListener, L
         // Does nothing if the current folder doesn't have a parent.
         AbstractFile parent;
         FolderPanel folderPanel = mainFrame.getActiveTable().getFolderPanel();
-        if((parent=folderPanel.getCurrentFolder().getParent())!=null)
+        if((parent=folderPanel.getCurrentFolder().getParentSilently())!=null)
             folderPanel.tryChangeCurrentFolder(parent);
-    }
-
-    
-    /////////////////////////////////
-    // ActivePanelListener methods //
-    /////////////////////////////////
-
-    public void activePanelChanged(FolderPanel folderPanel) {
-        toggleEnabledState();
-    }
-
-
-    //////////////////////////////
-    // LocationListener methods //
-    //////////////////////////////
-
-    public void locationChanged(LocationEvent e) {
-        toggleEnabledState();
-    }
-
-    public void locationChanging(LocationEvent e) {
-    }
-
-    public void locationCancelled(LocationEvent e) {
-    }
-
-    public void locationFailed(LocationEvent e) {
     }
 }

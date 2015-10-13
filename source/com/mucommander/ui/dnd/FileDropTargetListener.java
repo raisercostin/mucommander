@@ -82,7 +82,7 @@ public class FileDropTargetListener implements DropTargetListener {
      * <code>InputEvent.META_DOWN_MASK</code> under Mac OS X, <code>InputEvent.ALT_DOWN_MASK</code> under any other
      * platform.
      */
-    private final static int MOVE_ACTION_MODIFIERS_EX = PlatformManager.OS_FAMILY==PlatformManager.MAC_OS_X?
+    private final static int MOVE_ACTION_MODIFIERS_EX = PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X?
             InputEvent.META_DOWN_MASK
             :InputEvent.ALT_DOWN_MASK;
 
@@ -261,7 +261,7 @@ if(Debug.ON) Debug.trace("cursor="+getDragActionCursor(currentDropAction, dragAc
             // For any other file kind (archive, regular file...), change directory to the file's parent folder
             // and select the file
             else
-                folderPanel.tryChangeCurrentFolder(file.getParent(), file);
+                folderPanel.tryChangeCurrentFolder(file.getParentSilently(), file);
 
             // Request focus on the FolderPanel
             folderPanel.requestFocus();

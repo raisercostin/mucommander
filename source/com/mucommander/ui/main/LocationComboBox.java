@@ -77,6 +77,7 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
 
     	// Applies theme values.
         setFont(ThemeManager.getCurrentFont(Theme.LOCATION_BAR_FONT));
+        locationField.setDisabledTextColor(ThemeManager.getCurrentColor(Theme.LOCATION_BAR_FOREGROUND_COLOR));
         setForeground(ThemeManager.getCurrentColor(Theme.LOCATION_BAR_FOREGROUND_COLOR));
         setBackground(ThemeManager.getCurrentColor(Theme.LOCATION_BAR_BACKGROUND_COLOR));
         setSelectionForeground(ThemeManager.getCurrentColor(Theme.LOCATION_BAR_SELECTED_FOREGROUND_COLOR));
@@ -108,7 +109,7 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
         do {
             addItem(folder);
         }
-        while((folder=folder.getParent())!=null);
+        while((folder=folder.getParentSilently())!=null);
     }
 
 
@@ -274,6 +275,7 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
             break;
 
         case Theme.LOCATION_BAR_FOREGROUND_COLOR:
+            locationField.setDisabledTextColor(event.getColor());
             setForeground(event.getColor());
             break;
 
