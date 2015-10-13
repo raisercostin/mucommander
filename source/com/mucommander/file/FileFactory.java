@@ -22,13 +22,12 @@ import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.cache.LRUCache;
-import com.mucommander.file.filter.ExtensionFilenameFilter;
-import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.icon.FileIconProvider;
 import com.mucommander.file.icon.impl.SwingFileIconProvider;
 import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.file.util.FileToolkit;
 import com.mucommander.file.util.PathTokenizer;
+import com.mucommander.file.util.PathUtils;
+import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.util.Enumerator;
 
@@ -63,7 +62,7 @@ import java.util.*;
  * In order to allow the <code>com.mucommander.file</code> API to access new archive formats, developers must create
  * an implementation of {@link AbstractArchiveFile} that handles that format and register it to <code>FileFactory</code>.
  * This registration requires an implementation of {@link ArchiveFormatProvider}, an instance of which will be passed to
- * {@link #registerArchiveFormat(ArchiveFormatProvider,com.mucommander.file.filter.FilenameFilter) registerArchiveFormat}.
+ * {@link #registerArchiveFormat(ArchiveFormatProvider)}.
  * </p>
  * <p>
  * Built-in file file formats are:
@@ -77,18 +76,6 @@ import java.util.*;
  *   <li><code>LST</code>, registered to lst files.</li>
  * </ul>
  * </p>
- * <h3>Trash</h3>
- * <p>
- * <code>FileFactory</code> also provides support for {@link AbstractTrash} registration.
- * Built-in implementations are:
- * <ul>
- *   <li>{@link com.mucommander.file.impl.trash.OSXTrashProvider OS X} trash.</li>
- *   <li>{@link com.mucommander.file.impl.trash.KDETrashProvider KDE} trash.</li>
- * </ul>
- * Note that <code>FileFactory</code> does not automatically register a trash provider, and application
- * writers must do so themselves depending on their own needs.
- * </p>
- *
  * @author Maxence Bernard, Nicolas Rinaudo
  */
 public class FileFactory {
@@ -96,25 +83,23 @@ public class FileFactory {
     /** All registered protocol providers. */
     private static Hashtable protocolProviders = new Hashtable();
 
+    /** Local file provider to avoid hashtable lookups (faster). */
+    private static ProtocolProvider localFileProvider;
+
     /** Vector of registered ArchiveFormatMapping instances */
-    private static Vector archiveFormatMappingsV = new Vector();
+    private static Vector archiveFormatProvidersV = new Vector();
 
     /** Array of registered FileProtocolMapping instances, for quicker access */
-    private static ArchiveFormatMapping[] archiveFormatMappings;
-
-    /** Object used to create instances of {@link AbstractTrash}. */
-    private static TrashProvider trashProvider;
-
-    /** Used to synchronise access to the trash provider. */
-    private final static Object trashLock = new Object();
+    private static ArchiveFormatProvider[] archiveFormatProviders;
 
     /** Static LRUCache instance that caches frequently accessed AbstractFile instances */
     private static LRUCache fileCache;
 
+    /** Caches archive file instances */
+    private static WeakHashMap archiveFileCache = new WeakHashMap();
+
     /** Default capacity of the file cache */
     public final static int DEFAULT_FILE_CACHE_CAPACITY = 1000;
-
-    private static WeakHashMap archiveFileCache = new WeakHashMap();
 
     /** System temp directory */
     private final static AbstractFile TEMP_DIRECTORY;
@@ -122,15 +107,15 @@ public class FileFactory {
     /** Default file icon provider, initialized in static block */
     private static FileIconProvider defaultFileIconProvider;
 
-
-
     static {
+        if(Debug.ON) Debug.trace("Registering file providers");
+
         // Initialize the LRUCache that caches frequently accessed AbstractFile instances
         setFileCacheCapacity(DEFAULT_FILE_CACHE_CAPACITY);
 
         // Register built-in file protocols.
-        // Local file protocol is hard-wired for performance reasons, no need to add it.
         ProtocolProvider protocolProvider;
+        registerProtocol(FileProtocols.FILE,      new com.mucommander.file.impl.local.LocalFileProvider());
         registerProtocol(FileProtocols.SMB,       new com.mucommander.file.impl.smb.SMBProtocolProvider());
         registerProtocol(FileProtocols.HTTP,      protocolProvider = new com.mucommander.file.impl.http.HTTPProtocolProvider());
         registerProtocol(FileProtocols.HTTPS,     protocolProvider);
@@ -145,16 +130,17 @@ public class FileFactory {
 
         // Register built-in archive file formats, order for TarArchiveFile and GzipArchiveFile/Bzip2ArchiveFile is important:
         // TarArchiveFile must match 'tar.gz'/'tar.bz2' files before GzipArchiveFile/Bzip2ArchiveFile does.
-        registerArchiveFormat(new com.mucommander.file.impl.zip.ZipFormatProvider(),     new ExtensionFilenameFilter(new String[] {".zip", ".jar", ".war", ".wal", ".wmz",
-                                                                                                                                   ".xpi", ".ear", ".sar", ".odt", ".ods",
-                                                                                                                                   ".odp", ".odg", ".odf", ".egg"}));
-        registerArchiveFormat(new com.mucommander.file.impl.tar.TarFormatProvider(),     new ExtensionFilenameFilter(new String[] {".tar", ".tar.gz", ".tgz",
-                                                                                                                                   ".tar.bz2", ".tbz2"}));
-        registerArchiveFormat(new com.mucommander.file.impl.gzip.GzipFormatProvider(),   new ExtensionFilenameFilter(".gz"));
-        registerArchiveFormat(new com.mucommander.file.impl.bzip2.Bzip2FormatProvider(), new ExtensionFilenameFilter(".bz2"));
-        registerArchiveFormat(new com.mucommander.file.impl.iso.IsoFormatProvider(),     new ExtensionFilenameFilter(new String[] {".iso", ".nrg"}));
-        registerArchiveFormat(new com.mucommander.file.impl.ar.ArFormatProvider(),       new ExtensionFilenameFilter(new String[] {".ar", ".a", ".deb", ".udeb"}));
-        registerArchiveFormat(new com.mucommander.file.impl.lst.LstFormatProvider(),     new ExtensionFilenameFilter(".lst"));
+        registerArchiveFormat(new com.mucommander.file.impl.zip.ZipFormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.tar.TarFormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.gzip.GzipFormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.bzip2.Bzip2FormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.iso.IsoFormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.ar.ArFormatProvider());
+        registerArchiveFormat(new com.mucommander.file.impl.lst.LstFormatProvider());
+
+        // Register this provider only if running Java 1.5 or up as it uses the Java 1.5 API
+        if(JavaVersions.JAVA_1_5.isCurrentOrHigher())
+            registerArchiveFormat(new com.mucommander.file.impl.rar.RarFormatProvider());
 
         // Set the default FileIconProvider instance
         defaultFileIconProvider = new SwingFileIconProvider();
@@ -183,8 +169,8 @@ public class FileFactory {
      * @see com.mucommander.cache.LRUCache
      */
     public static void setFileCacheCapacity(int capacity) {
-        if(fileCache==null || fileCache.getCapacity()!=capacity)   // Don't recreate an instance if the capacity is the same
-            fileCache = LRUCache.createInstance(DEFAULT_FILE_CACHE_CAPACITY);
+        if(fileCache==null || fileCache.getCapacity()!=capacity)   // Don't create a new instance if the capacity is the same
+            fileCache = LRUCache.createInstance(capacity);
     }
 
     /**
@@ -197,51 +183,8 @@ public class FileFactory {
         return fileCache.getCapacity();
     }
 
-
     /**
-     * Returns an instance of the {@link AbstractTrash} implementation that can be used on the current platform,
-     * or <code>null</code if none is available.
-     *
-     * @return an instance of the AbstractTrash implementation that can be used on the current platform, or null if
-     * none is available. 
-     */
-    public static AbstractTrash getTrash() {
-        TrashProvider provider;
-
-        if((provider = getTrashProvider()) == null)
-            return null;
-        return provider.getTrash();
-    }
-
-    /**
-     * Returns the object used to create instances of {@link AbstractTrash}.
-     *
-     * @return the object used to create instances of {@link AbstractTrash} if any, <code>null</code> otherwise.
-     */
-    public static TrashProvider getTrashProvider() {
-        synchronized(trashLock) {
-            return trashProvider;
-        }
-    }
-
-    /**
-     * Sets the object that will be used to create instances of {@link AbstractTrash}.
-     *
-     * @param  provider object that will be used to create instances of {@link AbstractTrash}.
-     * @return          the previous trash provider if any, <code>null</code> otherwise.
-     */
-    public static TrashProvider setTrashProvider(TrashProvider provider) {
-        TrashProvider buffer;
-
-        synchronized(trashLock) {
-            buffer = trashProvider;
-            trashProvider = provider;
-            return buffer;
-        }
-    }
-
-    /**
-     * Registers a new protocol.
+     * Registers a new file protocol.
      * <p>
      * If a {@link ProtocolProvider} was already registered to the specified protocol, it will automatically be
      * unregistered.
@@ -264,7 +207,14 @@ public class FileFactory {
      * @return          the previously registered protocol provider if any, <code>null</code> otherwise.
      */
     public static ProtocolProvider registerProtocol(String protocol, ProtocolProvider provider) {
-        return (ProtocolProvider)protocolProviders.put(protocol.toLowerCase(), provider);
+        protocol = protocol.toLowerCase();
+
+        // Special case for local file provider.
+        // Note that the local file provider is also added to the provider hashtable.
+        if(protocol.equals(FileProtocols.FILE))
+            localFileProvider = provider;
+
+        return (ProtocolProvider)protocolProviders.put(protocol, provider);
     }
 
     /**
@@ -274,11 +224,17 @@ public class FileFactory {
      * @return          the provider that has been unregistered, or <code>null</code> if none.
      */
     public static ProtocolProvider unregisterProtocol(String protocol) {
+        protocol = protocol.toLowerCase();
+
+        // Special case for local file provider
+        if(protocol.equals(FileProtocols.FILE))
+            localFileProvider = null;
+
         return (ProtocolProvider)protocolProviders.remove(protocol);
     }
 
     /**
-     * Returns the protocol provider registered to the specified protocol identifer.
+     * Returns the protocol provider associated with the specified protocol identifer.
      *
      * @param  protocol identifier of the protocol whose provider should be retrieved.
      * @return          the protocol provider registered to the specified protocol identifer, or <code>null</code> if none.
@@ -289,10 +245,10 @@ public class FileFactory {
 
     /**
      * Returns an iterator on all known protocol names.
-     * <code>
-     * All objects returned by the iterator's <code>nextElement()</code> method will be instanced of string. These can then
-     * be passed to {@link #getProtocolProvider(String) getProtocolProvider} to retrieve the associated {@link ProtocolProvider}.
-     * </code>
+     *
+     * <p>All objects returned by the iterator's <code>nextElement()</code> method will be string instances. These can
+     * then be passed to {@link #getProtocolProvider(String) getProtocolProvider} to retrieve the associated
+     * {@link ProtocolProvider}.</p>
      *
      * @return an iterator on all known protocol names.
      */
@@ -300,55 +256,61 @@ public class FileFactory {
         return new Enumerator(protocolProviders.keys());
     }
 
-
     /**
-     * Registers a new archive format.
+     * Registers a new <code>ArchiveFormatProvider</code>.
      *
-     * @param mapping new mapping to register.
+     * @param provider the <code>ArchiveFormatProvider</code> to register.
      */
-    public static void registerArchiveFormat(ArchiveFormatMapping mapping) {
-            archiveFormatMappingsV.add(mapping);
-            updateArchiveFormatMappingsArray();
+    public static void registerArchiveFormat(ArchiveFormatProvider provider) {
+        archiveFormatProvidersV.add(provider);
+        updateArchiveFormatProviderArray();
     }
 
     /**
-     * Registers a new archive format.
+     * Removes a previously-registered <code>ArchiveFormatProvider</code>.
+     * <p>
+     * To unregister the provider of a particular archive format without knowing the associated provider instance, use
+     * {@link #getArchiveFormatProvider(String)} with a known archive filename to retrieve the provider instance.
+     * For example, <code>FileFactory.unregisterArchiveFormat(FileFactory.getArchiveFormatProvider("file.zip"))</code>
+     * will unregister the (first, if any) Zip provider.
+     * </p>
      *
-     * @param provider class used to create instances of the new archive format.
-     * @param filter   filter that files must match to be considered of the new format.
+     * @param provider the <code>ArchiveFormatProvider</code> to unregister.
+     * @see #getArchiveFormatProvider(String)
      */
-    public static void registerArchiveFormat(ArchiveFormatProvider provider, FilenameFilter filter) {
-        registerArchiveFormat(new ArchiveFormatMapping(provider, filter));
-    }
-
-    /**
-     * Removes any archive format that might have been registered to the specified extension.
-     *
-     * @param mapping archive format mapping to unregister.
-     */
-    public static void unregisterArchiveFileFormat(ArchiveFormatMapping mapping) {
-        int index = archiveFormatMappingsV.indexOf(mapping);
+    public static void unregisterArchiveFormat(ArchiveFormatProvider provider) {
+        int index = archiveFormatProvidersV.indexOf(provider);
 
         if(index!=-1) {
-            archiveFormatMappingsV.removeElementAt(index);
-            updateArchiveFormatMappingsArray();
+            archiveFormatProvidersV.removeElementAt(index);
+            updateArchiveFormatProviderArray();
         }
     }
 
     /**
-     * Updates the ArchiveFileFormat array to reflect the contents of the ArchiveFileFormat Vector.
+     * Updates the <code>ArchiveFormatProvider</code> array to reflect the contents of the Vector.
      */
-    private static void updateArchiveFormatMappingsArray() {
-        archiveFormatMappings = new ArchiveFormatMapping[archiveFormatMappingsV.size()];
-        archiveFormatMappingsV.toArray(archiveFormatMappings);
+    private static void updateArchiveFormatProviderArray() {
+        archiveFormatProviders = new ArchiveFormatProvider[archiveFormatProvidersV.size()];
+        archiveFormatProvidersV.toArray(archiveFormatProviders);
     }
 
-    public static ArchiveFormatProvider getArchiveFormatProvider(String name) {
-        if(name == null)
+    /**
+     * Returns the first <code>ArchiveFormatProvider</code> that matches the specified filename, <code>null</code>
+     * if there is none. Note that if a filename matches the {@link java.io.FilenameFilter} of several registered
+     * providers, the first provider matching the filename will be returned.
+     *
+     * @param filename an archive filename that potentially matches one of the registered <code>ArchiveFormatProvider</code>
+     * @return the first <code>ArchiveFormatProvider</code> that matches the specified filename, <code>null</code> if there is none
+     */
+    public static ArchiveFormatProvider getArchiveFormatProvider(String filename) {
+        if(filename == null)
             return null;
-        for(int i = 0; i < archiveFormatMappings.length; i++)
-            if(archiveFormatMappings[i].filter.accept(name))
-                return archiveFormatMappings[i].provider;
+
+        for(int i = 0; i < archiveFormatProviders.length; i++) {
+            if(archiveFormatProviders[i].getFilenameFilter().accept(filename))
+                return archiveFormatProviders[i];
+        }
         return null;
     }
 
@@ -358,7 +320,7 @@ public class FileFactory {
      * @return an iterator on all known archive formats.
      */
     public static Iterator archiveFormats() {
-        return archiveFormatMappingsV.iterator();
+        return archiveFormatProvidersV.iterator();
     }
 
 
@@ -414,7 +376,7 @@ public class FileFactory {
      * @throws AuthException if additionnal authentication information is required to create the file
      */
     public static AbstractFile getFile(String absPath, AbstractFile parent) throws AuthException, IOException {
-        return getFile(new FileURL(absPath), parent);
+        return getFile(FileURL.getFileURL(absPath), parent);
     }
 
     /**
@@ -467,8 +429,8 @@ public class FileFactory {
     public static AbstractFile getFile(FileURL fileURL, AbstractFile parent) throws IOException {
         String filePath = fileURL.getPath();
         // For local paths under Windows (e.g. "/C:\temp"), remove the leading '/' character
-        if(OsFamilies.WINDOWS.isCurrent() && FileProtocols.FILE.equals(fileURL.getProtocol()))
-            filePath = FileToolkit.removeLeadingSeparator(filePath, "/");
+        if(OsFamilies.WINDOWS.isCurrent() && FileProtocols.FILE.equals(fileURL.getScheme()))
+            filePath = PathUtils.removeLeadingSeparator(filePath, "/");
 
         PathTokenizer pt = new PathTokenizer(filePath,
                 fileURL.getPathSeparator(),
@@ -486,7 +448,7 @@ public class FileFactory {
             if(isArchiveFilename(pt.nextFilename())) {
                 // Remove trailing separator of file, some file protocols such as SFTP don't like trailing separators.
                 // On the contrary, directories without a trailing slash are fine.
-                String currentPath = FileToolkit.removeTrailingSeparator(pt.getCurrentPath());
+                String currentPath = PathUtils.removeTrailingSeparator(pt.getCurrentPath());
 
                 // Test if current file is an archive file and if it is, create an archive entry file instead of a raw
                 // protocol file
@@ -500,7 +462,7 @@ public class FileFactory {
                 }
                 else {          // currentFile is an AbstractArchiveFile
                     // Note: wrapArchive() is already called by AbstractArchiveFile#createArchiveEntryFile()
-                    AbstractFile tempEntryFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(FileToolkit.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
+                    AbstractFile tempEntryFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
                     if(tempEntryFile instanceof AbstractArchiveFile) {
                         currentFile = tempEntryFile;
                         lastFileResolved = true;
@@ -526,7 +488,7 @@ public class FileFactory {
                 currentFile = createRawFile(clonedURL);
             }
             else {          // currentFile is an AbstractArchiveFile
-                currentFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(FileToolkit.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
+                currentFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
             }
         }
 
@@ -539,12 +501,12 @@ public class FileFactory {
 
 
     private static AbstractFile createRawFile(FileURL fileURL) throws IOException {
-        String protocol = fileURL.getProtocol().toLowerCase();
+        String scheme = fileURL.getScheme().toLowerCase();
 
         // Cache file instances only for certain protocols
-        boolean useFileCache = protocol.equals(FileProtocols.FILE)
-                || protocol.equals(FileProtocols.SMB)
-                || protocol.equals(FileProtocols.SFTP);
+        boolean useFileCache = scheme.equals(FileProtocols.FILE)
+                || scheme.equals(FileProtocols.SMB)
+                || scheme.equals(FileProtocols.SFTP);
 
         // This value is used twice, only if file caching is used
         String urlRep = useFileCache?fileURL.toString(true):null;
@@ -560,14 +522,18 @@ public class FileFactory {
                 return file;
         }
 
-        // Special case for local files, do not use protocol registration mechanism to speed things up a bit
-        // (saves a hashtable lookup)
-        if(protocol.equals(FileProtocols.FILE)) {
-            file = new LocalFile(fileURL);
+        // Special case for local files to avoid provider hashtable lookup and other unnecessary checks
+        // (for performance reasons)
+        if(scheme.equals(FileProtocols.FILE)) {
+            if(localFileProvider == null)
+                throw new IOException("Unknown file protocol: " + scheme);
+
+            file = localFileProvider.getFile(fileURL);
+
             // Uncomment this line and comment the previous one to simulate a slow filesystem
-            //file = new DebugFile(new LocalFile(fileURL), 0, 50);
+            //file = new DebugFile(file, 0, 50);
         }
-        // Use the protocol map for any other file protocol
+        // Use the protocol hashtable for any other file protocol
         else {
             // If the specified FileURL doesn't contain any credentials, use CredentialsManager to find
             // any credentials matching the url and use them.
@@ -577,9 +543,9 @@ public class FileFactory {
 //            if(Debug.ON) Debug.trace("credentials="+fileURL.getCredentials());
 
             // Finds the right file protocol provider
-            ProtocolProvider provider;
-            if((provider = getProtocolProvider(protocol)) == null)
-                throw new IOException("Unknown file protocol: " + protocol);
+            ProtocolProvider provider = getProtocolProvider(scheme);
+            if(provider == null)
+                throw new IOException("Unknown file protocol: " + scheme);
             file = provider.getFile(fileURL);
         }
 

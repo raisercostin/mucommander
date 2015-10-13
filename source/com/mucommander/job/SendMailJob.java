@@ -122,7 +122,7 @@ public class SendMailJob extends TransferFileJob {
     /////////////////////////////////////////////
 
     private void openConnection() throws IOException {
-        this.socket = new Socket(mailServer, 25);
+        this.socket = new Socket(mailServer, MuConfiguration.getVariable(MuConfiguration.SMTP_PORT, MuConfiguration.DEFAULT_SMTP_PORT));
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
         this.out = socket.getOutputStream();
         this.out64 = new Base64OutputStream(out, true);
@@ -326,7 +326,7 @@ public class SendMailJob extends TransferFileJob {
 
     public String getStatusString() {
         if(connectedToMailServer)
-            return Translator.get("email.sending_file", getCurrentFileInfo());
+            return Translator.get("email.sending_file", getCurrentFilename());
         else
             return Translator.get("email.connecting_to_server", mailServer);
     }

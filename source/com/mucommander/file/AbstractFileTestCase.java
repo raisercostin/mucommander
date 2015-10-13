@@ -18,6 +18,7 @@
 
 package com.mucommander.file;
 
+import com.mucommander.file.util.PathUtilsTest;
 import com.mucommander.io.ChecksumOutputStream;
 import com.mucommander.io.FileTransferException;
 import com.mucommander.io.RandomAccessInputStream;
@@ -50,7 +51,7 @@ import java.util.Vector;
  *
  * @author Maxence Bernard
  */
-public abstract class AbstractFileTestCase extends TestCase implements FilePermissions {
+public abstract class AbstractFileTestCase extends TestCase {
 
     /**
      * AbstractFile instances to be deleted if they exist when {@link #tearDown()} is called.
@@ -120,10 +121,13 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
      * This file will be deleted only if it exists, and any children file it contains will also be deleted.
      *
      * @param fileToDelete a file to be deleted when the test is finished
+     * @return the same file that as passed, allowing this method to be chained
      */
-    protected void deleteWhenFinished(AbstractFile fileToDelete) {
+    protected AbstractFile deleteWhenFinished(AbstractFile fileToDelete) {
         if(!filesToDelete.contains(fileToDelete))
             filesToDelete.add(fileToDelete);
+
+        return fileToDelete;
     }
 
 
@@ -158,7 +162,7 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
             assertTrue(file.exists());
             assertEquals(length, file.getSize());
 
-            return md5Out.getChecksum();
+            return md5Out.getChecksumString();
         }
         finally {
             md5Out.close();
@@ -376,7 +380,7 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
         // If the file is authenticated, test if the given path contains credentials and if it does not, add the
         // credentials to it.
         if(file.getURL().containsCredentials()) {
-            FileURL fileURL = new FileURL(path);
+            FileURL fileURL = FileURL.getFileURL(path);
 
             if(!fileURL.containsCredentials()) {
                 fileURL.setCredentials(file.getURL().getCredentials());
@@ -502,6 +506,43 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
         assertFalse(tempFile.getCanonicalPath(false).endsWith(tempFile.getSeparator()));
     }
 
+    /**
+     * Tests {@link AbstractFile#getName()}, {@link AbstractFile#getExtension()} and {@link AbstractFile#getNameWithoutExtension()}
+     * on a bunch of filenames.
+     *
+     * @throws IOException should not happen
+     */
+    public void testNameAndExtension() throws IOException {
+        AbstractFile baseFolder = getTemporaryFile();
+
+        assertNameAndExtension(baseFolder, "name", null, "name");
+        assertNameAndExtension(baseFolder, ".name", null, ".name");
+        assertNameAndExtension(baseFolder, ".name", null, ".name");
+        assertNameAndExtension(baseFolder, "name.ext", "ext", "name");
+        assertNameAndExtension(baseFolder, "name.ext.", null, "name.ext.");
+        assertNameAndExtension(baseFolder, "name.with.dots.ext", "ext", "name.with.dots");
+        assertNameAndExtension(baseFolder, "name.with.dots.ext", "ext", "name.with.dots");
+        assertNameAndExtension(baseFolder, "name with spaces.ext", "ext", "name");
+    }
+
+    /**
+     * Resolves an AbstractFile instance corresponding to the file named <code>filename</code> within the temporary
+     * folder and asserts its {@link AbstractFile#getName() name}, {@link AbstractFile#getExtension() extension} and
+     * {@link AbstractFile#getNameWithoutExtension() name without extension} match the specified values.
+     *
+     * @param tempFolder the temporary folder which will be the parent of the resolved AbstractFile instance
+     * @param filename filename of the AbstractFile to resolved
+     * @param expectedExtension the expected file's extension
+     * @param expectedNameWOExt the expected file's name without extension
+     * @throws IOException if an error occurred while resolving the file
+     */
+    private void assertNameAndExtension(AbstractFile tempFolder, String filename, String expectedExtension, String expectedNameWOExt) throws IOException {
+        AbstractFile file = tempFolder.getChild(filename);
+
+        assertEquals(filename, file.getName());
+        assertTrue(StringUtils.equals(expectedExtension, file.getExtension(), true));
+        assertTrue(StringUtils.equals(expectedNameWOExt, expectedNameWOExt, true));
+    }
 
     /**
      * Tests {@link AbstractFile#getURL()} by asserting that it returns a non-null value, that the file can
@@ -575,7 +616,7 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
         writeRandomData(md5Out, 100000, 1000);
         md5Out.close();
 
-        assertEquals(md5Out.getChecksum(), calculateMd5(tempFile));
+        assertEquals(md5Out.getChecksumString(), calculateMd5(tempFile));
 
         // Test path resolution on a directory
 
@@ -852,57 +893,54 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
     }
 
     /**
-     * Tests all <code>AbstractFile</code> permissions methods and asserts the following things for each access
-     * (user, group, other) and permission (read, write, execute) combination:
-     * <ul>
-     *  <li>that the information returned by {@link AbstractFile#getPermissionGetMask()}
-     * and {@link AbstractFile#canGetPermission(int, int)} are consistent</li>
-     *  <li>that the information returned by {@link AbstractFile#getPermissionSetMask()}
-     * and {@link AbstractFile#canSetPermission(int, int)} are consistent</li>
-     *  <li>that the values returned by {@link AbstractFile#getPermissions()}
-     * and {@link AbstractFile#getPermission(int, int)} are consistent for supported permission flags</li>
-     *  <li>{@link AbstractFile#setPermission(int, int, boolean)} and {@link AbstractFile#setPermissions(int)} work as
-     * they should for supported permission flags</li>
-     * </ul>
+     * Tests <code>AbstractFile</code> permission methods.
      *
      * @throws IOException should not happen
      * @throws NoSuchAlgorithmException should not happen
      */
     public void testPermissions() throws IOException, NoSuchAlgorithmException {
+        assertNotNull(tempFile.getPermissions());
+
         createFile(tempFile, 0);
 
-        int getPermMask = tempFile.getPermissionGetMask();
-        int setPermMask = tempFile.getPermissionSetMask();
+        FilePermissions permissions = tempFile.getPermissions();
+        PermissionBits getPermMask = permissions.getMask();
+        PermissionBits setPermMask = tempFile.getChangeablePermissions();
+
+        assertNotNull(permissions);
+
+        int getPermMaskInt = getPermMask.getIntValue();
+        int setPermMaskInt = tempFile.getChangeablePermissions().getIntValue();
 
         int bitShift = 0;
         int bitMask;
         boolean canGetPermission, canSetPermission;
 
-        for(int a=OTHER_ACCESS; a<= USER_ACCESS; a++) {
-            for(int p=EXECUTE_PERMISSION; p<=READ_PERMISSION; p=p<<1) {
+        for(int a=PermissionAccesses.OTHER_ACCESS; a<=PermissionAccesses.USER_ACCESS; a++) {
+            for(int p=PermissionTypes.EXECUTE_PERMISSION; p<=PermissionTypes.READ_PERMISSION; p=p<<1) {
                 bitMask = 1<<bitShift;
 
-                canGetPermission = (getPermMask & bitMask)!=0;
-                assertTrue("getPermissionGetMask() doesn't match canGetPermission("+a+", "+p+")",
-                        tempFile.canGetPermission(a, p)==canGetPermission);
+                canGetPermission = (getPermMaskInt & bitMask)!=0;
+                assertTrue("inconsistent bit and int value for ("+a+", "+p+")",
+                        getPermMask.getBitValue(a, p)==canGetPermission);
 
-                canSetPermission = (setPermMask & bitMask)!=0;
-                assertTrue("getPermissionSetMask() doesn't match canSetPermission("+a+", "+p+")",
-                        tempFile.canSetPermission(a, p)==canSetPermission);
+                canSetPermission = (setPermMaskInt & bitMask)!=0;
+                assertTrue("inconsistent bit and int value for ("+a+", "+p+")",
+                        setPermMask.getBitValue(a, p)==canSetPermission);
 
                 if(canGetPermission) {
-                    assertTrue("getPermissions() doesn't match getPermission("+a+", "+p+")",
-                            tempFile.getPermission(a, p)==((tempFile.getPermissions() & bitMask)!=0));
+                    assertTrue("inconsistent bit and int value for ("+a+", "+p+")",
+                            permissions.getBitValue(a, p)==((permissions.getIntValue() & bitMask)!=0));
                 }
 
                 if(canSetPermission) {
                     for(boolean enabled=true; ;) {
-                        assertTrue("setPermission("+a+", "+p+") failed", tempFile.setPermission(a, p, enabled));
-                        assertTrue("setPermissions("+(enabled?bitMask:(0777&~bitMask))+") failed", tempFile.setPermissions(enabled?bitMask:(0777&~bitMask)));
+                        assertTrue("changePermission("+a+", "+p+") failed", tempFile.changePermission(a, p, enabled));
+                        assertTrue("changePermissions("+(enabled?bitMask:(0777&~bitMask))+") failed", tempFile.changePermissions(enabled?bitMask:(0777&~bitMask)));
 
                         if(canGetPermission) {
-                            assertTrue("getPermission("+a+", "+p+") should be "+enabled, tempFile.getPermission(a, p)==enabled);
-                            assertTrue("permission bit "+bitShift+" should be "+enabled, ((tempFile.getPermissions() & bitMask)!=0)==enabled);
+                            assertTrue("permission bit ("+a+", "+p+") should be "+enabled, tempFile.getPermissions().getBitValue(a, p)==enabled);
+                            assertTrue("permission "+bitShift+" should be "+enabled, ((tempFile.getPermissions().getIntValue() & bitMask)!=0)==enabled);
                         }
 
                         if(!enabled)
@@ -1128,7 +1166,7 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
         writeRandomData(md5Out, 100000, 1000);
         md5Out.close();
 
-        assertEquals(md5Out.getChecksum(), calculateMd5(tempFile));
+        assertEquals(md5Out.getChecksumString(), calculateMd5(tempFile));
     }
 
     /**
@@ -1155,7 +1193,7 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
             writeRandomData(md5Out, 100000, 1000);
             md5Out.close();
 
-            assertEquals(md5Out.getChecksum(), calculateMd5(tempFile));
+            assertEquals(md5Out.getChecksumString(), calculateMd5(tempFile));
             tempFile.delete();
 
             // Test getOffset(), seek(), getLength() and setLength()
@@ -1533,6 +1571,19 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
     }
 
 
+    /**
+     * Tests {@link com.mucommander.file.util.PathUtils#resolveDestination(String, AbstractFile)} by calling
+     * {@link PathUtilsTest#testResolveDestination(AbstractFile)} with a temporary folder.
+     *
+     * @throws IOException should not happen
+     */
+    public void testDestinationResolution() throws IOException {
+        AbstractFile folder = deleteWhenFinished(getTemporaryFile());
+        folder.mkdir();
+        new PathUtilsTest().testResolveDestination(folder);
+    }
+
+
     //////////////////////
     // Abstract methods //
     //////////////////////
@@ -1545,5 +1596,5 @@ public abstract class AbstractFileTestCase extends TestCase implements FilePermi
      * @return a temporary file that does not physically exist
      * @throws IOException if an error occurred while creating a temporary file
      */
-    protected abstract AbstractFile getTemporaryFile() throws IOException;
+    public abstract AbstractFile getTemporaryFile() throws IOException;
 }

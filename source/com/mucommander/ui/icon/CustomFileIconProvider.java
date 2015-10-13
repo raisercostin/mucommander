@@ -63,6 +63,8 @@ public class CustomFileIconProvider implements FileIconProvider {
     /** Icon for the root of remote (non-local) locations */
     public final static String NETWORK_ICON_NAME = "network.png";
 
+    /** Icon for not accessible files (used for quick-lists) **/
+    public final static String NOT_ACCESSIBLE_FILE = "not_accessible.png";
 
     /** File icon <-> extensions association map. For information about specific file extensions, refer to:
      * <ul>
@@ -164,7 +166,7 @@ public class CustomFileIconProvider implements FileIconProvider {
         // If file is a directory, use folder icon. One exception is made for
 
         // Special icon for the root of remote (non-local) locations
-        if(!FileProtocols.FILE.equals(file.getURL().getProtocol()) && file.isRoot()) {
+        if(!FileProtocols.FILE.equals(file.getURL().getScheme()) && file.isRoot()) {
             icon = IconManager.getIcon(IconManager.FILE_ICON_SET, NETWORK_ICON_NAME);
         }
         else if(file.isDirectory()) {

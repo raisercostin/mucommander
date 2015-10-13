@@ -31,6 +31,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.MalformedURLException;
+import java.text.ParseException;
 
 
 /**
@@ -40,12 +41,14 @@ import java.net.MalformedURLException;
  */
 public class SFTPPanel extends ServerPanel {
 
+    private final static int STANDARD_PORT = FileURL.getRegisteredHandler(FileProtocols.SFTP).getStandardPort();
+
     private JTextField serverField;
     private JTextField privateKeyPathField;
     private JTextField usernameField;
     private JPasswordField passwordField;
     private JTextField initialDirField;
-    private JTextField portField;
+    private JSpinner portSpinner;
 
     private static String lastServer = "";
     private static String lastKeyPath = "";
@@ -53,7 +56,7 @@ public class SFTPPanel extends ServerPanel {
     // Not static so that it is not saved (for security reasons)
     private String lastPassword = "";
     private static String lastInitialDir = "/";
-    private static int lastPort = 22;
+    private static int lastPort = STANDARD_PORT;
 
 
     SFTPPanel(ServerConnectDialog dialog, final MainFrame mainFrame) {
@@ -106,10 +109,8 @@ public class SFTPPanel extends ServerPanel {
         addRow(Translator.get("server_connect_dialog.initial_dir"), initialDirField, 5);
 
         // Port field, initialized to last port (default is 22)
-        portField = new JTextField(""+lastPort, 5);
-        portField.selectAll();
-        addTextFieldListeners(portField, true);
-        addRow(Translator.get("server_connect_dialog.port"), portField, 15);
+        portSpinner = createPortSpinner(lastPort);
+        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 15);
     }
 
 
@@ -119,14 +120,7 @@ public class SFTPPanel extends ServerPanel {
         lastUsername = usernameField.getText();
         lastPassword = new String(passwordField.getPassword());
         lastInitialDir = initialDirField.getText();
-        lastPort = 22;
-
-        try {
-            lastPort = Integer.parseInt(portField.getText());
-        }
-        catch(NumberFormatException e) {
-            // Port is a malformed number
-        }
+        lastPort = ((Integer)portSpinner.getValue()).intValue();
     }
 
 
@@ -139,14 +133,15 @@ public class SFTPPanel extends ServerPanel {
         if(!lastInitialDir.startsWith("/"))
             lastInitialDir = "/"+lastInitialDir;
 
-        FileURL url = new FileURL(FileProtocols.SFTP+"://"+lastServer+lastInitialDir);
+        FileURL url = FileURL.getFileURL(FileProtocols.SFTP+"://"+lastServer+lastInitialDir);
 
+        // Set credentials
         url.setCredentials(new Credentials(lastUsername, lastPassword));
-        if (!"".equals(lastKeyPath.trim())) url.setProperty(SFTPFile.PRIVATE_KEY_PATH_PROPERTY_NAME, lastKeyPath);
+        if(!"".equals(lastKeyPath.trim()))
+            url.setProperty(SFTPFile.PRIVATE_KEY_PATH_PROPERTY_NAME, lastKeyPath);
 
         // Set port
-        if(lastPort>0 && lastPort!=22)
-            url.setPort(lastPort);
+        url.setPort(lastPort);
 
         return url;
     }
@@ -155,7 +150,12 @@ public class SFTPPanel extends ServerPanel {
         return true;
     }
 
-    public void dispose() {
+    public void dialogValidated() {
+        // Commits the current spinner value in case it was being edited and 'enter' was pressed
+        // (the spinner value would otherwise not be committed)
+        try { portSpinner.commitEdit(); }
+        catch(ParseException e) { }
+
         updateValues();
     }
 }

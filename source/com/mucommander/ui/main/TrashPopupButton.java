@@ -18,8 +18,8 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.file.AbstractTrash;
-import com.mucommander.file.FileFactory;
+import com.mucommander.desktop.AbstractTrash;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.EmptyTrashAction;
 import com.mucommander.ui.action.OpenTrashAction;
@@ -28,10 +28,11 @@ import com.mucommander.ui.button.RolloverButtonAdapter;
 import com.mucommander.ui.icon.IconManager;
 
 import javax.swing.*;
+import java.awt.*;
 
 /**
  * TrashPopupButton is a button that allows to interact with the current platform's trash, as returned by
- * {@link com.mucommander.file.FileFactory#getTrash()}.
+ * {@link com.mucommander.desktop.DesktopManager#getTrash()}.
  * When the button is clicked, a popup menu is displayed, allowing to perform a choice of actions such as opening
  * the trash or emptying it.
  * Note that this button will only be functional if a trash is avaiable on the current platform. 
@@ -48,6 +49,7 @@ public class TrashPopupButton extends PopupButton {
     public TrashPopupButton(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
 
+        setContentAreaFilled(false);
         setIcon(IconManager.getIcon(IconManager.STATUS_BAR_ICON_SET, "trash.png"));
 
         // Rollover-enable the button and hold a reference to the RolloverButtonAdapter instance so that it doesn't
@@ -60,7 +62,7 @@ public class TrashPopupButton extends PopupButton {
     public JPopupMenu getPopupMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
 
-        AbstractTrash trash = FileFactory.getTrash();
+        AbstractTrash trash = DesktopManager.getTrash();
         if(trash!=null) {
             if(trash.canOpen())
                 popupMenu.add(ActionManager.getActionInstance(OpenTrashAction.class, mainFrame));
@@ -85,5 +87,17 @@ public class TrashPopupButton extends PopupButton {
         }
 
         return popupMenu;
+    }
+
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    /**
+     * Replace the default insets to be exactly (2,2,2,2).
+     */
+    public Insets getInsets() {
+        return new Insets(2, 2, 2, 2);
     }
 }

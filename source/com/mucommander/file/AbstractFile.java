@@ -23,7 +23,7 @@ import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.impl.ProxyFile;
 import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.file.util.FileToolkit;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
 import com.mucommander.runtime.OsFamilies;
@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
  * @see com.mucommander.file.impl.ProxyFile
  * @author Maxence Bernard
  */
-public abstract class AbstractFile implements FilePermissions {
+public abstract class AbstractFile implements PermissionTypes, PermissionAccesses {
 
     /** URL representing this file */
     protected FileURL fileURL;
@@ -165,7 +165,7 @@ public abstract class AbstractFile implements FilePermissions {
     /**
      * Returns the absolute path to this file:
      * <ul>
-     * <li>For local files, the path is returned without the protocol and host parts (i.e. without file://localhost)
+     * <li>For local files, the sole path is returned, and <b>not</b> a URL with the scheme and host parts (e.g. /path/to/file, not file://localhost/path/to/file)
      * <li>For any other file protocol, the full URL including the protocol and host parts is returned (e.g. smb://192.168.1.1/root/blah)
      * </ul>
      *
@@ -176,17 +176,17 @@ public abstract class AbstractFile implements FilePermissions {
     public String getAbsolutePath() {
         FileURL fileURL = getURL();
 
-        // For local files: return file's path 'sans' the protocol and host parts
-        if(fileURL.getProtocol().equals(FileProtocols.FILE)) {
+        // For local files: return file's path 'sans' the scheme and host parts
+        if(fileURL.getScheme().equals(FileProtocols.FILE)) {
             String path = fileURL.getPath();
             // Under for OSes with 'root drives' (Windows, OS/2), remove the leading '/' character
             if(LocalFile.hasRootDrives())
-                path = FileToolkit.removeLeadingSeparator(path, "/");
+                path = PathUtils.removeLeadingSeparator(path, "/");
 
             return path;
         }
 
-        // For any other file protocols: return the full URL that includes the protocol and host parts
+        // For any other file protocols: return the full URL that includes the scheme and host parts
         return fileURL.toString(false);
     }
 
@@ -218,7 +218,7 @@ public abstract class AbstractFile implements FilePermissions {
             return this;
 
         try {
-            FileURL canonicalURL = new FileURL(canonicalPath);
+            FileURL canonicalURL = FileURL.getFileURL(canonicalPath);
             canonicalURL.setCredentials(fileURL.getCredentials());
 
             return FileFactory.getFile(canonicalURL);
@@ -300,7 +300,7 @@ public abstract class AbstractFile implements FilePermissions {
      * @return <code>true</code> if this file is a root folder
      */
     public boolean isRoot() {
-        if(fileURL.getProtocol().equals(FileProtocols.FILE)) {
+        if(fileURL.getScheme().equals(FileProtocols.FILE)) {
             String path = getAbsolutePath();
             return OsFamilies.WINDOWS.isCurrent()?windowsDriveRootPattern.matcher(path).matches():path.equals("/");
         }
@@ -560,8 +560,8 @@ public abstract class AbstractFile implements FilePermissions {
      * @return the hint int indicating whether the {@link #moveTo(AbstractFile)} method should be used
      */
     public int getMoveToHint(AbstractFile destFile) {
-        // Return SHOULD_NOT if protocols differ
-        if(!fileURL.getProtocol().equals(destFile.fileURL.getProtocol()))
+        // Return SHOULD_NOT if schemes differ
+        if(!fileURL.getScheme().equals(destFile.fileURL.getScheme()))
           return SHOULD_NOT_HINT;
 
         // Are both fileURL's hosts equal ?
@@ -628,56 +628,28 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
-     * Returns this file's permissions as an int, UNIX octal style.
-     * The permissions can be compared against {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION}, {@link #EXECUTE_PERMISSION}
-     * and {@link #USER_ACCESS}, {@link #GROUP_ACCESS} and {@link #OTHER_ACCESS} masks.
-     *
-     * <p>Implementation note: the default implementation of this method calls sequentially {@link #getPermission(int, int)} for
-     * each permission and access (that's a total of 9 calls). This may affect performance on filesystems which need to perform
-     * an I/O request to retrieve each permission individually. In that case, and if the fileystem allows to retrieve all
-     * permissions at once, this method should be overridden.</p>
-     *
-     * @return permissions as an int, UNIX octal style.
-     */
-    public int getPermissions() {
-        int bitShift = 0;
-        int perms = 0;
-
-        for(int a=OTHER_ACCESS; a<= USER_ACCESS; a++) {
-            for(int p=EXECUTE_PERMISSION; p<=READ_PERMISSION; p=p<<1) {
-                if(canGetPermission(a, p) && getPermission(a, p))
-                    perms |= (1<<bitShift);
-
-                bitShift++;
-            }
-        }
-
-        return perms;
-    }
-
-
-    /**
      * Changes this file's permissions to the specified permissions int and returns <code>true</code> if
      * the operation was successful, <code>false</code> if at least one of the file permissions could not be changed.
-     * The permissions int should be created using {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION}, {@link #EXECUTE_PERMISSION}
-     * and {@link #USER_ACCESS}, {@link #GROUP_ACCESS} and {@link #OTHER_ACCESS} masks combined with logical OR.
+     * The permissions int should be constructed using the permission types and accesses defined in
+     * {@link com.mucommander.file.PermissionTypes} and {@link com.mucommander.file.PermissionAccesses}.
      *
-     * <p>Implementation note: the default implementation of this method calls sequentially {@link #setPermission(int, int, boolean)},
+     * <p>Implementation note: the default implementation of this method calls sequentially {@link #changePermission(int, int, boolean)},
      * for each permission and access (that's a total 9 calls). This may affect performance on filesystems which need
      * to perform an I/O request to change each permission individually. In that case, and if the fileystem allows
      * to change all permissions at once, this method should be overridden.</p>
      *
-     * @param permissions the new permissions this file should have
+     * @param permissions new permissions for this file
      * @return true if the operation was successful, false if at least one of the file permissions could not be changed
      */
-    public boolean setPermissions(int permissions) {
+    public boolean changePermissions(int permissions) {
         int bitShift = 0;
         boolean success = true;
 
-        for(int a=OTHER_ACCESS; a<= USER_ACCESS; a++) {
+        PermissionBits mask = getChangeablePermissions();
+        for(int a=OTHER_ACCESS; a<=USER_ACCESS; a++) {
             for(int p=EXECUTE_PERMISSION; p<=READ_PERMISSION; p=p<<1) {
-                if(canSetPermission(a, p))
-                    success = setPermission(a, p, (permissions & (1<<bitShift))!=0) && success;
+                if(mask.getBitValue(a, p))
+                    success = changePermission(a, p, (permissions & (1<<bitShift))!=0) && success;
 
                 bitShift++;
             }
@@ -688,128 +660,32 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
-     * Pads the given file's permissions with the specified ones: the permission bits that are not supported by the
-     * file (as reported by {@link #getPermissionGetMask()} are replaced by those of the default permissions.
-     * That means:<br/>
-     *  - if the file has support for all permission bits (mask = 777 octal), the file's permissions will simply be
-     * returned, without using any of the default permissions<br/>
-     *  - if the file doesn't have support for any of the permission bits (mask = 0), the default permissions will be
-     * returned, without using any of the file's permissions<br/>
-     *
-     * @param file the file for which to retrieve the permissions and pad them
-     * @param defaultPermissions permissions to use for the bits that are not supported by the given file
-     * @return the given file's permissions padded with the default permissions
-     */
-    public static int padPermissions(AbstractFile file, int defaultPermissions) {
-        return padPermissions(file.getPermissions(), file.getPermissionGetMask(), defaultPermissions);
-    }
-
-    /**
-     * Pads the given permissions with the specified ones: the permission bits that are not supported by the
-     * file (as reported by the supplied permissions mask} are replaced by those of the default permissions.
-     * That means:<br/>
-     *  - if the mask indicates that all permission bits are supported (mask = 777 octal), the supplied permissions will
-     * simply be returned, without using any of the default permissions<br/>
-     *  - if the mask indicates that none of the permission bits are supported (mask = 0), the default permissions will
-     * be returned, without using any of the supplied permissions<br/>
-     *
-     * @param permissions the permissions to pad with default permissions for the bits that are not supported
-     * @param supportedPermissionsMask the bit mask that indicates which bits of the given permissions are supported
-     * @param defaultPermissions permissions to use for the bits that are not supported
-     * @return the given permissions padded with the default permissions
-     */
-    public static int padPermissions(int permissions, int supportedPermissionsMask, int defaultPermissions) {
-        return (permissions & supportedPermissionsMask) | (~supportedPermissionsMask & defaultPermissions);
-    }
-
-
-    /**
-     * This method is a shorthand for {@link #importPermissions(AbstractFile, int)} called with
-     * {@link #DEFAULT_DIRECTORY_PERMISSIONS} if this file is a directory or {@link #DEFAULT_FILE_PERMISSIONS} if this
-     * file is a regular file.
+     * This method is a shorthand for {@link #importPermissions(AbstractFile, FilePermissions)} called with
+     * {@link FilePermissions#DEFAULT_DIRECTORY_PERMISSIONS} if this file is a directory or
+     * {@link FilePermissions#DEFAULT_FILE_PERMISSIONS} if this file is a regular file.
      *
      * @param sourceFile the file from which to import permissions
      */
     public void importPermissions(AbstractFile sourceFile) {
         importPermissions(sourceFile,isDirectory()
-                ?DEFAULT_DIRECTORY_PERMISSIONS
-                :DEFAULT_FILE_PERMISSIONS);
+                ? FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS
+                : FilePermissions.DEFAULT_FILE_PERMISSIONS);
     }
 
     /**
      * Imports the given source file's permissions, overwriting this file's permissions. Only the bits that are
-     * supported by the source file (as reported by {@link #getPermissionGetMask()} are preserved. Other bits are be
-     * set to those of the specified default permissions. See {@link #padPermissions(AbstractFile, int)} for more
-     * information about permissions padding.
+     * supported by the source file (as reported by the permissions' mask) are preserved. Other bits are be
+     * set to those of the specified default permissions.
+     * See {@link SimpleFilePermissions#padPermissions(FilePermissions, FilePermissions)} for more information about
+     * permissions padding.
      *
      * @param sourceFile the file from which to import permissions
      * @param defaultPermissions default permissions to use
-     * @see #padPermissions(AbstractFile, int)
+     * @see SimpleFilePermissions#padPermissions(FilePermissions, FilePermissions)
      */
-    public void importPermissions(AbstractFile sourceFile, int defaultPermissions) {
-        setPermissions(padPermissions(sourceFile, defaultPermissions));
+    public void importPermissions(AbstractFile sourceFile, FilePermissions defaultPermissions) {
+        changePermissions(SimpleFilePermissions.padPermissions(sourceFile.getPermissions(), defaultPermissions).getIntValue());
     }
-
-
-    /**
-     * Returns a mask describing the permission bits that the filesystem can read and which can be returned by
-     * {@link #getPermission(int, int)} and {@link #getPermissions()}. This allows to determine which permissions are
-     * meaningful. 0 is returned if no permission can be read or if the filesystem doesn't have a notion of permissions,
-     * 777 if all permissions can be read.
-     *
-     * <p>Implementation note: the default implementation of this method calls sequentially {@link #canGetPermission(int, int)},
-     * for each permission and access (that's a total 9 calls). This method should be overridden if a more efficient
-     * implementation can be provided. Usually, file permissions support is the same for all files on a filesystem. If
-     * that is the case, this method should be overridden to return a static permission mask.</p>
-     *
-     * @return a bit mask describing the permission bits that the filesystem can read
-     */
-    public int getPermissionGetMask() {
-        int bitShift = 0;
-        int permsMask = 0;
-
-        for(int a=OTHER_ACCESS; a<= USER_ACCESS; a++) {
-            for(int p=EXECUTE_PERMISSION; p<=READ_PERMISSION; p=p<<1) {
-                if(canGetPermission(a, p))
-                    permsMask |= (1<<bitShift);
-
-                bitShift++;
-            }
-        }
-
-        return permsMask;
-    }
-
-
-    /**
-     * Returns a mask describing the permission bits that can be changed by the filesystem when calling
-     * {@link #setPermission(int, int, boolean)} and {@link #setPermissions(int)}.
-     * 0 is returned if no permission can be set or if the filesystem doesn't have a notion of permissions,
-     * 777 if all permissions can be set.
-     *
-     * <p>Implementation note: the default implementation of this method calls sequentially {@link #canGetPermission(int, int)},
-     * for each permission and access (that's a total 9 calls). This method should be overridden if a more efficient
-     * implementation can be provided. Usually, file permissions support is the same for all files on a filesystem. If
-     * that is the case, this method should be overridden to return a static permission mask.</p>
-     *
-     * @return a bit mask describing the permission bits that the filesystem can change
-     */
-    public int getPermissionSetMask() {
-        int bitShift = 0;
-        int permsMask = 0;
-
-        for(int a=OTHER_ACCESS; a<= USER_ACCESS; a++) {
-            for(int p=EXECUTE_PERMISSION; p<=READ_PERMISSION; p=p<<1) {
-                if(canSetPermission(a, p))
-                    permsMask |= (1<<bitShift);
-
-                bitShift++;
-            }
-        }
-
-        return permsMask;
-    }
-
 
 
     /**
@@ -825,36 +701,38 @@ public abstract class AbstractFile implements FilePermissions {
      * </ul>
      * </p>
      *
-     * <p>The first character triplet for 'user' access will always be added to the permissions. Then the 'group' and 'other'
-     * triplets will only be added if at least one of the user permission bits can be retrieved, as tested with
-     * {@link #getPermissionGetMask()}.
+     * <p>The first character triplet for 'user' access will always be added to the permissions. Then the 'group' and
+     * 'other' triplets will only be added if at least one of the user permission bits is supported, as tested with
+     * this file's permissions mask.
      * Here are a couple examples to illustrate:
      * <ul>
-     *  <li>a directory for which {@link #getPermissionGetMask()} returns 0 will return the string "d----", no matter
-     * what {@link #getPermissions()} returns.
-     *  <li>a regular file for which {@link #getPermissionGetMask()} returns 777 (full permissions support) and which
-     * has read/write/executable permissions for all three 'user', 'group' and 'other' access types will return "-rwxrwxrwx".
+     *  <li>a directory for which the file permissions' mask is 0 will return the string <code>d---</code>, no matter
+     * what permission values the FilePermissions returned by {@link #getPermissions()} contains</li>.
+     *  <li>a regular file for which the file permissions' mask returns 777 (full permissions support) and which
+     * has read/write/executable permissions for all three 'user', 'group' and 'other' access types will return
+     * <code>-rwxrwxrwx</code></li>.
      * </ul>
      * </p>
      *
      * @return a string representation of this file's permissions
      */
     public String getPermissionsString() {
-        int availPerms = getPermissionGetMask();
+        FilePermissions permissions = getPermissions();
+        int supportedPerms = permissions.getMask().getIntValue();
 
         String s = "";
         s += isSymlink()?'l':isDirectory()?'d':'-';
 
-        int perms = getPermissions();
+        int perms = permissions.getIntValue();
 
         int bitShift = USER_ACCESS *3;
 
         // Permissions go by triplets (rwx), there are 3 of them for respectively 'owner', 'group' and 'other' accesses.
         // The first one ('owner') will always be displayed, regardless of the permission bit mask. 'Group' and 'other'
         // will be displayed only if the permission mask contains information about them (at least one permission bit).
-        for(int a= USER_ACCESS; a>=OTHER_ACCESS; a--) {
+        for(int a=USER_ACCESS; a>=OTHER_ACCESS; a--) {
 
-            if(a== USER_ACCESS || (availPerms & (7<<bitShift))!=0) {
+            if(a==USER_ACCESS || (supportedPerms & (7<<bitShift))!=0) {
                 for(int p=READ_PERMISSION; p>=EXECUTE_PERMISSION; p=p>>1) {
                     if((perms & (p<<bitShift))==0)
                         s += '-';
@@ -954,6 +832,22 @@ public abstract class AbstractFile implements FilePermissions {
         childURL.setPath(addTrailingSeparator(childURL.getPath())+ relativePath);
 
         return FileFactory.getFile(childURL, true);
+    }
+
+    /**
+     * Convenience method that acts as {@link #getChild(String)} except that it does not throw {@link IOException} but
+     * returns <code>null</code> if the child could not be instantiated.
+     *
+     * @param relativePath the child's path, relative to this file's path
+     * @return an AbstractFile representing the requested child file, <code>null</code> if it could not be instantiated
+     */
+    public final AbstractFile getChildSilently(String relativePath) {
+        try {
+            return getChild(relativePath);
+        }
+        catch(IOException e) {
+            return null;
+        }
     }
 
     /**
@@ -1364,6 +1258,16 @@ public abstract class AbstractFile implements FilePermissions {
         file.delete();
     }
 
+    /**
+     * Convenience method that calls {@link #changePermissions(int)} with the given permissions' int value.
+     *
+     * @param permissions new permissions for this file
+     * @return true if the operation was successful, false if at least one of the file permissions could not be changed
+     */
+    public final boolean changePermissions(FilePermissions permissions) {
+        return changePermissions(permissions.getIntValue());
+    }
+
 
     ////////////////////
     // Static methods //
@@ -1376,6 +1280,11 @@ public abstract class AbstractFile implements FilePermissions {
      * - it contains at least one <code>.</code> character<br/>
      * - the last <code>.</code> is not the last character of the filename<br/>
      * - the last <code>.</code> is not the first character of the filename</p>
+     *
+     * <p>
+     * The returned extension (if any) is free of any extension separator character (<code>.</code>). For instance,
+     * this method will return <code>"ext"</code> for a file named <code>"name.ext"</code>, <b>not</b> <code>".ext"</code>.
+     * </p>
      *
      * @param filename a filename, not a full path
      * @return the given filename's extension, <code>null</code> if the filename doesn't have an extension
@@ -1439,6 +1348,10 @@ public abstract class AbstractFile implements FilePermissions {
         return getCanonicalPath(false).equals(((AbstractFile)f).getCanonicalPath(false));
     }
 
+    public int hashCode() {
+        return getCanonicalPath(false).hashCode();
+    }
+    
 	
     /**
      * Returns a String representation of this file. The returned String is this file's path as returned by
@@ -1511,46 +1424,36 @@ public abstract class AbstractFile implements FilePermissions {
     public abstract boolean exists();
 
     /**
-     * Returns <code>true</code> if this file has the specified permission enabled for the given access type.
-     * If the permission flag for the access type is not supported (use {@link #getPermissionGetMask()} or
-     * {@link #canGetPermission(int, int)} to determine that), the return value will be meaningless and therefore
-     * should not be taken into account.
+     * Returns this file's permissions, as a {@link FilePermissions} object. Note that this file may only support
+     * certain permission bits, use the {@link com.mucommander.file.FilePermissions#getMask() permission mask} to find
+     * out which bits are supported.
      *
-     * @param access {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION} or {@link #EXECUTE_PERMISSION}
-     * @param permission {@link #USER_ACCESS}, {@link #GROUP_ACCESS} or {@link #OTHER_ACCESS}
-     * @return true if the file has the specified permission flag enabled for the access type
+     * <p>This method may return permissions for which none of the bits are supported, but may never return
+     * <code>null</code>.</p>
+     *
+     * @return this file's permissions, as a FilePermissions object
      */
-    public abstract boolean getPermission(int access, int permission);
+    public abstract FilePermissions getPermissions();
 
     /**
-     * Changes the specified permission flag for the given access type. If the permission bit in the access type is not
-     * supported (use {@link #getPermissionSetMask()} or {@link #canSetPermission(int, int)} to determine that),
-     * calling this method will have no effect.
+     * Returns a bit mask describing the permission bits that can be changed on this file when calling
+     * {@link #changePermission(int, int, boolean)} and {@link #changePermissions(int)}.
      *
-     * @param access {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION} or {@link #EXECUTE_PERMISSION}
-     * @param permission {@link #USER_ACCESS}, {@link #GROUP_ACCESS} or {@link #OTHER_ACCESS}
+     * @return a bit mask describing the permission bits that can be changed on this file
+     */
+    public abstract PermissionBits getChangeablePermissions();
+
+    /**
+     * Changes the specified permission bit. If the specified permission bit can't be changed
+     * (see {@link #getChangeablePermissions()}), this method has no effect and <code>false</code> is returned.
+     *
+     * @param access see {@link PermissionTypes} for allowed values
+     * @param permission see {@link PermissionAccesses} for allowed values
      * @param enabled true to enable the flag, false to disable it
      * @return true if the permission flag was successfully set for the access type
+     * @see #getChangeablePermissions()
      */
-    public abstract boolean setPermission(int access, int permission, boolean enabled);
-
-    /**
-     * Returns <code>true</code> if this file can retrieve the specified permission flag for the given access type.
-     *
-     * @param access {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION} or {@link #EXECUTE_PERMISSION}
-     * @param permission {@link #USER_ACCESS}, {@link #GROUP_ACCESS} or {@link #OTHER_ACCESS}
-     * @return true if this file can retrieve the specified permission flag for the given access type
-     */
-    public abstract boolean canGetPermission(int access, int permission);
-
-    /**
-     * Returns <code>true</code> if this file can change the specified permission flag for the given access type.
-     *
-     * @param access {@link #READ_PERMISSION}, {@link #WRITE_PERMISSION} or {@link #EXECUTE_PERMISSION}
-     * @param permission {@link #USER_ACCESS}, {@link #GROUP_ACCESS} or {@link #OTHER_ACCESS}
-     * @return true if this file can change the specified permission flag for the given access type
-     */
-    public abstract boolean canSetPermission(int access, int permission);
+    public abstract boolean changePermission(int access, int permission, boolean enabled);
 
     /**
      * Returns information about the owner of this file. The kind of information that is returned is implementation-dependant.

@@ -21,14 +21,16 @@ package com.mucommander.ui.dialog.file;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.FileSet;
-import com.mucommander.file.util.FileToolkit;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.io.security.MuProvider;
 import com.mucommander.job.CalculateChecksumJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.CalculateChecksumAction;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.text.FilePathField;
 import com.mucommander.util.StringUtils;
 
 import javax.swing.*;
@@ -79,7 +81,7 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
 
 
     public CalculateChecksumDialog(MainFrame mainFrame, FileSet files) {
-        super(mainFrame, Translator.get(CalculateChecksumAction.class.getName()+".label"), files);
+        super(mainFrame, MuAction.getStandardLabel(CalculateChecksumAction.class), files);
 
         YBoxPanel mainPanel = new YBoxPanel();
 
@@ -137,7 +139,8 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
         tempPanel.add(specificLocationRadioButton, BorderLayout.WEST);
         specificLocationRadioButton.addItemListener(this);
         
-        specificLocationTextField = new JTextField(getChecksumFilename(lastUsedAlgorithm));
+        // Create a path field with auto-completion capabilities
+        specificLocationTextField = new FilePathField(getChecksumFilename(lastUsedAlgorithm));
         specificLocationTextField.setEnabled(false);
         tempPanel.add(specificLocationTextField, BorderLayout.CENTER);
 
@@ -160,6 +163,8 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
                 DialogToolkit.createOKCancelPanel(okButton, cancelButton, getRootPane(), this)));
 
         mainPanel.add(fileDetailsPanel);
+
+//        mainPanel.add(new HelpButtonPanel(new HelpButton(mainFrame, "CalculateChecksum")));
         
         getContentPane().add(mainPanel);
 
@@ -234,20 +239,17 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
                     // User-defined checksum file
                     String enteredPath = specificLocationTextField.getText();
 
-                    Object ret[] = FileToolkit.resolvePath(enteredPath, mainFrame.getActiveTable().getCurrentFolder());
+                    PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(enteredPath, mainFrame.getActiveTable().getCurrentFolder());
                     // The path entered doesn't correspond to any existing folder
-                    if (ret==null) {
+                    if (resolvedDest==null) {
                         showErrorDialog(Translator.get("invalid_path", enteredPath));
                         return;
                     }
 
-                    AbstractFile destFolder = (AbstractFile)ret[0];
-                    String filename = (String)ret[1];
-
-                    if(filename==null)
-                        filename = getChecksumFilename(algorithm);
-
-                    checksumFile = destFolder.getDirectChild(filename);
+                    if(resolvedDest.getDestinationType()==PathUtils.ResolvedDestination.EXISTING_FOLDER)
+                        checksumFile = resolvedDest.getDestinationFile().getDirectChild(getChecksumFilename(algorithm));
+                    else
+                        checksumFile = resolvedDest.getDestinationFile();
                 }
                 else {
                     // Temporary file

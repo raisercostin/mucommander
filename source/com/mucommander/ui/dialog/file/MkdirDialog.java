@@ -21,17 +21,19 @@ package com.mucommander.ui.dialog.file;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
-import com.mucommander.file.util.FileToolkit;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.MkdirJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.MkdirAction;
 import com.mucommander.ui.action.MkfileAction;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.chooser.SizeChooser;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.text.FilePathField;
 
 import javax.swing.*;
 import java.awt.*;
@@ -80,8 +82,10 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
         Container contentPane = getContentPane();
 
         YBoxPanel mainPanel = new YBoxPanel();
-        mainPanel.add(new JLabel(Translator.get(mkfileMode?com.mucommander.ui.action.MkfileAction.class.getName()+".tooltip":com.mucommander.ui.action.MkdirAction.class.getName()+".tooltip")+" :"));
-        pathField = new JTextField();
+        mainPanel.add(new JLabel(MuAction.getStandardTooltip(mkfileMode?com.mucommander.ui.action.MkfileAction.class:com.mucommander.ui.action.MkdirAction.class)+" :"));
+
+        // Create a path field with auto-completion capabilities
+        pathField = new FilePathField();
         pathField.addActionListener(this);
 
         // Sets the initial selection.
@@ -137,33 +141,34 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
         String enteredPath = pathField.getText();
 
         // Resolves destination folder
-        Object ret[] = FileToolkit.resolvePath(enteredPath, mainFrame.getActiveTable().getCurrentFolder());
+        PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(enteredPath, mainFrame.getActiveTable().getCurrentFolder());
         // The path entered doesn't correspond to any existing folder
-        if (ret==null) {
+        if (resolvedDest==null) {
             showErrorDialog(Translator.get("invalid_path", enteredPath));
             return;
         }
 
         // Checks if the directory already exists and reports the error if that's the case
-        if(ret[1]==null) {
+        int destinationType = resolvedDest.getDestinationType();
+        if(destinationType==PathUtils.ResolvedDestination.EXISTING_FOLDER) {
             showErrorDialog(Translator.get("directory_already_exists", enteredPath));
             return;
         }
 
-        AbstractFile folder = (AbstractFile)ret[0];
-        String newName = (String)ret[1];
+        // Don't check for existing regular files, MkdirJob will take of it and popup a FileCollisionDialog 
+        AbstractFile destFile = resolvedDest.getDestinationFile();
 
-        FileSet fileSet = new FileSet(folder);
+        FileSet fileSet = new FileSet(destFile.getParentSilently());
         // Job's FileSet needs to contain at least one file
-        fileSet.add(folder);
+        fileSet.add(destFile);
 
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, getTitle());
 
         MkdirJob job;
         if(mkfileMode)
-            job = new MkdirJob(progressDialog, mainFrame, fileSet, newName, allocateSpaceCheckBox.isSelected()?allocateSpaceChooser.getValue():-1);
+            job = new MkdirJob(progressDialog, mainFrame, fileSet, allocateSpaceCheckBox.isSelected()?allocateSpaceChooser.getValue():-1);
         else
-            job = new MkdirJob(progressDialog, mainFrame, fileSet, newName);
+            job = new MkdirJob(progressDialog, mainFrame, fileSet);
 
         progressDialog.start(job);
     }

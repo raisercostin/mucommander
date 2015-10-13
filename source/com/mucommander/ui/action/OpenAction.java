@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.PlatformManager;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
@@ -27,6 +27,7 @@ import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.main.quicklist.RecentExecutedFilesQL;
 
 import java.io.IOException;
 import java.util.Hashtable;
@@ -79,8 +80,11 @@ public class OpenAction extends MuAction {
             destination.tryChangeCurrentFolder(file);
 
         // Opens local files using their native associations.
-        else if(file.getURL().getProtocol().equals(FileProtocols.FILE) && (file instanceof LocalFile)) {
-            try {PlatformManager.open(file);}
+        else if(file.getURL().getScheme().equals(FileProtocols.FILE) && (file.hasAncestor(LocalFile.class))) {
+            try {
+            	DesktopManager.open(file);
+            	RecentExecutedFilesQL.addFile(file);
+    		}
             catch(IOException e) {reportGenericError();}
         }
 
@@ -99,7 +103,8 @@ public class OpenAction extends MuAction {
         AbstractFile file;
 
         // Retrieves the currently selected file, aborts if none.
-        if((file = mainFrame.getActiveTable().getSelectedFile(true)) == null)
+        // Note: a CachedFile instance is retrieved to avoid blocking the event thread.
+        if((file = mainFrame.getActiveTable().getSelectedFile(true, true)) == null)
             return;
 
         // Opens the currently selected file.

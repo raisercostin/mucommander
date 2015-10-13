@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.PlatformManager;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.ArchiveEntryFile;
 import com.mucommander.file.FileProtocols;
@@ -26,9 +26,10 @@ import com.mucommander.job.TempExecJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.main.quicklist.RecentExecutedFilesQL;
 
-import java.util.Hashtable;
 import java.io.IOException;
+import java.util.Hashtable;
 
 /**
  * This action opens the currently selected file or folder with native file associations.
@@ -42,21 +43,24 @@ public class OpenNativelyAction extends MuAction {
     }
 
     public void performAction() {
-        AbstractFile selectedFile = mainFrame.getActiveTable().getSelectedFile(true);
+        AbstractFile selectedFile = mainFrame.getActiveTable().getSelectedFile(true, true);
 
         if(selectedFile==null)
             return;
 
         // Copy file to a temporary local file and execute it with native file associations if
         // file is not on a local filesystem or file is an archive entry
-        if(!FileProtocols.FILE.equals(selectedFile.getURL().getProtocol()) || selectedFile.hasAncestor(ArchiveEntryFile.class)) {
+        if(!FileProtocols.FILE.equals(selectedFile.getURL().getScheme()) || selectedFile.hasAncestor(ArchiveEntryFile.class)) {
             ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("copy_dialog.copying"));
             TempExecJob job = new TempExecJob(progressDialog, mainFrame, selectedFile);
             progressDialog.start(job);
         }
         else {
             // Tries to execute file with native file associations
-            try {PlatformManager.open(selectedFile);}
+            try {
+            	DesktopManager.open(selectedFile);
+            	RecentExecutedFilesQL.addFile(selectedFile);
+        	}
             catch(IOException e) {reportGenericError();}
         }
     }

@@ -18,16 +18,16 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.file.AbstractTrash;
-import com.mucommander.file.FileFactory;
+import com.mucommander.desktop.AbstractTrash;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.ui.main.MainFrame;
 
 import java.util.Hashtable;
 
 /**
  * Opens the trash in the default file manager of the current OS/Desktop manager. This action is enabled only
- * if the current platform has an {@link com.mucommander.file.AbstractTrash} implementation and if it is capable
- * of opening the trash, as reported by {@link com.mucommander.file.AbstractTrash#canOpen()}.
+ * if the current platform has an {@link com.mucommander.desktop.AbstractTrash} implementation and if it is capable
+ * of opening the trash, as reported by {@link com.mucommander.desktop.AbstractTrash#canOpen()}.
  *
  * @author Maxence Bernard
  */
@@ -36,11 +36,11 @@ public class OpenTrashAction extends MuAction {
     public OpenTrashAction(MainFrame mainFrame, Hashtable properties) {
         super(mainFrame, properties);
 
-        AbstractTrash trash = FileFactory.getTrash();
+        AbstractTrash trash = DesktopManager.getTrash();
         setEnabled(trash!=null && trash.canOpen());
     }
 
     public void performAction() {
-        FileFactory.getTrash().open();
+        DesktopManager.getTrash().open();
     }
 }

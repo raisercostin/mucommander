@@ -23,6 +23,7 @@ import com.mucommander.conf.Configuration;
 import com.mucommander.conf.ConfigurationException;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.ValueList;
+import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.icon.CachedFileIconProvider;
 import com.mucommander.runtime.OsFamilies;
@@ -68,6 +69,10 @@ public class MuConfiguration {
     public static final String  CONFIRM_ON_QUIT                   = "quit_confirmation";
     /** Default quitting behavior. */
     public static final boolean DEFAULT_CONFIRM_ON_QUIT           = true;
+    /** Whether or not to display splash screen when starting muCommander. */
+    public static final String  SHOW_SPLASH_SCREEN                = "show_splash_screen";
+    /** Default splash screen behavior. */
+    public static final boolean DEFAULT_SHOW_SPLASH_SCREEN        = true;
     /** Look and feel used by muCommander. */
     public static final String  LOOK_AND_FEEL                     = "lookAndFeel";
     /** All registered custom Look and feels. */
@@ -81,11 +86,6 @@ public class MuConfiguration {
      * enabled by default. */
     public static final boolean DEFAULT_ENABLE_SYSTEM_NOTIFICATIONS = com.mucommander.ui.notifier.AbstractNotifier.isAvailable()
         && (OsFamilies.MAC_OS_X.isCurrent() || OsFamilies.WINDOWS.isCurrent());
-    /** Controls whether files should be moved to trash or permanently erased. */
-    public static final String DELETE_TO_TRASH                    = "delete_to_trash";
-    /** Default 'delete to trash' behavior. */
-    public static final boolean DEFAULT_DELETE_TO_TRASH           = true;
-
 
 
     // - Shell variables -----------------------------------------------------
@@ -117,6 +117,10 @@ public class MuConfiguration {
     public static final String MAIL_SECTION                       = "mail";
     /** Address of the SMTP server that should be used when sending mails. */
     public static final String SMTP_SERVER                        = MAIL_SECTION + '.' + "smtp_server";
+    /** Outgoing TCP port to the SMTP server. */
+    public static final String SMTP_PORT                          = MAIL_SECTION + '.' + "smtp_port";
+    /** Default outgoing TCP port to the SMTP server. */
+    public static final int    DEFAULT_SMTP_PORT                   = 25;
     /** Name under which mails sent by muCommander should appear. */
     public static final String MAIL_SENDER_NAME                   = MAIL_SECTION + '.' + "sender_name";
     /** Address which mails sent by muCommander should be replied to. */
@@ -513,6 +517,15 @@ public class MuConfiguration {
     /** Default value for {@link #LIST_HIDDEN_FILES}. */
     public static final boolean DEFAULT_LIST_HIDDEN_FILES         = false;
 
+
+    // - Tree variables ------------------------------------------------------
+    // -----------------------------------------------------------------------
+    /** Section describing the tree configuration. */
+    public static final String  TREE_SECTION                      = "tree";
+    public static final String  LEFT_TREE_VISIBLE                 = TREE_SECTION + "." + LEFT + "." + "visible";
+    public static final String  RIGHT_TREE_VISIBLE                = TREE_SECTION + "." + RIGHT + "." + "visible";
+    public static final String  LEFT_TREE_WIDTH                   = TREE_SECTION + "." + LEFT + "." + "width";
+    public static final String  RIGHT_TREE_WIDTH                  = TREE_SECTION + "." + RIGHT + "." + "width";
 
 
     // - Instance fields -----------------------------------------------------
@@ -1033,6 +1046,15 @@ public class MuConfiguration {
      * Sets the path to the configuration file.
      * @param  file                  path to the file that should be used for configuration storage.
      * @throws FileNotFoundException if the specified file is not a valid file.
+     * @see                          #getConfigurationFile()
      */
     public static void setConfigurationFile(String file) throws FileNotFoundException {configuration.setSource(new MuConfigurationSource(file));}
+
+    /**
+     * Returns the path to the configuration file.
+     * @return             the path to the configuration file.
+     * @throws IOException if an error occured.
+     * @see                #setConfigurationFile(String)
+     */
+    public static AbstractFile getConfigurationFile() throws IOException {return MuConfigurationSource.getConfigurationFile();}
 }

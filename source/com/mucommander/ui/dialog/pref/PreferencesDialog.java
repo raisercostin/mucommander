@@ -21,11 +21,11 @@ package com.mucommander.ui.dialog.pref;
 
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.dialog.pref.component.PrefComponent;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.layout.XBoxPanel;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -36,7 +36,7 @@ import java.util.Vector;
  * Dialog meant to let users edit software preferences.
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class PreferencesDialog extends FocusDialog implements ActionListener {
+public abstract class PreferencesDialog extends FocusDialog implements ActionListener {
     // - Instance fields --------------------------------------------------------
     // --------------------------------------------------------------------------
     /** Displays the different panels. */
@@ -61,7 +61,7 @@ public class PreferencesDialog extends FocusDialog implements ActionListener {
      */
     public PreferencesDialog(Frame parent, String title) {
         super(parent, title, parent);
-	initUI();
+        initUI();
     }
 
     /**
@@ -71,7 +71,7 @@ public class PreferencesDialog extends FocusDialog implements ActionListener {
      */
     public PreferencesDialog(Dialog parent, String title) {
         super(parent, title, parent);
-	initUI();
+        initUI();
     }
 
 
@@ -101,6 +101,10 @@ public class PreferencesDialog extends FocusDialog implements ActionListener {
         buttonsPanel.addSpace(20);
         buttonsPanel.add(okButton     = new JButton(Translator.get("ok")));
         buttonsPanel.add(cancelButton = new JButton(Translator.get("cancel")));
+        
+        // Disable "commit buttons".
+        okButton.setEnabled(false);
+    	applyButton.setEnabled(false);
 
         // Buttons listening.
         applyButton.addActionListener(this);
@@ -169,6 +173,7 @@ public class PreferencesDialog extends FocusDialog implements ActionListener {
         int nbPanels = prefPanels.size();
         for(int i = 0; i < nbPanels; i++)
             ((PreferencesPanel)prefPanels.elementAt(i)).commit();
+        setCommitButtonsEnabled(false);
     }
 
     /**
@@ -221,4 +226,23 @@ public class PreferencesDialog extends FocusDialog implements ActionListener {
      * @return the index of the currently selected configuration panel.
      */
     public int getSelectedPanelIndex() {return tabbedPane.getSelectedIndex();}
+    
+    /**
+     * This function set the "commit buttons", i.e apply & ok buttons, enabled\disabled
+     * according to the given parameter.
+     * 
+     * @param enable - parameter that indicated if the commit button will turn to be
+     *  enabled (true) or disabled (false).
+     */
+    protected void setCommitButtonsEnabled(boolean enable) {
+    	okButton.setEnabled(enable);
+    	applyButton.setEnabled(enable);
+    }
+    
+    /**
+     * Function that will be called when the user change a value in a PrefComponent in this dialog.
+     * 
+     * @param component - the PrefComponent that its value was changed.
+     */
+    public abstract void componentChanged(PrefComponent component);
 }

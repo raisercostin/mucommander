@@ -18,10 +18,7 @@
 
 package com.mucommander.file.impl.zip;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractRWArchiveFile;
-import com.mucommander.file.ArchiveEntry;
-import com.mucommander.file.FilePermissions;
+import com.mucommander.file.*;
 import com.mucommander.file.impl.zip.provider.ZipConstants;
 import com.mucommander.file.impl.zip.provider.ZipEntry;
 import com.mucommander.file.impl.zip.provider.ZipFile;
@@ -35,10 +32,18 @@ import java.util.Vector;
 
 
 /**
- * ZipArchiveFile provides read-only access to archives in the Zip format.
+ * ZipArchiveFile provides read and write access (under certain conditions) to archives in the Zip format.
+ * <p>
+ * Two different packages that implement the actual Zip compression format are used: the homemade
+ * <code>com.mucommander.file.impl.zip.provider</code> package and Java's <code>java.util.zip</code>.
+ * <code>com.mucommander.file.impl.zip.provider</code> provides additional functionality and improved performance over
+ * <code>java.util.zip</code> but requires the underlying file to supply a <code>RandomAccessInputStream</code> for read
+ * access and a <code>RandomAccessOutputStream</code> for write access. If the underlying file can't provide at least a
+ * <code>RandomAccessInputStream</code>, the lesser <code>java.util.zip</code> package is used.
+ * </p>
  *
- * <p>Zip support is provided by the <code>java.util.zip</code> API.
- *
+ * @see com.mucommander.file.impl.zip.ZipFormatProvider
+ * @see com.mucommander.file.impl.zip.provider.ZipFile
  * @author Maxence Bernard
  */
 public class ZipArchiveFile extends AbstractRWArchiveFile {
@@ -106,9 +111,9 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
         com.mucommander.file.impl.zip.provider.ZipEntry zipEntry = new com.mucommander.file.impl.zip.provider.ZipEntry(path);
         zipEntry.setMethod(ZipConstants.DEFLATED);
         zipEntry.setTime(System.currentTimeMillis());
-        zipEntry.setUnixMode(AbstractFile.padPermissions(entry.getPermissions(), entry.getPermissionsMask(), isDirectory
-                    ?FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS
-                    :FilePermissions.DEFAULT_FILE_PERMISSIONS));
+        zipEntry.setUnixMode(SimpleFilePermissions.padPermissions(entry.getPermissions(), isDirectory
+                    ? FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS
+                    : FilePermissions.DEFAULT_FILE_PERMISSIONS).getIntValue());
 
         return zipEntry;
     }
@@ -122,10 +127,8 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
     private ArchiveEntry createArchiveEntry(ZipEntry zipEntry) {
         ArchiveEntry entry = new ArchiveEntry(zipEntry.getName(), zipEntry.isDirectory(), zipEntry.getTime(), zipEntry.getSize());
 
-        if(zipEntry.hasUnixMode()) {
-            entry.setPermissions(zipEntry.getUnixMode());
-            entry.setPermissionMask(FULL_PERMISSIONS);
-        }
+        if(zipEntry.hasUnixMode())
+            entry.setPermissions(new SimpleFilePermissions(zipEntry.getUnixMode()));
 
         entry.setEntryObject(zipEntry);
 
@@ -296,7 +299,7 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
             checkZipFile();
 
             zipEntry.setTime(entry.getDate());
-            zipEntry.setUnixMode(entry.getPermissions());
+            zipEntry.setUnixMode(entry.getPermissions().getIntValue());
             
             // Physically update the entry's attributes in the Zip file
             zipFile.updateEntry(zipEntry);

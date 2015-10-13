@@ -23,6 +23,7 @@ import com.mucommander.PlatformManager;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.ResourceLoader;
@@ -219,7 +220,6 @@ public class CommandBar extends JPanel implements ConfigurationListener, KeyList
 
             // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
             if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
-                button.setMargin(new Insets(6,8,6,8));
                 button.putClientProperty("JComponent.sizeVariant", "small");
                 button.putClientProperty("JButton.buttonType", "textured");
             }
@@ -246,7 +246,11 @@ public class CommandBar extends JPanel implements ConfigurationListener, KeyList
         button.setAction(action);
 
         // Append the action's shortcut to the button's label
-        button.setText(action.getLabel()+" ["+action.getAcceleratorText()+"]");
+        String label;
+        label = action.getLabel();
+        if(action.getAcceleratorText() != null)
+            label += " [" + action.getAcceleratorText() + ']';
+        button.setText(label);
 
         // Scale icon if scale factor is different from 1.0
         if(scaleFactor!=1.0f)
@@ -324,7 +328,7 @@ public class CommandBar extends JPanel implements ConfigurationListener, KeyList
 
     public void mouseClicked(MouseEvent e) {
         // Right clicking on the toolbar brings up a popup menu
-        if (PlatformManager.isRightMouseButton(e)) {
+        if (DesktopManager.isRightMouseButton(e)) {
             //		if (e.isPopupTrigger()) {	// Doesn't work under Mac OS X (CTRL+click doesn't return true)
             JPopupMenu popupMenu = new JPopupMenu();
             popupMenu.add(ActionManager.getActionInstance(com.mucommander.ui.action.ToggleCommandBarAction.class, mainFrame));

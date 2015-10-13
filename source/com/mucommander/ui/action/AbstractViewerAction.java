@@ -20,7 +20,6 @@ package com.mucommander.ui.action;
 
 import com.mucommander.command.Command;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileProtocols;
 import com.mucommander.file.filter.AttributeFileFilter;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.job.TempOpenWithJob;
@@ -115,7 +114,7 @@ abstract class AbstractViewerAction extends SelectedFileAction {
         boolean      useCustomCommand;
         Command      customCommand;
 
-        file = mainFrame.getActiveTable().getSelectedFile();
+        file = mainFrame.getActiveTable().getSelectedFile(false, true);
 
         // At this stage, no assumption should be made on the type of file that is allowed to be viewed/edited:
         // viewer/editor implementations will decide whether they allow a particular file or not.
@@ -126,7 +125,7 @@ abstract class AbstractViewerAction extends SelectedFileAction {
             // If we're using a custom editor...
             if(useCustomCommand && customCommand != null) {
                 // If it's local, run the custom editor on it.
-                if(file.getURL().getProtocol().equals(FileProtocols.FILE) && (file instanceof LocalFile)) {
+                if(file.hasAncestor(LocalFile.class)) {
                     try {ProcessRunner.execute(customCommand.getTokens(file), file);}
                     catch(Exception e) {reportGenericError();}
                 }

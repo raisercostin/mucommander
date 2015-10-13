@@ -124,12 +124,12 @@ public class EncodingDetector {
         CharsetMatch cm = cd.detect();
 
         // Debug info
-        if(Debug.ON) Debug.trace("bestMatch getName()="+cm.getName()+" getConfidence()="+cm.getConfidence());
-        if(Debug.ON) {
-            CharsetMatch cms[] = cd.detectAll();
-            for(int i=0; i<cms.length; i++)
-                Debug.trace("getName()="+cms[i].getName()+" getConfidence()="+cms[i].getConfidence());
-        }
+        if(Debug.ON) Debug.trace("bestMatch getName()="+(cm==null?"null":cm.getName())+" getConfidence()="+(cm==null?"null":Integer.toString(cm.getConfidence())));
+//        if(Debug.ON) {
+//            CharsetMatch cms[] = cd.detectAll();
+//            for(int i=0; i<cms.length; i++)
+//                Debug.trace("getName()="+cms[i].getName()+" getConfidence()="+cms[i].getConfidence());
+//        }
 
         return cm==null?null:cm.getName();
     }
@@ -152,13 +152,13 @@ public class EncodingDetector {
      * @throws IOException if an error occurred while reading the stream
      */
     public static String detectEncoding(InputStream in) throws IOException {
-        byte buf[] = BufferPool.getArrayBuffer(MAX_RECOMMENDED_BYTE_SIZE);
+        byte buf[] = BufferPool.getByteArray(MAX_RECOMMENDED_BYTE_SIZE);
 
         try {
             return detectEncoding(buf, 0, StreamUtils.readUpTo(in, buf));
         }
         finally {
-            BufferPool.releaseArrayBuffer(buf);
+            BufferPool.releaseByteArray(buf);
         }
     }
 

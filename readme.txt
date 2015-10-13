@@ -17,7 +17,7 @@ to post your questions, suggestions or bug reports.
 Your feedback is important and always welcome!
 
 Official website: http://www.mucommander.com
-Copyright (C) 2002-2008 Maxence Bernard
+Copyright (C) 2002-2008 Maxence Bernard.
 
 
 Requirements
@@ -63,6 +63,9 @@ muCommander uses the following great third party works :
 - the JNA library released under the GNU LGPL license.
  JmDNS can be found at http://jna.dev.java.net .
 
+- the JUnRar library released as Freeware.
+ JUnRar can be found at http://sourceforge.net/projects/java-unrar .
+
 - the Yanfs library released under the BSD license.
  Yanfs can be found at http://yanfs.dev.java.net .
 
@@ -76,13 +79,18 @@ Furbelow can be found at http://sourceforge.net/projects/furbelow .
 Credits
 -------
 
-Lead developers: 
+Core developers: 
 - Maxence Bernard
 - Nicolas Rinaudo
-
-Code contributors:
-- Vassil Dichev
+- Arik Hadas
 - Mariusz Jakubowski
+
+Contributors:
+- Ivan Baidakov
+- Vassil Dichev
+- Karel Klic
+- David Kovar
+- Joshua Lebo
 - Xavier Martin
 - Alejandro Scandroli
 
@@ -105,6 +113,8 @@ Translators:
 - Jonathan Murphy (British English)
 - Nardog (Japanese)
 - Jakob Ekström (Swedish)
+- Jeppe Toustrup (Danish)
+- Mykola Bilovus (Ukrainian)
 
 Many thanks to all of you who suggested new features, reported bugs, sent warm
 emails or generously donated to the project !
@@ -114,8 +124,18 @@ What's new since v0.8.2 ?
 -------------------------
 
 New features:
+- Tree view, contributed by Mariusz Jakubowski.
+- Batch renamer, contributed by Mariusz Jakubowski.
+- Auto-completion capabilities added to the location field and transfer
+  destination fields, contributed by Arik Hadas.
+- New 'Quick lists' that allow to quickly recall parent folders, recent
+  locations, recently executed files and bookmarks. Contributed by Arik Hadas.
+- Native RAR archive support, contributed by Arik Hadas.
 - Added support for SFTP public key authentication, contributed by
   Vassil Dichev.
+- Added new FTP connection properties allowing to retry when the server is busy, 
+  contributed by Ivan Baidakov.
+- Added support for the GNOME trash, contributed by David Kovar.
 
 Improvements:
 - Added Unix permissions support to Zip archives: entries' permissions are
@@ -124,36 +144,64 @@ Improvements:
 - When transferring files into a Zip archive, the source files' date is now 
   properly preserved. The file entries' date can also be changed using the
   'Change date' dialog.
+- SMTP server port can now be changed in the preferences, defaults to 25.
+- New action for deleting selected files without using the system trash
+  (mapped onto Shift+F8 and Shift+Delete by default). Contributed by Arik Hadas.
+- Improved HTML parsing for HTTP documents, XHTML can now be parsed.
+- New actions for cycling through the folder pane's components, mapped onto
+  Control+Tab (forward) and Shift+Control+Tab (backward) by default.
+- JNA library upgraded to version 3.0.6.
+- jCIFS library upgraded to version 1.2.19.
+- The Properties dialog now sports a large file icon.
+- Mac OS X 10.4 and up: the Properties dialog now displays Spotlight/Finder 
+  comments.
+- New and improved Windows installer, contributed by Karel Klic.
 
 Localization:
-- 
+- Danish translation, contributed by Jeppe Toustrup.
+- Ukrainian translation, contributed by Mykola Bilovus
 
 Bug fixes:
 - Fixed keyboard focus issues in the text editor after the 'Find' dialog has
-  been invoked, contributed by Karel Tomáš. 
+  been invoked, contributed by Karel Tomáš.
+- Fixed drag-and-drop issues from muCommander to other applications under Gnome
+  and KDE, contributed by Xavi Miró (bug #45).
+- A couple issues with the free space indicator were fixed by Karel Tomáš.
+- Mac OS X file type and creator are now properly preserved when copying files
+  from and to a local volume (bug #52).
+- Moved 'Check for updates' from 'File' to 'Help' menu, kudos to Joshua Lebo 
+  and Sergey Masyura (bug #59).
+- Mac OS X: added standard 'Minimize' and 'Zoom' items to 'Windows' menu 
+  (bug #37).
+- New 'Show splash screen' preference added to the 'Misc' preferences, 
+  replacing existing command line options (bug #66). Contributed by Joshua Lebo.
+- Fixed a deadlock happening under Ubuntu (bug #67).
+- Fixed a crash occurring on 64-bit versions of Windows (bug #57).
+- Fixed volumes not appearing in the drive button on Unix-based OSes (other than
+  Mac OS X) under certain circumstances. Fix contributed by Johann Schmitz.
+- Fixed the main menu bar which could get selected when pressing Alt+Tab
+  (bug #89). 
 
 Known issues:
-- Korean, Simplified Chinese, Slovenian and Slovak translations are not 
-  up-to-date.
-- SFTP support not available under Java 1.4, requires Java 1.5 or higher.
+- Some translations are not up-to-date. For more information, see:
+  http://www.mucommander.com/forums/viewtopic.php?f=6&t=442 .
+- RAR and SFTP support are only available under Java 1.5 or higher.
 - Executable permissions are not preserved properly for local files prior to
   Java 1.6.
 - SMB support may not work properly on non multi-language JRE.
-- Access to public SMB shares require credentials.
 - 'Copy files to clipboard' not working with some applications (files are not
   pasted).
-- Mac OS X : 'Sort by' keyboard shortcuts in menu show Command modifier instead
-  of Ctrl, OS X's keyboard navigation shortcuts must be disabled in 'System
-  Preferences' for them to work properly.
-- Mac OS X : text fields don't work correctly when using a fractionally-scaled
+- Mac OS X: some keyboard shortcuts are displayed in the menu as ⌘+KEY
+  where it's actually Ctrl+KEY (see bug #3)
+- Mac OS X: some keyboard shortcuts may conflict with global system shortcuts.
+- Mac OS X: text fields don't work correctly when using a fractionally-scaled
   font (known Java bug,
    http://lists.apple.com/archives/Java-dev/2005/May/msg00670.html).
-- Editable combo boxes have keyboard navigation issues under Java 1.6.
 - The bookmark file system doesn't allow users to specify which credentials
   they wish to use when selecting a bookmark that needs authentification, it
   will default to the first in the list.
 - Authentication issues when using several sets of credentials (login/password)
-  on the same server.
+  for the same server (see bug #76).
 - Untrusted HTTPS connections are allowed without a warning.
 
 

@@ -39,6 +39,7 @@ import com.mucommander.ui.main.table.Columns;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableConfiguration;
 import com.mucommander.ui.main.table.SortInfo;
+import com.mucommander.ui.quicklist.QuickListFocusableComponent;
 
 import javax.swing.*;
 import javax.swing.table.TableColumnModel;
@@ -234,6 +235,15 @@ public class MainFrame extends JFrame implements LocationListener {
                       !MuConfiguration.getVariable(MuConfiguration.LEFT_SORT_ORDER, MuConfiguration.DEFAULT_SORT_ORDER).equals(MuConfiguration.SORT_ORDER_DESCENDING));
         rightTable.sortBy(columnNameToIndex(MuConfiguration.getVariable(MuConfiguration.RIGHT_SORT_BY, MuConfiguration.DEFAULT_SORT_BY)),
                       !MuConfiguration.getVariable(MuConfiguration.RIGHT_SORT_ORDER, MuConfiguration.DEFAULT_SORT_ORDER).equals(MuConfiguration.SORT_ORDER_DESCENDING));
+    	leftFolderPanel.setTreeWidth(MuConfiguration.getVariable(MuConfiguration.LEFT_TREE_WIDTH, 150));
+        if (MuConfiguration.getVariable(MuConfiguration.LEFT_TREE_VISIBLE, false)) {
+        	leftFolderPanel.setTreeVisible(true);
+        }
+    	rightFolderPanel.setTreeWidth(MuConfiguration.getVariable(MuConfiguration.RIGHT_TREE_WIDTH, 150));
+        if (MuConfiguration.getVariable(MuConfiguration.RIGHT_TREE_VISIBLE, false)) {
+        	rightFolderPanel.setTreeVisible(true);
+        }
+
     }
 
     /**
@@ -495,6 +505,15 @@ public class MainFrame extends JFrame implements LocationListener {
         leftFolderPanel = rightFolderPanel;
         rightFolderPanel = tempPanel;
 
+        // swaps folders trees
+        int tempTreeWidth = leftFolderPanel.getTreeWidth();
+        leftFolderPanel.setTreeWidth(rightFolderPanel.getTreeWidth());
+        rightFolderPanel.setTreeWidth(tempTreeWidth);
+        boolean tempTreeVisible = leftFolderPanel.isTreeVisible();
+        leftFolderPanel.setTreeVisible(rightFolderPanel.isTreeVisible());
+        rightFolderPanel.setTreeVisible(tempTreeVisible);
+        
+
         // Resets the tables.
         FileTable tempTable = leftTable;
         leftTable = rightTable;
@@ -599,7 +618,7 @@ public class MainFrame extends JFrame implements LocationListener {
             // Displays the document icon in the window title bar, works only for local files
             AbstractFile currentFolder = activeTable.getCurrentFolder();
             Object javaIoFile;
-            if(currentFolder.getURL().getProtocol().equals(FileProtocols.FILE)) {
+            if(currentFolder.getURL().getScheme().equals(FileProtocols.FILE)) {
                 // If the current folder is an archive entry, display the archive file, this is the closest we can get
                 // with a java.io.File
                 if(currentFolder.hasAncestor(ArchiveEntryFile.class))
@@ -701,6 +720,12 @@ public class MainFrame extends JFrame implements LocationListener {
 
         // Save split pane orientation
         saveSplitPaneOrientation();
+        
+        // Save tree folders preferences
+        MuConfiguration.setVariable(MuConfiguration.LEFT_TREE_VISIBLE, leftFolderPanel.isTreeVisible());
+        MuConfiguration.setVariable(MuConfiguration.RIGHT_TREE_VISIBLE, rightFolderPanel.isTreeVisible());
+        MuConfiguration.setVariable(MuConfiguration.LEFT_TREE_WIDTH, leftFolderPanel.getTreeWidth());
+        MuConfiguration.setVariable(MuConfiguration.RIGHT_TREE_WIDTH, rightFolderPanel.getTreeWidth());
 
         // Finally, dispose the frame
         super.dispose(); 
@@ -730,11 +755,17 @@ public class MainFrame extends JFrame implements LocationListener {
     protected class CustomFocusTraversalPolicy extends FocusTraversalPolicy {
 
         public Component getComponentAfter(Container container, Component component) {
-            if(component== leftFolderPanel.getLocationComboBox().getTextField() || component== leftFolderPanel.getLocationComboBox())
+        	if (component instanceof QuickListFocusableComponent) {
+        		return ((QuickListFocusableComponent) component).getInvokerFileTable();
+        	} else if (component==leftFolderPanel.getFoldersTreePanel().getTree()) {
+		        return leftTable;
+		    } else if (component==rightFolderPanel.getFoldersTreePanel().getTree()) {
+		        return rightTable;
+		    } else if(component== leftFolderPanel.getLocationTextField())
                 return leftTable;
             else if(component== leftTable)
                 return rightTable;
-            if(component== rightFolderPanel.getLocationComboBox().getTextField() || component== rightFolderPanel.getLocationComboBox())
+            if(component== rightFolderPanel.getLocationTextField())
                 return rightTable;
             else    // component==table2
                 return leftTable;

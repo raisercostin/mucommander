@@ -22,7 +22,9 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -78,9 +80,11 @@ public class CommandReader extends DefaultHandler implements CommandsXmlConstant
      * @param  b         where to send building events to.
      * @throws Exception thrown if any error occurs.
      */
-    public static void read(InputStream in, CommandBuilder b) throws Exception {
+    public static void read(InputStream in, CommandBuilder b) throws CommandException, IOException {
         b.startBuilding();
         try {SAXParserFactory.newInstance().newSAXParser().parse(in, new CommandReader(b));}
+        catch(ParserConfigurationException e) {throw new CommandException(e);}
+        catch(SAXException e) {throw new CommandException(e);}
         finally {b.endBuilding();}
     }
 

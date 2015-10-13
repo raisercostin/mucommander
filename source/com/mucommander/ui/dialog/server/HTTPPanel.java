@@ -27,6 +27,7 @@ import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import java.net.MalformedURLException;
+import java.text.ParseException;
 
 
 /**
@@ -36,13 +37,15 @@ import java.net.MalformedURLException;
  */
 public class HTTPPanel extends ServerPanel {
 
+    private final static int STANDARD_PORT = FileURL.getRegisteredHandler(FileProtocols.HTTP).getStandardPort();
+
     private JTextField urlField;
-    private JTextField portField;
+    private JSpinner portSpinner;
     private JTextField usernameField;
     private JPasswordField passwordField;
 
     private static String lastURL = "http://";
-    private static int lastPort = 80;
+    private static int lastPort = STANDARD_PORT;
     private static String lastUsername = "";
     // Not static so that it is not saved (for security reasons)
     private String lastPassword = "";
@@ -58,10 +61,8 @@ public class HTTPPanel extends ServerPanel {
         addRow(Translator.get("server_connect_dialog.http_url"), urlField, 5);
 
         // Port field, initialized to last port (default is 80)
-        portField = new JTextField(""+lastPort, 5);
-        portField.selectAll();
-        addTextFieldListeners(portField, true);
-        addRow(Translator.get("server_connect_dialog.port"), portField, 20);
+        portSpinner = createPortSpinner(lastPort);
+        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 20);
         
         // HTTP Basic authentication fields
         addRow(new JLabel(Translator.get("http_connect.basic_authentication")), 10);
@@ -84,13 +85,7 @@ public class HTTPPanel extends ServerPanel {
         lastUsername = usernameField.getText();
         lastPassword = new String(passwordField.getPassword());
 
-        lastPort = 80;
-        try {
-            lastPort = Integer.parseInt(portField.getText());
-        }
-        catch(NumberFormatException e) {
-            // Port is a malformed number
-        }
+        lastPort = ((Integer)portSpinner.getValue()).intValue();
     }
 
 
@@ -104,12 +99,9 @@ public class HTTPPanel extends ServerPanel {
         if(!lastURL.toLowerCase().startsWith(FileProtocols.HTTP+"://"))
             lastURL = FileProtocols.HTTP+"://"+lastURL;
 
-        FileURL fileURL = new FileURL(lastURL);
+        FileURL fileURL = FileURL.getFileURL(lastURL);
 
-        // Set port
-        if(lastPort!=80 && (lastPort>0 && lastPort<65536))
-            fileURL.setPort(lastPort);
-
+        fileURL.setPort(lastPort);
         fileURL.setCredentials(new Credentials(lastUsername, lastPassword));
 
         return fileURL;
@@ -119,7 +111,12 @@ public class HTTPPanel extends ServerPanel {
         return true;
     }
 
-    public void dispose() {
+    public void dialogValidated() {
+        // Commits the current spinner value in case it was being edited and 'enter' was pressed
+        // (the spinner value would otherwise not be committed)
+        try { portSpinner.commitEdit(); }
+        catch(ParseException e) { }
+
         updateValues();
     }
 

@@ -21,17 +21,14 @@ package com.mucommander.file.impl.sftp;
 
 import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
-import com.mucommander.file.FileProtocols;
-import com.mucommander.file.FileURL;
+import com.mucommander.file.*;
 import com.mucommander.file.connection.ConnectionHandler;
 import com.mucommander.file.connection.ConnectionPool;
 import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
 import com.sshtools.j2ssh.io.UnsignedInteger32;
-import com.sshtools.j2ssh.io.UnsignedInteger64;
 import com.sshtools.j2ssh.session.SessionChannelClient;
+import com.sshtools.j2ssh.sftp.FileAttributes;
 import com.sshtools.j2ssh.sftp.*;
 
 import java.io.IOException;
@@ -44,7 +41,7 @@ import java.util.List;
 /**
  * SFTPFile provides access to files located on an SFTP server.
  *
- * <p>The associated {@link FileURL} protocol is {@link FileProtocols#SFTP}. The host part of the URL designates the
+ * <p>The associated {@link FileURL} scheme is {@link FileProtocols#SFTP}. The host part of the URL designates the
  * SFTP server. Credentials must be specified in the login and password parts as SFTP servers require a login and
  * password. The path separator is <code>'/'</code>.</p>
  *
@@ -66,12 +63,11 @@ import java.util.List;
  */
 public class SFTPFile extends AbstractFile {
 
-    /** Name of the property that holds the path to a private key. This property is optional; if it is set, private key
-     * authentication is used. */
-    public final static String PRIVATE_KEY_PATH_PROPERTY_NAME = "privateKeyPath";
+    /** The absolute path to the file on the remote server, not the full URL */
+    private String absPath;
 
-    /** The absolute path to the file on the remote server, without the file protocol */
-    protected String absPath;
+    /** This file's permissions */
+    private FilePermissions permissions;
 
     /** Contains the file attribute values */
     private SFTPFileAttributes fileAttributes;
@@ -92,6 +88,10 @@ public class SFTPFile extends AbstractFile {
 
     /** a SFTPConnectionHandlerFactory instance */
     private final static SFTPConnectionHandlerFactory connHandlerFactory = new SFTPConnectionHandlerFactory();
+
+    /** Name of the property that holds the path to a private key. This property is optional; if it is set, private key
+     * authentication is used. */
+    public final static String PRIVATE_KEY_PATH_PROPERTY_NAME = "privateKeyPath";
 
     private final static String SEPARATOR = DEFAULT_SEPARATOR;
 
@@ -237,24 +237,22 @@ public class SFTPFile extends AbstractFile {
      * Implementation note: for symlinks, returns the value of the link's target.
      */
     public boolean exists() {
-        return fileAttributes.exists();
+        return fileAttributes.getExists();
     }
 
-
-    public boolean getPermission(int access, int permission) {
-        return (getPermissions() & (permission << (access*3))) != 0;
+    /**
+     * Implementation note: for symlinks, returns the permissions of the link's target.
+     */
+    public FilePermissions getPermissions() {
+        return ((SFTPFileAttributes)getCanonicalFile().getUnderlyingFileObject()).getPermissions();
     }
 
-    public boolean setPermission(int access, int permission, boolean enabled) {
-        return setPermissions(ByteUtils.setBit(getPermissions(), (permission << (access*3)), enabled));
+    public PermissionBits getChangeablePermissions() {
+        return PermissionBits.FULL_PERMISSION_BITS;     // Full permission support (777 octal)
     }
 
-    public boolean canGetPermission(int access, int permission) {
-        return true;    // Full permission support
-    }
-
-    public boolean canSetPermission(int access, int permission) {
-        return true;    // Full permission support
+    public boolean changePermission(int access, int permission, boolean enabled) {
+        return changePermissions(ByteUtils.setBit(getPermissions().getIntValue(), (permission << (access*3)), enabled));
     }
 
     public String getOwner() {
@@ -271,33 +269,6 @@ public class SFTPFile extends AbstractFile {
 
     public boolean canGetGroup() {
         return true;
-    }
-
-    /**
-     * Changes the SFTP file permissions to the given permissions int.
-     */
-    private boolean changeFilePermissions(int permissions) {
-
-        // Retrieve a ConnectionHandler and lock it
-        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
-        try {
-            // Makes sure the connection is started, if not starts it
-            connHandler.checkConnection();
-
-            connHandler.sftpSubsystem.changePermissions(absPath, permissions);
-            // Update local attribute copy
-            fileAttributes.setPermissions(permissions);
-
-            return true;
-        }
-        catch(IOException e) {
-            if(Debug.ON) Debug.trace("Failed to change permissions: "+e);
-            return false;
-        }
-        finally {
-            // Release the lock on the ConnectionHandler
-            connHandler.releaseLock();
-        }
     }
 
     /**
@@ -473,7 +444,7 @@ public class SFTPFile extends AbstractFile {
             // Discard '.' and '..' files, dunno why these are returned
             if(filename.equals(".") || filename.equals(".."))
                 continue;
-            childURL = new FileURL(parentURL+filename);
+            childURL = FileURL.getFileURL(parentURL+filename);
             child = FileFactory.wrapArchive(new SFTPFile(childURL, new SFTPFileAttributes(childURL, sftpFile.getAttributes())));
             child.setParent(this);
 
@@ -554,23 +525,27 @@ public class SFTPFile extends AbstractFile {
     ////////////////////////
 
 
-    /**
-     * Implementation note: for symlinks, returns the permissions of the link's target.
-     */
-    public int getPermissions() {
-        return ((SFTPFileAttributes)getCanonicalFile().getUnderlyingFileObject()).getPermissions();
-    }
+    public boolean changePermissions(int permissions) {
+        // Retrieve a ConnectionHandler and lock it
+        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+        try {
+            // Makes sure the connection is started, if not starts it
+            connHandler.checkConnection();
 
-    public boolean setPermissions(int permissions) {
-        return changeFilePermissions(permissions);
-    }
+            connHandler.sftpSubsystem.changePermissions(absPath, permissions);
+            // Update local attribute copy
+            fileAttributes.setPermissions(new SimpleFilePermissions(permissions));
 
-    public int getPermissionGetMask() {
-        return FULL_PERMISSIONS;     // Full permission get support (777 octal)
-    }
-
-    public int getPermissionSetMask() {
-        return FULL_PERMISSIONS;     // Full permission set support (777 octal)
+            return true;
+        }
+        catch(IOException e) {
+            if(Debug.ON) Debug.trace("Failed to change permissions: "+e);
+            return false;
+        }
+        finally {
+            // Release the lock on the ConnectionHandler
+            connHandler.releaseLock();
+        }
     }
 
     /**
@@ -581,7 +556,7 @@ public class SFTPFile extends AbstractFile {
 
         // Use the default moveTo() implementation if the destination file doesn't use the SFTP protocol
         // or is not on the same host
-        if(!destFile.getURL().getProtocol().equals(FileProtocols.SFTP) || !destFile.getURL().getHost().equals(this.fileURL.getHost())) {
+        if(!destFile.getURL().getScheme().equals(FileProtocols.SFTP) || !destFile.getURL().getHost().equals(this.fileURL.getHost())) {
             return super.moveTo(destFile);
         }
 
@@ -712,45 +687,40 @@ public class SFTPFile extends AbstractFile {
     // Inner classes //
     ///////////////////
 
-
     /**
-     * Provides getters and setters for the attributes of a file. The getters return a cached value if the
-     * value has been fetched from the server less than {@link SFTPFile#attributeCachingPeriod} ago. If the value
-     * has expired, a new value will be fetched from the server and cached. On the contrary, setters do not modify
-     * the value on the server but simply update the cached value.
+     * SFTPFileAttributes provides getters and setters for SFTP file attributes. By extending
+     * <code>SyncedFileAttributes</code>, this class caches attributes for a  certain amount of time
+     * ({@link SFTPFile#attributeCachingPeriod}) after which a fresh value is retrieved from the server.
      */
-    private static class SFTPFileAttributes {
+    private static class SFTPFileAttributes extends SyncedFileAttributes {
 
         /** The URL pointing to the file whose attributes are cached by this class */
         private FileURL url;
 
-        /** The J2SSH FileAttributes instance wrapped by this class */
-        private FileAttributes attrs;
-
-        /** True if the file exists */
-        private boolean exists;
-
-        /** Last time the attributes were fetched from the server */
-        private long lastFetchedTime;
-
         /** True if the file is a symlink */
         private boolean isSymlink;
 
-
+        // this constructor is called by SFTPFile public constructor
         private SFTPFileAttributes(FileURL url) throws AuthException {
-            // this constructor is called by SFTPFile public constructor
+            super(attributeCachingPeriod, false);       // no initial update
+
             this.url = url;
+            setPermissions(FilePermissions.EMPTY_FILE_PERMISSIONS);
 
             fetchAttributes();      // throws AuthException if no or bad credentials
-            lastFetchedTime = System.currentTimeMillis();
+
+            updateExpirationDate(); // declare the attributes as 'fresh'
         }
 
+        // this constructor is called by #ls()
         private SFTPFileAttributes(FileURL url, FileAttributes attrs) {
-            // this constructor is called by #ls()
+            super(attributeCachingPeriod, false);   // no initial update
 
             this.url = url;
-            this.attrs = attrs;
-            this.exists = true;
+            setPermissions(FilePermissions.EMPTY_FILE_PERMISSIONS);
+
+            setAttributes(attrs);
+            setExists(true);
 
             // Some information about this value:
             // FileAttribute#isLink() returns a proper value only for FileAttributes instances that were returned by
@@ -760,7 +730,7 @@ public class SFTPFile extends AbstractFile {
             // would be false after the first attributes update.
             this.isSymlink = attrs.isLink();
 
-            lastFetchedTime = System.currentTimeMillis();
+            updateExpirationDate(); // declare the attributes as 'fresh'
         }
 
         private void fetchAttributes() throws AuthException {
@@ -778,14 +748,12 @@ public class SFTPFile extends AbstractFile {
                 // isLink because it makes impossible to detect changes in the isLink state. Changes should not happen
                 // very often, but still.
                 // Todo: try and fix for this in J2SSH
-                attrs = connHandler.sftpSubsystem.getAttributes(url.getPath());
-                exists = true;
+                setAttributes(connHandler.sftpSubsystem.getAttributes(url.getPath()));
+                setExists(true);
             }
             catch(IOException e) {
-                // File doesn't exist on the server, create FileAttributes instance with default values
-                attrs = new FileAttributes();
-                attrs.setPermissions(new UnsignedInteger32(0));     // needed to prevent getPermissions() from returning null
-                exists = false;
+                // File doesn't exist on the server
+                setExists(false);
 
                 // Rethrow AuthException
                 if(e instanceof AuthException)
@@ -794,114 +762,67 @@ public class SFTPFile extends AbstractFile {
             finally {
                 // Release the lock on the ConnectionHandler
                 connHandler.releaseLock();
-
-                lastFetchedTime = System.currentTimeMillis();
             }
         }
 
         /**
-         * Checks if the attribute values have expired, based on the value of {@link SFTPFile#attributeCachingPeriod}
-         * and if they have, fetches them from the server.
+         * Sets the file attributes using the values contained in the specified J2SSH FileAttributes instance.
+         *
+         * @param attrs J2SSH FileAttributes instance that contains the values to use
          */
-        private void checkForExpiration() {
-            if(System.currentTimeMillis()-lastFetchedTime>=attributeCachingPeriod) {
-                try {
-                    fetchAttributes();
-                }
-                catch(AuthException e) {
-                    // Should not normally happen since attributes have already been feched using the same credentials.
-                    // If it does happen (credentials are no longer valid), the file will be considered as a
-                    // non-existing one.
-                }
-            }
+        private void setAttributes(com.sshtools.j2ssh.sftp.FileAttributes attrs) {
+            setDirectory(attrs.isDirectory());
+            setDate(attrs.getModifiedTime().longValue()*1000);
+            setSize(attrs.getSize().longValue());
+            setPermissions(new SimpleFilePermissions(
+               attrs.getPermissions().intValue() & PermissionBits.FULL_PERMISSION_INT
+            ));
+            setOwner(attrs.getUID().toString());
+            setGroup(attrs.getGID().toString());
+            setSymlink(isSymlink);
         }
 
-        ///////////////////////////////
-        // Attribute getters/setters //
-        ///////////////////////////////
-
-        private boolean exists() {
-            checkForExpiration();
-
-            return exists;
+        /**
+         * Increments the size attribute's value by the given number of bytes.
+         *
+         * @param increment number of bytes to add to the current size attribute's value
+         */
+        private void addToSize(long increment) {
+            setSize(getSize()+increment);
         }
 
-        private void setExists(boolean exists) {
-            this.exists = exists;
-        }
-
-        private boolean isDirectory() {
-            checkForExpiration();
-
-            return attrs.isDirectory();
-        }
-
-        private void setDirectory(boolean isDirectory) {
-            int permissions = attrs.getPermissions().intValue();
-
-            if(isDirectory)
-                permissions |= FileAttributes.S_IFDIR;
-            else
-                permissions &= ~FileAttributes.S_IFDIR; 
-
-            attrs.setPermissions(new UnsignedInteger32(permissions));
-        }
-
-        private long getDate() {
-            checkForExpiration();
-
-            return attrs.getModifiedTime().longValue()*1000;
-        }
-
-        private void setDate(long lastModified) {
-            attrs.setTimes(attrs.getAccessedTime(), new UnsignedInteger32(lastModified/1000));
-        }
-
-        private long getSize() {
-            checkForExpiration();
-
-            return attrs.getSize().longValue();
-        }
-
-        private void setSize(long size) {
-            attrs.setSize(new UnsignedInteger64(""+size));
-        }
-
-        private void addToSize(long size) {
-            attrs.setSize(new UnsignedInteger64(""+(attrs.getSize().longValue()+size)));
-        }
-
-        private int getPermissions() {
-            checkForExpiration();
-
-            return attrs.getPermissions().intValue() & FULL_PERMISSIONS;
-        }
-
-        private void setPermissions(int permissions) {
-            attrs.setPermissions(new UnsignedInteger32((attrs.getPermissions().intValue() & ~FULL_PERMISSIONS) | (permissions & FULL_PERMISSIONS)));
-        }
-
-        private String getOwner() {
-            checkForExpiration();
-
-            return attrs.getUID().toString();
-        }
-
-        private String getGroup() {
-            checkForExpiration();
-
-            return attrs.getGID().toString();
-        }
-
+        /**
+         * Returns <code>true</code> if the file is a symlink.
+         *
+         * @return <code>true</code> if the file is a symlink
+         */
         private boolean isSymlink() {
-//            checkForExpiration();
-//            return attrs.isLink();
+            checkForExpiration(false);
 
             return isSymlink;
         }
 
+        /**
+         * Sets whether the file is a symlink.
+         *
+         * @param isSymlink <code>true</code> if the file is a symlink
+         */
         private void setSymlink(boolean isSymlink) {
             this.isSymlink = isSymlink;
+        }
+
+
+        ////////////////////////////////////////////
+        // SyncedFileAttributes implementation //
+        ////////////////////////////////////////////
+
+        public void updateAttributes() {
+            try {
+                fetchAttributes();
+            }
+            catch(Exception e) {        // AuthException
+                if(Debug.ON) Debug.trace("Failed to refresh attributes: "+e);
+            }
         }
     }
 

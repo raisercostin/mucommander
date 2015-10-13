@@ -19,18 +19,18 @@
 
 package com.mucommander.ui.dialog.file;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
 import com.mucommander.file.archiver.Archiver;
 import com.mucommander.file.util.FileSet;
-import com.mucommander.file.util.FileToolkit;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.ArchiveJob;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
+import com.mucommander.ui.text.FilePathField;
 
 import javax.swing.*;
 import java.awt.*;
@@ -72,7 +72,7 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
 
 
     public PackDialog(MainFrame mainFrame, FileSet files, boolean isShiftDown) {
-        super(mainFrame, Translator.get(com.mucommander.ui.action.PackAction.class.getName()+".label"), files);
+        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.PackAction.class), files);
 
         // Retrieve available formats for single file or many file archives
         int nbFiles = files.size();
@@ -109,7 +109,8 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
         else
             fileName = "";
 
-        filePathField = new JTextField(initialPath + fileName + "." + Archiver.getFormatExtension(initialFormat));
+        // Create a path field with auto-completion capabilities
+        filePathField = new FilePathField(initialPath + fileName + "." + Archiver.getFormatExtension(initialFormat));
 
         // Selects the file name.
         filePathField.setSelectionStart(initialPath.length());
@@ -137,7 +138,7 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
 		
         // Comment area, enabled only if selected archive format has comment support
 		
-        label = new JLabel(Translator.get("pack_dialog.comment"));
+        label = new JLabel(Translator.get("comment"));
         mainPanel.add(label);
         commentArea = new JTextArea();
         commentArea.setRows(4);
@@ -182,10 +183,10 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
             // Check that destination file can be resolved 
             String filePath = filePathField.getText();
             // TODO: move those I/O bound calls to job as they can lock the main thread
-            Object dest[] = FileToolkit.resolvePath(filePath, mainFrame.getActiveTable().getCurrentFolder());
-            if (dest==null || dest[1]==null) {
+            PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(filePath, mainFrame.getActiveTable().getCurrentFolder());
+            if (resolvedDest==null || resolvedDest.getDestinationType()==PathUtils.ResolvedDestination.EXISTING_FOLDER) {
                 // Incorrect destination
-                QuestionDialog dialog = new QuestionDialog(mainFrame, Translator.get("pack_dialog.error_title"), Translator.get("this_folder_does_not_exist", filePath), mainFrame,
+                QuestionDialog dialog = new QuestionDialog(mainFrame, Translator.get("pack_dialog.error_title"), Translator.get("invalid_path", filePath), mainFrame,
                                                            new String[] {Translator.get("ok")},
                                                            new int[]  {0},
                                                            0);
@@ -193,15 +194,11 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
                 return;
             }
 
-            // TODO: move those I/O bound calls to job as they can lock the main thread
-            // TODO: destFile could potentially be null !
-            AbstractFile destFile = FileFactory.getFile(((AbstractFile)dest[0]).getAbsolutePath(true)+dest[1]);
-
             // Start packing
             ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("pack_dialog.packing"));
             int format = formats[formatsComboBox.getSelectedIndex()];
 
-            ArchiveJob archiveJob = new ArchiveJob(progressDialog, mainFrame, files, destFile, format, Archiver.formatSupportsComment(format)?commentArea.getText():null);
+            ArchiveJob archiveJob = new ArchiveJob(progressDialog, mainFrame, files, resolvedDest.getDestinationFile(), format, Archiver.formatSupportsComment(format)?commentArea.getText():null);
             progressDialog.start(archiveJob);
         
             // Remember last format used, for next time this dialog is invoked

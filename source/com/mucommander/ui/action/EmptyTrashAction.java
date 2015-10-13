@@ -18,16 +18,16 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.file.AbstractTrash;
-import com.mucommander.file.FileFactory;
+import com.mucommander.desktop.AbstractTrash;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.ui.main.MainFrame;
 
 import java.util.Hashtable;
 
 /**
  * Empties the system trash. This action is enabled only if the current platform has an
- * {@link com.mucommander.file.AbstractTrash} implementation and if it is capable of emptying the trash,
- * as reported by {@link com.mucommander.file.AbstractTrash#canEmpty()}.
+ * {@link com.mucommander.desktop.AbstractTrash} implementation and if it is capable of emptying the trash,
+ * as reported by {@link com.mucommander.desktop.AbstractTrash#canEmpty()}.
  *
  * @author Maxence Bernard
  */
@@ -36,11 +36,11 @@ public class EmptyTrashAction extends MuAction {
     public EmptyTrashAction(MainFrame mainFrame, Hashtable properties) {
         super(mainFrame, properties);
 
-        AbstractTrash trash = FileFactory.getTrash();
+        AbstractTrash trash = DesktopManager.getTrash();
         setEnabled(trash!=null && trash.canEmpty());
     }
 
     public void performAction() {
-        FileFactory.getTrash().empty();
+        DesktopManager.getTrash().empty();
     }
 }

@@ -18,10 +18,7 @@
 
 package com.mucommander.io;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 
 /**
  * This class provides convience static methods that operate on streams. All read/write buffers are allocated using
@@ -37,15 +34,17 @@ public class StreamUtils {
      *
      * @param in the InputStream to read from
      * @param out the OutputStream to write to
+     * @return the number of bytes that were copied
      * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
      */
-    public static void copyStream(InputStream in, OutputStream out) throws FileTransferException {
-        copyStream(in, out, BufferPool.DEFAULT_BUFFER_SIZE);
+    public static long copyStream(InputStream in, OutputStream out) throws FileTransferException {
+        return copyStream(in, out, BufferPool.DEFAULT_BUFFER_SIZE);
     }
 
     /**
      * Copies the contents of the given <code>InputStream</code> to the specified </code>OutputStream</code>
-     * and throws an IOException if something went wrong. This method does *NOT* close the streams.
+     * and throws a {@link FileTransferException} if something went wrong. This method does *NOT* close any of the
+     * given streams.
      *
      * <p>Read and write operations are buffered, using a buffer of the specified size (in bytes). For performance
      * reasons, this buffer is provided by {@link BufferPool}. There is no need to provide a
@@ -60,14 +59,16 @@ public class StreamUtils {
      * @param in the InputStream to read from
      * @param out the OutputStream to write to
      * @param bufferSize size of the buffer to use, in bytes
+     * @return the number of bytes that were copied
      * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
      */
-    public static void copyStream(InputStream in, OutputStream out, int bufferSize) throws FileTransferException {
+    public static long copyStream(InputStream in, OutputStream out, int bufferSize) throws FileTransferException {
         // Use BufferPool to reuse any available buffer of the same size
-        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+        byte buffer[] = BufferPool.getByteArray(bufferSize);
         try {
-            // Copies the InputStream's content to the OutputStream chunks by chunks
+            // Copies the InputStream's content to the OutputStream chunk by chunk
             int nbRead;
+            long totalRead = 0;
 
             while(true) {
                 try {
@@ -86,14 +87,94 @@ public class StreamUtils {
                 catch(IOException e) {
                     throw new FileTransferException(FileTransferException.WRITING_DESTINATION);
                 }
+
+                totalRead += nbRead;
             }
+
+            return totalRead;
         }
         finally {
             // Make the buffer available for further use
-            BufferPool.releaseArrayBuffer(buffer);
+            BufferPool.releaseByteArray(buffer);
         }
     }
 
+    /**
+     * This method is a shorthand for {@link #transcode(java.io.InputStream, String, java.io.OutputStream, String, int)}
+     * called with a {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     *
+     * @param in the InputStream to read from
+     * @param inCharset the source charset
+     * @param out the OutputStream to write to
+     * @param outCharset the destination charset
+     * @return the number of bytes that were transcoded
+     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
+     * @throws UnsupportedEncodingException if any of the two charsets are not supported by the JVM
+     */
+    public static long transcode(InputStream in, String inCharset, OutputStream out, String outCharset) throws FileTransferException, UnsupportedEncodingException {
+        return transcode(in, inCharset, out, outCharset, BufferPool.DEFAULT_BUFFER_SIZE);
+    }
+
+    /**
+     * Converts a stream from a charset to another, copying the contents of the given <code>InputStream</code> to the
+     * <code>OutputStream</code>. A {@link java.io.UnsupportedEncodingException} is thrown if any of the two charsets
+     * are not supported by the JVM.
+     *
+     * <p>Apart from the transcoding part, this method operates exactly like {@link #copyStream(java.io.InputStream, java.io.OutputStream, int)}.
+     * In particular, none of the given streams are closed.</p>
+     *
+     * @param in the InputStream to read the data from
+     * @param inCharset the source charset
+     * @param out the OutputStream to write to
+     * @param outCharset the destination charset
+     * @param bufferSize size of the buffer to use, in bytes
+     * @return the number of bytes that were transcoded
+     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
+     * @throws UnsupportedEncodingException if any of the two charsets are not supported by the JVM
+     * @see #copyStream(java.io.InputStream, java.io.OutputStream, int)
+     * @see java.nio.charset.Charset#isSupported(String)
+     */
+    public static long transcode(InputStream in, String inCharset, OutputStream out, String outCharset, int bufferSize) throws FileTransferException, UnsupportedEncodingException {
+        InputStreamReader isr = new InputStreamReader(in, inCharset);
+        OutputStreamWriter osw = new OutputStreamWriter(out, outCharset);
+
+        // Use BufferPool to reuse any available buffer of the same size
+        char buffer[] = BufferPool.getCharArray(bufferSize);
+        try {
+            // Copies the InputStreamReader's content to the OutputStreamWriter chunk by chunk
+            int nbRead;
+            long totalRead = 0;
+
+            while(true) {
+                try {
+                    nbRead = isr.read(buffer, 0, buffer.length);
+                }
+                catch(IOException e) {
+                    throw new FileTransferException(FileTransferException.READING_SOURCE);
+                }
+
+                if(nbRead==-1)
+                    break;
+
+                try {
+                    osw.write(buffer, 0, nbRead);
+                    // Let's not forget to flush as the writer will *not* be closed (to avoid closing the OutputStream)
+                    osw.flush();
+                }
+                catch(IOException e) {
+                    throw new FileTransferException(FileTransferException.WRITING_DESTINATION);
+                }
+
+                totalRead += nbRead;
+            }
+
+            return totalRead;
+        }
+        finally {
+            // Make the buffer available for further use
+            BufferPool.releaseCharArray(buffer);
+        }
+    }
 
     /**
      * This method is a shorthand for {@link #fillWithConstant(java.io.OutputStream, byte, long, int)} called with a
@@ -120,7 +201,7 @@ public class StreamUtils {
      */
     public static void fillWithConstant(OutputStream out, byte value, long len, int bufferSize) throws IOException {
         // Use BufferPool to avoid excessive memory allocation and garbage collection
-        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+        byte buffer[] = BufferPool.getByteArray(bufferSize);
 
         // Fill the buffer with the constant byte value, not necessary if the value is zero
         if(value!=0) {
@@ -138,7 +219,7 @@ public class StreamUtils {
             }
         }
         finally {
-            BufferPool.releaseArrayBuffer(buffer);
+            BufferPool.releaseByteArray(buffer);
         }
     }
 
@@ -174,7 +255,7 @@ public class StreamUtils {
         raos.seek(destOffset);
 
         // Use BufferPool to avoid excessive memory allocation and garbage collection
-        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+        byte buffer[] = BufferPool.getByteArray(bufferSize);
 
         try {
             long remaining = length;
@@ -187,7 +268,7 @@ public class StreamUtils {
             }
         }
         finally {
-            BufferPool.releaseArrayBuffer(buffer);
+            BufferPool.releaseByteArray(buffer);
         }
     }
 
@@ -324,7 +405,7 @@ public class StreamUtils {
      */
     public static void readUntilEOF(InputStream in, int bufferSize) throws IOException {
         // Use BufferPool to avoid excessive memory allocation and garbage collection
-        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+        byte buffer[] = BufferPool.getByteArray(bufferSize);
 
         try {
             int nbRead;
@@ -336,7 +417,7 @@ public class StreamUtils {
             }
         }
         finally {
-            BufferPool.releaseArrayBuffer(buffer);
+            BufferPool.releaseByteArray(buffer);
         }
     }
 }

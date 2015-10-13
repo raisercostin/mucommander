@@ -245,4 +245,62 @@ public class StringUtils {
     public static boolean equals(String s1, String s2, Locale locale) {
         return Collator.getInstance(locale).equals(s1, s2);
     }
+    
+    /**
+     * Compares the two specified strings and returns <code>true</code> if both strings are equal. This method handles
+     * <code>null</code> values with no risk of a <code>NullPointerException</code>. The comparison is case-sensitive
+     * only if requested.
+     *
+     * <p>In other words, this method returns <code>true</code> if strings are either both <code>null</code>
+     * or equal according to <code>String#equals(String)</code> for case-sensitive comparison, or
+     * <code>String#equalsIgnoreCase(String)</code> for case-insensitive comparison.</p> 
+     *
+     * @param s1 string to compare, potentially <code>null</code>
+     * @param s2 string to compare, potentially <code>null</code>
+     * @param caseSensitive <code>true</code> for case-sensitive comparison, <code>false</code> for case-insensitive comparison
+     * @return <code>true</code> if strings are equal or both null
+     */
+    public static boolean equals(String s1, String s2, boolean caseSensitive) {
+        if(s1==null && s2==null)
+            return true;
+
+        if(caseSensitive)
+            return (s1!=null && s1.equals(s2)) || (s2!=null && s2.equals(s1));
+
+        return (s1!=null && s1.equalsIgnoreCase(s2)) || (s2!=null && s2.equalsIgnoreCase(s1));
+    }
+
+    /**
+     * Parses the string argument as a signed decimal integer. If the string cannot be
+     * parsed a default value is returned.
+     * @param s a String containing the int representation to be parsed
+     * @param def a default value if string cannot be parsed
+     * @return the integer value represented by the argument or default value if it cannot be parsed 
+     */
+    public static int parseIntDef(String s, int def) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    /**
+     * Capitalizes the given string, making its first character upper case, and the rest of them lower case.
+     * This method reeturns an empty string if <code>null</code> or an empty string is passed.
+     *
+     * @param s the string to capitalize
+     * @return the capitalized string
+     */
+    public static String capitalize(String s) {
+        if(s==null || s.equals(""))
+            return "";
+
+        String capedS = ""+Character.toUpperCase(s.charAt(0));
+        int len = s.length();
+        if(len>1)
+            capedS += s.substring(1, len).toLowerCase();
+
+        return capedS;
+    }
 }

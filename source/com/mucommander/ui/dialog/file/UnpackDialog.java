@@ -21,8 +21,10 @@ package com.mucommander.ui.dialog.file;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.CopyJob;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.main.MainFrame;
 
 
@@ -42,7 +44,7 @@ public class UnpackDialog extends TransferDestinationDialog {
      */
     public UnpackDialog(MainFrame mainFrame, FileSet files, boolean isShiftDown) {
         super(mainFrame, files,
-              Translator.get(com.mucommander.ui.action.UnpackAction.class.getName()+".label"),
+              MuAction.getStandardLabel(com.mucommander.ui.action.UnpackAction.class),
               Translator.get("unpack_dialog.destination"),
               Translator.get("unpack_dialog.unpack"),
               Translator.get("unpack_dialog.error_title"));
@@ -59,10 +61,18 @@ public class UnpackDialog extends TransferDestinationDialog {
         showDialog();
     }
 
-    protected void startJob(AbstractFile destFolder, String newName, int defaultFileExistsAction, boolean verifyIntegrity) {
+    protected void startJob(PathUtils.ResolvedDestination resolvedDest, int defaultFileExistsAction, boolean verifyIntegrity) {
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("unpack_dialog.unpacking"));
 
-        CopyJob job = new CopyJob(progressDialog, mainFrame, files, destFolder, newName, CopyJob.UNPACK_MODE, defaultFileExistsAction);
+        CopyJob job = new CopyJob(
+                progressDialog,
+                mainFrame,
+                files,
+                resolvedDest.getDestinationFolder(),
+                resolvedDest.getDestinationType()==PathUtils.ResolvedDestination.EXISTING_FOLDER?null:resolvedDest.getDestinationFile().getName(),
+                CopyJob.UNPACK_MODE,
+                defaultFileExistsAction);
+
         job.setIntegrityCheckEnabled(verifyIntegrity);
 
         progressDialog.start(job);

@@ -23,6 +23,7 @@ import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.file.FileURL;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.FocusRequester;
@@ -34,8 +35,6 @@ import com.mucommander.ui.main.MainFrame;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -50,7 +49,7 @@ import java.util.Vector;
  *
  * @author Maxence Bernard
  */
-public class ServerConnectDialog extends FocusDialog implements ActionListener, ChangeListener, DocumentListener {
+public class ServerConnectDialog extends FocusDialog implements ActionListener, ChangeListener {
 
     private FolderPanel folderPanel;
 	
@@ -64,7 +63,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     private JCheckBox saveCredentialsCheckBox;
 
     // Dialog's width has to be at least 320
-    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(420,0);	
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(480,0);	
 	
     private static Class lastPanelClass = SMBPanel.class;
 
@@ -87,7 +86,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
      * @param selectPanelClass class of the ServerPanel to select
      */
     public ServerConnectDialog(FolderPanel folderPanel, Class selectPanelClass) {
-        super(folderPanel.getMainFrame(), Translator.get(com.mucommander.ui.action.ConnectToServerAction.class.getName()+".label"), folderPanel.getMainFrame());
+        super(folderPanel.getMainFrame(), MuAction.getStandardLabel(com.mucommander.ui.action.ConnectToServerAction.class), folderPanel.getMainFrame());
         this.folderPanel = folderPanel;
         lastPanelClass = selectPanelClass;
 
@@ -151,7 +150,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     }
 
 
-    private void updateURLLabel() {
+    protected void updateURLLabel() {
         try {
             FileURL url = currentServerPanel.getServerURL();
             urlLabel.setText(url==null?" ":url.toString(false));
@@ -179,7 +178,9 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
         }
 
         try {
-            FileURL serverURL = currentServerPanel.getServerURL();	// Can thrown a MalformedURLException
+            currentServerPanel.dialogValidated();
+
+            FileURL serverURL = currentServerPanel.getServerURL();	// Can throw a MalformedURLException
 
             // Create a CredentialsMapping instance and pass to Folder so that it uses it to connect to the folder and
             // adds to CredentialsManager once the folder has been successfully changed
@@ -192,7 +193,6 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
                 credentialsMapping = null;
             }
 
-            currentServerPanel.dispose();
             dispose();
 
             // Change the current folder
@@ -217,22 +217,5 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
 
         updateURLLabel();
         FocusRequester.requestFocus(currentServerPanel);
-    }
-
-	
-    //////////////////////////////
-    // DocumentListener methods //
-    //////////////////////////////
-	
-    public void changedUpdate(DocumentEvent e) {
-        updateURLLabel();
-    }
-	
-    public void insertUpdate(DocumentEvent e) {
-        updateURLLabel();
-    }
-
-    public void removeUpdate(DocumentEvent e) {
-        updateURLLabel();
     }
 }

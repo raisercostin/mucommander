@@ -22,7 +22,6 @@ package com.mucommander.job;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.impl.CachedFile;
 import com.mucommander.file.util.FileSet;
-import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -39,19 +38,20 @@ import java.util.WeakHashMap;
  * FileJob is a container for a 'file task' : basically an operation that involves files and bytes.
  * The class extending FileJob is required to give some information about the status of the job that
  * will be used to display visual indications of the job's progress.
- *
- * <p>The actual processing is performed in a separate thread. A FileJob needs to be started explicitely using
- * {@link #start()}. The lifecycle of a FileJob is as follows:
- *
  * <p>
- * {@link #NOT_STARTED} -> {@link #RUNNING} -> {@link #FINISHED}      <br>
- *                         ^                |                         <br>
- *                         |                -> {@link #INTERRUPTED}   <br>
- *                         |                |                         <br>
- *                         |                -> {@link #PAUSED} -|     <br>
- *                         |                                    |     <br>
- *                         -------------------------------------|     <br>
- *
+ * The actual processing is performed in a separate thread. A FileJob needs to be started explicitely using
+ * {@link #start()}. The lifecycle of a FileJob is as follows:<br>
+ * <br>
+ * <pre>
+ * {@link #NOT_STARTED} -> {@link #RUNNING} -> {@link #FINISHED}
+ *                         ^                |
+ *                         |                -> {@link #INTERRUPTED}
+ *                         |                |                      
+ *                         |                -> {@link #PAUSED} -|
+ *                         |                                    |
+ *                         -------------------------------------|
+ * </pre>
+ * </p>
  *
  * @author Maxence Bernard
  */
@@ -97,8 +97,8 @@ public abstract class FileJob implements Runnable {
     /** File currently being processed */
     protected AbstractFile currentFile;
 
-    /** Info string about the file currently being processed */
-    protected String currentFileInfo = "";
+    /** Name of the file currently being processed */
+    protected String currentFilename = "";
 
     /** If set to true, processed files will be unmarked from current table */
     private boolean autoUnmark = true;
@@ -174,11 +174,14 @@ public abstract class FileJob implements Runnable {
         // Note: When cached methods are called, they no longer reflect changes in the underlying files. In particular,
         // changes of size or date could potentially not be reflected when files are being processed but this should
         // not really present a risk. 
-        for(int i=0; i<nbFiles; i++)
-            files.setElementAt(new CachedFile(files.fileAt(i), true), i);
+        AbstractFile tempFile;
+        for(int i=0; i<nbFiles; i++) {
+            tempFile = files.fileAt(i);
+            files.setElementAt((tempFile instanceof CachedFile)?tempFile:new CachedFile(tempFile, true), i);
+        }
 
         if(baseSourceFolder!=null)
-            baseSourceFolder = new CachedFile(baseSourceFolder, true);
+            baseSourceFolder = (baseSourceFolder instanceof CachedFile)?baseSourceFolder:new CachedFile(baseSourceFolder, true);
     }
 	
 	
@@ -401,8 +404,8 @@ public abstract class FileJob implements Runnable {
     protected void nextFile(AbstractFile file) {
         this.currentFile = file;
 
-        // Update current file information returned by getCurrentFileInfo(), in the format "test.zip" (14KB)
-        this.currentFileInfo = "\""+currentFile.getName()+"\" ("+ SizeFormat.format(currentFile.getSize(), SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.ROUND_TO_KB)+")";
+        // Update current file information returned by getCurrentFilename()
+        this.currentFilename = "'"+currentFile.getName()+"'";
 
 //        // Notify ProgressDialog (if any) that a new file is being processed
 //        if(progressDialog!=null)
@@ -443,12 +446,14 @@ public abstract class FileJob implements Runnable {
 //
 
     /**
-     * Returns a basic description of the file currently being processed, for example : "test.zip" (14KB)
+     * Returns the name of the file currently being processed surrounded by simple quotes (e.g. 'test.zip'), or an empty
+     * string if no file is currently being processed.
      *
-     * @return a basic description of the file currently being processed
+     * @return the name of the file currently being processed surrounded by simple quotes, or an empty string if no file
+     * is currently being processed
      */
-    protected String getCurrentFileInfo() {
-        return currentFileInfo;
+    protected String getCurrentFilename() {
+        return currentFilename;
     }
 	
 	
@@ -642,7 +647,7 @@ public abstract class FileJob implements Runnable {
      * @return a String describing what the job is currently doing
      */
     public String getStatusString() {
-        return Translator.get("progress_dialog.processing_file", getCurrentFileInfo());
+        return Translator.get("progress_dialog.processing_file", getCurrentFilename());
     }
 
 

@@ -19,22 +19,28 @@
 
 package com.mucommander.job;
 
-import com.mucommander.file.*;
+import com.mucommander.desktop.AbstractTrash;
+import com.mucommander.desktop.DesktopManager;
+import com.mucommander.file.AbstractArchiveFile;
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.AbstractRWArchiveFile;
+import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.text.MultiLineLabel;
 
-import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 
 /**
  * This class is responsible for deleting a set of files. This job can operate in two modes, depending on the boolean
  * value specified in the construtor:
  * <ul>
- *  <li>moveToTrash enabled: files are moved to the trash returned by {@link FileFactory#getTrash()}.
+ *  <li>moveToTrash enabled: files are moved to the trash returned by {@link DesktopManager#getTrash()}.
  *  <li>moveToTrash disabled: files are permanently deleted, i.e deleted files cannot be recovered. In this mode,
  * folders are deleted recursively
  * </ul>
@@ -81,7 +87,7 @@ public class DeleteJob extends FileJob {
 
         this.moveToTrash = moveToTrash;
         if(moveToTrash)
-            trash = FileFactory.getTrash();
+            trash = DesktopManager.getTrash();
     }
 
     /**
@@ -102,14 +108,13 @@ public class DeleteJob extends FileJob {
     private int showSymlinkDialog(String relativePath, String canonicalPath) {
         YBoxPanel panel = new YBoxPanel();
 
-        JTextArea symlinkWarningArea = new JTextArea(Translator.get("delete.symlink_warning", relativePath, canonicalPath));
-        symlinkWarningArea.setEditable(false);
-        panel.add(symlinkWarningArea);
+        panel.add(new MultiLineLabel(Translator.get("delete.symlink_warning", relativePath, canonicalPath)));
 
         QuestionDialog dialog = new QuestionDialog(progressDialog, Translator.get("delete.symlink_warning_title"), panel, mainFrame,
                                                    new String[] {DELETE_LINK_TEXT, DELETE_FOLDER_TEXT, SKIP_TEXT, CANCEL_TEXT},
                                                    new int[]  {DELETE_LINK_ACTION, DELETE_FOLDER_ACTION, SKIP_ACTION, CANCEL_ACTION},
                                                    2);
+        dialog.setMinimumSize(new Dimension(320, 0));
 
         return waitForUserResponse(dialog);
     }
@@ -265,6 +270,6 @@ public class DeleteJob extends FileJob {
         if(isOptimizingArchive)
             return Translator.get("optimizing_archive", archiveToOptimize.getName());
 
-        return Translator.get("delete.deleting_file", getCurrentFileInfo());
+        return Translator.get("delete.deleting_file", getCurrentFilename());
     }
 }

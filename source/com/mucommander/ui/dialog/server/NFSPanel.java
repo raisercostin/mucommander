@@ -27,6 +27,7 @@ import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import java.net.MalformedURLException;
+import java.text.ParseException;
 
 
 /**
@@ -36,18 +37,19 @@ import java.net.MalformedURLException;
  */
 public class NFSPanel extends ServerPanel {
 
+    private final static int STANDARD_PORT = FileURL.getRegisteredHandler(FileProtocols.NFS).getStandardPort(); 
+
     private JTextField serverField;
     private JTextField shareField;
-    private JTextField portField;
+    private JSpinner portSpinner;
     private JComboBox nfsVersionComboBox;
     private JComboBox nfsProtocolComboBox;
 
     private static String lastServer = "";
     private static String lastShare = "";
-    private static int lastPort = 2049;
+    private static int lastPort = STANDARD_PORT;
     private static String lastNfsVersion = NFSFile.DEFAULT_NFS_VERSION;
     private static String lastNfsProtocol = NFSFile.DEFAULT_NFS_PROTOCOL;
-
 
     NFSPanel(ServerConnectDialog dialog, MainFrame mainFrame) {
         super(dialog, mainFrame);
@@ -65,10 +67,8 @@ public class NFSPanel extends ServerPanel {
         addRow(Translator.get("server_connect_dialog.share"), shareField, 15);
 
         // Port field, initialized to last value (default is 2049)
-        portField = new JTextField(""+lastPort, 5);
-        portField.selectAll();
-        addTextFieldListeners(portField, true);
-        addRow(Translator.get("server_connect_dialog.port"), portField, 15);
+        portSpinner = createPortSpinner(lastPort);
+        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 15);
 
         // NFS version, initialized to last value (default is NFSFile's default)
         nfsVersionComboBox = new JComboBox();
@@ -91,13 +91,7 @@ public class NFSPanel extends ServerPanel {
         lastServer = serverField.getText();
         lastShare = shareField.getText();
 
-        lastPort = 2049;
-        try {
-            lastPort = Integer.parseInt(portField.getText());
-        }
-        catch(NumberFormatException e) {
-            // Port is a malformed number
-        }
+        lastPort = ((Integer)portSpinner.getValue()).intValue();
 
         lastNfsVersion = (String)nfsVersionComboBox.getSelectedItem();
         lastNfsProtocol = (String)nfsProtocolComboBox.getSelectedItem();
@@ -111,11 +105,10 @@ public class NFSPanel extends ServerPanel {
     FileURL getServerURL() throws MalformedURLException {
         updateValues();
 
-        FileURL url = new FileURL(FileProtocols.NFS+"://"+lastServer+(lastShare.startsWith("/")?"":"/")+lastShare);
+        FileURL url = FileURL.getFileURL(FileProtocols.NFS+"://"+lastServer+(lastShare.startsWith("/")?"":"/")+lastShare);
 
         // Set port
-        if(lastPort>0 && lastPort!=2049)
-            url.setPort(lastPort);
+        url.setPort(lastPort);
 
         // Set NFS version
         url.setProperty(NFSFile.NFS_VERSION_PROPERTY_NAME, lastNfsVersion);
@@ -130,7 +123,12 @@ public class NFSPanel extends ServerPanel {
         return false;
     }
 
-    public void dispose() {
+    public void dialogValidated() {
+        // Commits the current spinner value in case it was being edited and 'enter' was pressed
+        // (the spinner value would otherwise not be committed)
+        try { portSpinner.commitEdit(); }
+        catch(ParseException e) { }
+
         updateValues();
     }
 }

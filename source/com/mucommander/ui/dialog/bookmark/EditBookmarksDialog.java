@@ -21,6 +21,7 @@ package com.mucommander.ui.dialog.bookmark;
 import com.mucommander.bookmark.Bookmark;
 import com.mucommander.bookmark.BookmarkManager;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
@@ -29,6 +30,7 @@ import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.list.DynamicList;
 import com.mucommander.ui.list.SortableListPanel;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.text.FilePathField;
 import com.mucommander.util.AlteredVector;
 
 import javax.swing.*;
@@ -79,7 +81,7 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
 
 
     public EditBookmarksDialog(MainFrame mainFrame) {
-        super(mainFrame, Translator.get(com.mucommander.ui.action.EditBookmarksAction.class.getName()+".label"), mainFrame);
+        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.EditBookmarksAction.class), mainFrame);
 
         this.mainFrame = mainFrame;
 
@@ -106,8 +108,8 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
         nameField.getDocument().addDocumentListener(this);
         compPanel.addRow(Translator.get("name")+":", nameField, 5);
 
-        // Add bookmark location field
-        this.locationField = new JTextField();
+        // Create a path field with auto-completion capabilities
+        this.locationField = new FilePathField();
         locationField.getDocument().addDocumentListener(this);
         compPanel.addRow(Translator.get("location")+":", locationField, 10);
 

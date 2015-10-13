@@ -20,6 +20,7 @@ package com.mucommander;
 
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.extension.ExtensionManager;
+import com.mucommander.file.icon.impl.SwingFileIconProvider;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.shell.ShellHistoryManager;
 import com.mucommander.ui.dialog.startup.CheckVersionDialog;
@@ -29,6 +30,7 @@ import com.mucommander.ui.main.SplashScreen;
 import com.mucommander.ui.main.ToolBar;
 import com.mucommander.ui.main.WindowManager;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 
 /**
@@ -44,8 +46,6 @@ public class Launcher {
     // - Class fields -----------------------------------------------------------
     // --------------------------------------------------------------------------
     private static SplashScreen splashScreen;
-    /** Whether or not to show the setup dialog. */
-    private static boolean      showSetup;
     /** Whether or not to ignore warnings when booting. */
     private static boolean      fatalWarnings;
     /** Whether or not to display verbose error messages. */
@@ -105,12 +105,6 @@ public class Launcher {
 
         // Allows users to change the preferences folder.
         System.out.println(" -p FOLDER, --preferences FOLDER   Store configuration files in FOLDER");
-
-        // Disables the splash screen.
-        System.out.println(" --no-splash                       Disable splashscreen on startup");
-
-        // Enables the splashscreen.
-        System.out.println(" --splash                          Enable splashscreen on startup (default)");
 
         // muCommander will not print verbose error messages.
         System.out.println(" -S, --silent                      Do not print verbose error messages");
@@ -207,8 +201,8 @@ public class Launcher {
     private static void printStartupMessage(String message) {
         if(useSplash)
             splashScreen.setLoadingMessage(message);
-        else
-            System.out.println(message);
+
+        if(Debug.ON) Debug.trace(message);
     }
 
 
@@ -224,7 +218,6 @@ public class Launcher {
         // Initialises fields.
         fatalWarnings = false;
         verbose       = true;
-        useSplash     = true;
 
         // - Command line parsing -------------------------------------
         // ------------------------------------------------------------
@@ -236,14 +229,6 @@ public class Launcher {
             // Print help.
             else if(args[i].equals("-h") || args[i].equals("--help"))
                 printUsage();
-
-            // Disable splashscreen.
-            else if(args[i].equals("--no-splash"))
-                useSplash = false;
-
-            // Enables splashscreen.
-            else if(args[i].equals("--splash"))
-                useSplash = true;
 
             // Associations handling.
             else if(args[i].equals("-a") || args[i].equals("--assoc")) {
@@ -362,6 +347,12 @@ public class Launcher {
                 break;
         }
 
+        // Attemps to guess whether this is the first time muCommander is booted
+        // or not.
+        boolean isFirstBoot;
+        try {isFirstBoot = !MuConfiguration.getConfigurationFile().exists();}
+        catch(IOException e) {isFirstBoot = true;}
+
 
 
         // - MAC OS init ----------------------------------------------
@@ -390,11 +381,7 @@ public class Launcher {
         // Adds all extensions to the classpath.
         try {ExtensionManager.addExtensionsToClasspath();}
         catch(Exception e) {if(Debug.ON) Debug.trace("Failed to add extensions to the classpath");}
-
-        // Shows the splash screen.
-        if(useSplash)
-            splashScreen = new SplashScreen(RuntimeConstants.VERSION, "Loading preferences...");
-
+       
         // This the property is supposed to have the java.net package use the proxy defined in the system settings
         // to establish HTTP connections. This property is supported only under Java 1.5 and up.
         // Note that Mac OS X already uses the system HTTP proxy, with or without this property being set.
@@ -406,10 +393,20 @@ public class Launcher {
             catch(Exception e) {printFileError("Could not load configuration", e, fatalWarnings);}
         }
 
+        // Shows the splash screen, if enabled in the preferences
+        useSplash = MuConfiguration.getVariable(MuConfiguration.SHOW_SPLASH_SCREEN, MuConfiguration.DEFAULT_SHOW_SPLASH_SCREEN);
+        if(useSplash) {
+            splashScreen = new SplashScreen(RuntimeConstants.VERSION, "Loading preferences...");}
+
+        boolean showSetup;
         showSetup = MuConfiguration.getVariable(MuConfiguration.THEME_TYPE) == null;
 
         // Traps VM shutdown
         Runtime.getRuntime().addShutdownHook(new ShutdownHook());
+
+        // Initialises the desktop.
+        try {com.mucommander.desktop.DesktopManager.init(isFirstBoot);}
+        catch(Exception e) {printError("Could not initialise desktop", e, true);}
 
         // Loads dictionary
         printStartupMessage("Loading dictionary...");
@@ -419,9 +416,15 @@ public class Launcher {
         // Loads the file associations
         printStartupMessage("Loading file associations...");
         try {com.mucommander.command.CommandManager.loadCommands();}
-        catch(Exception e) {printFileError("Could not load custom commands", e, fatalWarnings);}
+        catch(Exception e) {
+            if(Debug.ON)
+                printFileError("Could not load custom commands", e, fatalWarnings);
+        }
         try {com.mucommander.command.CommandManager.loadAssociations();}
-        catch(Exception e) {printFileError("Could not load custom associations", e, fatalWarnings);}
+        catch(Exception e) {
+            if(Debug.ON)
+                printFileError("Could not load custom associations", e, fatalWarnings);
+        }
 
         // Loads bookmarks
         printStartupMessage("Loading bookmarks...");
@@ -442,8 +445,10 @@ public class Launcher {
         // before FileTable, so CustomDateFormat gets notified of date format changes first
         com.mucommander.text.CustomDateFormat.init();
 
-        // Preload icons
+        // Initialize file icons
         printStartupMessage("Loading icons...");
+        // Initialize the SwingFileIconProvider from the main thread, see method Javadoc for an explanation on why we do this now
+        SwingFileIconProvider.forceInit();
         // The math.max(1.0f, ...) part is to workaround a bug which cause(d) this value to be set to 0.0 in the configuration file.
         com.mucommander.ui.icon.FileIcons.setScaleFactor(Math.max(1.0f, MuConfiguration.getVariable(MuConfiguration.TABLE_ICON_SCALE,
                                                                                           MuConfiguration.DEFAULT_TABLE_ICON_SCALE)));

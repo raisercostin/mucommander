@@ -32,6 +32,7 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.MalformedURLException;
+import java.text.ParseException;
 
 
 /**
@@ -41,11 +42,16 @@ import java.net.MalformedURLException;
  */
 public class FTPPanel extends ServerPanel implements ActionListener {
 
+    private final static int STANDARD_PORT = FileURL.getRegisteredHandler(FileProtocols.FTP).getStandardPort();
+    private static Credentials ANONYMOUS_CREDENTIALS = FileURL.getRegisteredHandler(FileProtocols.FTP).getGuestCredentials();
+
     private JTextField serverField;
     private JTextField usernameField;
     private JPasswordField passwordField;
     private JTextField initialDirField;
-    private JTextField portField;
+    private JSpinner portSpinner;
+    private JSpinner nbRetriesSpinner;
+    private JSpinner retryDelaySpinner;
     private SaneComboBox encodingComboBox;
     private JCheckBox passiveCheckBox;
     private JCheckBox anonymousCheckBox;
@@ -53,18 +59,17 @@ public class FTPPanel extends ServerPanel implements ActionListener {
     private static String lastServer = "";
     private static String lastUsername = "";
     private static String lastInitialDir = "/";
-    private static int lastPort = 21;
+    private static int lastPort = STANDARD_PORT;
     private static String lastEncoding = FTPFile.DEFAULT_ENCODING;
     // Not static so that it is not remembered (for security reasons)
     private String lastPassword = "";
-    private String lastAnonymousPassword = "";
 
     /** Passive mode is enabled by default because of firewall restrictions */
     private static boolean passiveMode = true;
     private static boolean anonymousUser;
-	
-	
-    FTPPanel(ServerConnectDialog dialog, MainFrame mainFrame) {
+
+
+    FTPPanel(final ServerConnectDialog dialog, MainFrame mainFrame) {
         super(dialog, mainFrame);
 
         // Server field, initialized to last server entered
@@ -74,7 +79,7 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         addRow(Translator.get("server_connect_dialog.server"), serverField, 15);
 
         // Username field, initialized to last username entered or 'anonymous' if anonymous user was previously selected
-        usernameField = new JTextField(anonymousUser?"anonymous":lastUsername);
+        usernameField = new JTextField(anonymousUser?ANONYMOUS_CREDENTIALS.getLogin():lastUsername);
         usernameField.selectAll();
         usernameField.setEditable(!anonymousUser);
         addTextFieldListeners(usernameField, false);
@@ -92,10 +97,8 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         addRow(Translator.get("server_connect_dialog.initial_dir"), initialDirField, 5);
 	
         // Port field, initialized to last port (default is 21)
-        portField = new JTextField(""+lastPort, 5);
-        portField.selectAll();
-        addTextFieldListeners(portField, true);
-        addRow(Translator.get("server_connect_dialog.port"), portField, 5);
+        portSpinner = createPortSpinner(lastPort);
+        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 15);
 
         // Encoding combo box
         encodingComboBox = new EncodingComboBox();
@@ -103,15 +106,23 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         encodingComboBox.addActionListener(this);
         addRow(Translator.get("encoding"), encodingComboBox, 15);
 
+        // Connection retries when server busy
+        nbRetriesSpinner = createIntSpinner(FTPFile.DEFAULT_NB_CONNECTION_RETRIES, 0, Integer.MAX_VALUE, 1);
+        addRow(Translator.get("ftp_connect.nb_connection_retries"), nbRetriesSpinner, 5);
+
+        // Delay between two retries
+        retryDelaySpinner = createIntSpinner(FTPFile.DEFAULT_CONNECTION_RETRY_DELAY, 0, Integer.MAX_VALUE, 1);
+        addRow(Translator.get("ftp_connect.retry_delay"), retryDelaySpinner, 15);
+
         // Anonymous user checkbox
         anonymousCheckBox = new JCheckBox(Translator.get("ftp_connect.anonymous_user"), anonymousUser);
         anonymousCheckBox.addActionListener(this);
-        addRow(anonymousCheckBox, 5);
+        addRow("", anonymousCheckBox, 5);
 
         // Passive mode checkbox
         passiveCheckBox = new JCheckBox(Translator.get("ftp_connect.passive_mode"), passiveMode);
         passiveCheckBox.addActionListener(this);
-        addRow(passiveCheckBox, 0);
+        addRow("", passiveCheckBox, 0);
     }
 
 	
@@ -123,14 +134,7 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         }
 
         lastInitialDir = initialDirField.getText();
-		
-        lastPort = 21;
-        try {
-            lastPort = Integer.parseInt(portField.getText());
-        }
-        catch(NumberFormatException e) {
-            // Port is a malformed number
-        }
+        lastPort = ((Integer)portSpinner.getValue()).intValue();
     }
 	
 	
@@ -143,22 +147,25 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         if(!lastInitialDir.startsWith("/"))
             lastInitialDir = "/"+lastInitialDir;
 			
-        FileURL url = new FileURL(FileProtocols.FTP+"://"+lastServer+lastInitialDir);
+        FileURL url = FileURL.getFileURL(FileProtocols.FTP+"://"+lastServer+lastInitialDir);
 
         if(anonymousUser)
-            url.setCredentials(new Credentials("anonymous", new String(passwordField.getPassword())));
+            url.setCredentials(new Credentials(ANONYMOUS_CREDENTIALS.getLogin(), new String(passwordField.getPassword())));
         else
             url.setCredentials(new Credentials(lastUsername, lastPassword));
 
         // Set port
-        if(lastPort!=21 && (lastPort>0 && lastPort<65536))
-            url.setPort(lastPort);
+        url.setPort(lastPort);
 
         // Set passiveMode property to true (default) or false
         url.setProperty(FTPFile.PASSIVE_MODE_PROPERTY_NAME, ""+passiveMode);
 
         // Set FTP encoding property
         url.setProperty(FTPFile.ENCODING_PROPERTY_NAME, (String)encodingComboBox.getSelectedItem());
+
+        // Set connection retry properties
+        url.setProperty(FTPFile.NB_CONNECTION_RETRIES_PROPERTY_NAME, ""+nbRetriesSpinner.getValue());
+        url.setProperty(FTPFile.CONNECTION_RETRY_DELAY_PROPERTY_NAME, ""+retryDelaySpinner.getValue());
 
         return url;
     }
@@ -167,7 +174,12 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         return true;
     }
 
-    public void dispose() {
+    public void dialogValidated() {
+        // Commits the current spinner value in case it was being edited and 'enter' was pressed
+        // (the spinner value would otherwise not be committed)
+        try { portSpinner.commitEdit(); }
+        catch(ParseException e) { }
+
         updateValues();
     }
 
@@ -184,16 +196,17 @@ public class FTPPanel extends ServerPanel implements ActionListener {
         }
         else if (source == anonymousCheckBox) {
             updateValues();
-            this.anonymousUser = anonymousCheckBox.isSelected();
+            anonymousUser = anonymousCheckBox.isSelected();
             if(anonymousUser) {
-                usernameField.setEditable(false);
-                usernameField.setText("anonymous");
-                passwordField.setText(lastAnonymousPassword);
+                usernameField.setEnabled(false);
+                usernameField.setText(ANONYMOUS_CREDENTIALS.getLogin());
+                passwordField.setEnabled(false);
+                passwordField.setText(ANONYMOUS_CREDENTIALS.getPassword());
             }
             else {
-                lastAnonymousPassword = new String(passwordField.getPassword());
-                usernameField.setEditable(true);
+                usernameField.setEnabled(true);
                 usernameField.setText(lastUsername);
+                passwordField.setEnabled(true);
                 passwordField.setText(lastPassword);
             }
         }
@@ -201,5 +214,5 @@ public class FTPPanel extends ServerPanel implements ActionListener {
             lastEncoding = (String)encodingComboBox.getSelectedItem();
         }
     }
-	
+
 }

@@ -18,9 +18,7 @@
 
 package com.mucommander.file.impl.tar;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractROArchiveFile;
-import com.mucommander.file.ArchiveEntry;
+import com.mucommander.file.*;
 import com.mucommander.io.StreamUtils;
 import com.mucommander.util.StringUtils;
 import org.apache.tools.bzip2.CBZip2InputStream;
@@ -36,8 +34,10 @@ import java.util.zip.GZIPInputStream;
 /**
  * TarArchiveFile provides read-only access to archives in the Tar/Tgz format.
  *
- * <p>Tar support is provided by the <code>Apache Ant</code> library distributed in the Apache Software License.
+ * <p>The actual decompression work is performed by the <code>Apache Ant</code> library under the terms of the
+ * Apache Software License.</p>
  *
+ * @see com.mucommander.file.impl.tar.TarFormatProvider
  * @author Maxence Bernard
  */
 public class TarArchiveFile extends AbstractROArchiveFile {
@@ -104,8 +104,7 @@ public class TarArchiveFile extends AbstractROArchiveFile {
      */
     private ArchiveEntry createArchiveEntry(org.apache.tools.tar.TarEntry tarEntry) {
         ArchiveEntry entry = new ArchiveEntry(tarEntry.getName(), tarEntry.isDirectory(), tarEntry.getModTime().getTime(), tarEntry.getSize());
-        entry.setPermissions(tarEntry.getMode());
-        entry.setPermissionMask(FULL_PERMISSIONS);     // Full UNIX permissions (777 octal)
+        entry.setPermissions(new SimpleFilePermissions(tarEntry.getMode() & PermissionBits.FULL_PERMISSION_INT));
         entry.setOwner(tarEntry.getUserName());
         entry.setGroup(tarEntry.getGroupName());
         return entry;

@@ -23,10 +23,7 @@ import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.Credentials;
 import com.mucommander.conf.impl.MuConfiguration;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
-import com.mucommander.file.FileProtocols;
-import com.mucommander.file.FileURL;
+import com.mucommander.file.*;
 import com.mucommander.file.connection.ConnectionHandler;
 import com.mucommander.file.connection.ConnectionHandlerFactory;
 import com.mucommander.file.connection.ConnectionPool;
@@ -46,7 +43,7 @@ import java.util.Date;
 /**
  * FTPFile provides access to files located on an FTP server.
  *
- * <p>The associated {@link FileURL} protocol is {@link FileProtocols#FTP}. The host part of the URL designates the
+ * <p>The associated {@link FileURL} scheme is {@link FileProtocols#FTP}. The host part of the URL designates the
  * FTP server. Credentials must be specified in the login and password parts as FTP servers require a login and
  * password. The path separator is '/'.
  *
@@ -83,12 +80,15 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
     private org.apache.commons.net.ftp.FTPFile file;
 
-    protected String absPath;
+    private String absPath;
 
     private AbstractFile parent;
     private boolean parentValSet;
+    private FilePermissions permissions;
 
     private boolean fileExists;
+
+    private AbstractFile canonicalFile;
 
     private final static String SEPARATOR = "/";
 
@@ -98,8 +98,22 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     /** Name of the FTP encoding property */
     public final static String ENCODING_PROPERTY_NAME = "encoding";
 
-    /** Default FTP encoding */
+    /** Default FTP encoding if {@link #ENCODING_PROPERTY_NAME} is not set */
     public final static String DEFAULT_ENCODING = "UTF-8";
+
+    /** Name of the property that holds the number of retries after a recoverable connection failure (connection error
+     * or temporary server error in the 4xx range) */
+    public final static String NB_CONNECTION_RETRIES_PROPERTY_NAME = "nbConnectionRetries";
+
+    /** Default value if {@link #NB_CONNECTION_RETRIES_PROPERTY_NAME} is not set */
+    public final static int DEFAULT_NB_CONNECTION_RETRIES = 0;
+
+    /** Name of the property that holds the amount of time (in seconds) to wait before retrying to connect after a
+     *  temporary connection failure. */
+    public final static String CONNECTION_RETRY_DELAY_PROPERTY_NAME = "connectionRetryDelay";
+
+    /** Default value if {@link #CONNECTION_RETRY_DELAY_PROPERTY_NAME} is not set */
+    public final static int DEFAULT_CONNECTION_RETRY_DELAY = 15;
 
     /** Date format used by the SITE UTIME command */
     private final static SimpleDateFormat SITE_UTIME_DATE_FORMAT = new SimpleDateFormat("yyyyMMddHHmm");
@@ -130,6 +144,8 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
             this.file = file;
             this.fileExists = true;
         }
+
+        this.permissions = new FTPFilePermissions(this.file);
     }
 
 
@@ -269,6 +285,9 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
     public long getDate() {
+        if(isSymlink())
+            return ((org.apache.commons.net.ftp.FTPFile)getCanonicalFile().getUnderlyingFileObject()).getTimestamp().getTimeInMillis();
+
         return file.getTimestamp().getTimeInMillis();
     }
 
@@ -343,6 +362,9 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
     public long getSize() {
+        if(isSymlink())
+            return ((org.apache.commons.net.ftp.FTPFile)getCanonicalFile().getUnderlyingFileObject()).getSize();
+
         return file.getSize();
     }
 
@@ -370,45 +392,29 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         return this.fileExists;
     }
 
+    public FilePermissions getPermissions() {
+        if(isSymlink())
+            return ((FTPFile)getCanonicalFile().getAncestor(FTPFile.class)).permissions;
 
-    public boolean getPermission(int access, int permission) {
-        int fAccess;
-        int fPermission;
-
-        if(access== USER_ACCESS)
-            fAccess = org.apache.commons.net.ftp.FTPFile.USER_ACCESS;
-        else if(access==GROUP_ACCESS)
-            fAccess = org.apache.commons.net.ftp.FTPFile.GROUP_ACCESS;
-        else if(access==OTHER_ACCESS)
-            fAccess = org.apache.commons.net.ftp.FTPFile.WORLD_ACCESS;
-        else
-            return false;
-
-        if(permission==READ_PERMISSION)
-            fPermission = org.apache.commons.net.ftp.FTPFile.READ_PERMISSION;
-        else if(permission==WRITE_PERMISSION)
-            fPermission = org.apache.commons.net.ftp.FTPFile.WRITE_PERMISSION;
-        else if(permission==EXECUTE_PERMISSION)
-            fPermission = org.apache.commons.net.ftp.FTPFile.EXECUTE_PERMISSION;
-        else
-            return false;
-
-        return file.hasPermission(fAccess, fPermission);
+        return permissions;
     }
 
-
-    public boolean setPermission(int access, int permission, boolean enabled) {
-        return setPermissions(ByteUtils.setBit(getPermissions(), (permission << (access*3)), enabled));
+    public boolean changePermission(int access, int permission, boolean enabled) {
+        return changePermissions(ByteUtils.setBit(permissions.getIntValue(), (permission << (access*3)), enabled));
     }
 
-    public boolean canGetPermission(int access, int permission) {
-        return true;    // Full permission support
-    }
-
-    public boolean canSetPermission(int access, int permission) {
-        // Return true if the server supports the 'site chmod' command, not all servers do.
-        // Do not lock the connection handler, not needed.
-        return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).chmodCommandSupported;
+    /**
+     * Returns {@link PermissionBits#FULL_PERMISSION_BITS} if the server supports the 'site chmod' command (not all
+     * servers do), {@link PermissionBits#EMPTY_PERMISSION_BITS} otherwise.
+     *
+     * @return {@link PermissionBits#FULL_PERMISSION_BITS} if the server supports the 'site chmod' command (not all
+     * servers do), {@link PermissionBits#EMPTY_PERMISSION_BITS} otherwise
+     */
+    public PermissionBits getChangeablePermissions() {
+         // Do not lock the connection handler, not needed.
+        return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).chmodCommandSupported
+                ?PermissionBits.FULL_PERMISSION_BITS    // Full permission support (777 octal)
+                :PermissionBits.EMPTY_PERMISSION_BITS;  // Permissions can't be changed
     }
 
     public String getOwner() {
@@ -439,6 +445,10 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         // c) if this file is a symlink, retrieve the symlink's target using #getFTPFile(FileURL) with '-ldH' switches
         // and return the value of isDirectory(). This clearly is the least effective solution at it requires issuing
         // one 'ls' command per symlink.
+
+        if(isSymlink())
+            return ((org.apache.commons.net.ftp.FTPFile)getCanonicalFile().getUnderlyingFileObject()).isDirectory();
+
         return file.isDirectory();
     }
 
@@ -627,7 +637,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     // Overridden methods //
     ////////////////////////
 
-    public boolean setPermissions(int permissions) {
+    public boolean changePermissions(int permissions) {
         // Changes permissions using the SITE CHMOD FTP command.
 
         // This command is optional but seems to be supported by modern FTP servers such as ProFTPd or PureFTP Server.
@@ -679,19 +689,6 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         }
     }
 
-    public int getPermissionGetMask() {
-        return FULL_PERMISSIONS;     // Full get permission support (777 octal)
-    }
-
-    public int getPermissionSetMask() {
-        // Return true if the server supports the 'site chmod' command, not all servers do.
-        // Do not lock the connection handler, not needed.
-        return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).chmodCommandSupported
-                ?FULL_PERMISSIONS    // Full permission support (777 octal)
-                :0;                  // No set permission support
-    }
-
-
     /**
      * Overrides {@link AbstractFile#moveTo(AbstractFile)} to support server-to-server move if the destination file
      * uses FTP and is located on the same host.
@@ -701,7 +698,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
         // Use the default moveTo() implementation if the destination file doesn't use FTP
         // or is not on the same host
-        if(!destFile.getURL().getProtocol().equals(FileProtocols.FTP) || !destFile.getURL().getHost().equals(this.fileURL.getHost())) {
+        if(!destFile.getURL().getScheme().equals(FileProtocols.FTP) || !destFile.getURL().getHost().equals(this.fileURL.getHost())) {
             return super.moveTo(destFile);
         }
 
@@ -736,6 +733,31 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
     public InputStream getInputStream(long offset) throws IOException {
         return new FTPInputStream(offset);
+    }
+
+    public AbstractFile getCanonicalFile() {
+        if(!isSymlink())
+            return this;
+
+        // Create the canonical file instance and cache it
+        if(canonicalFile==null) {
+            // getLink() returns the raw symlink target which can either be an absolute or a relative path. If the path is
+            // relative, preprend the absolute path of the symlink's parent folder.
+            String symlinkTargetPath = file.getLink();
+            if(!symlinkTargetPath.startsWith("/")) {
+                String parentPath = fileURL.getParent().getPath();
+                if(!parentPath.endsWith("/"))
+                    parentPath += "/";
+                symlinkTargetPath = parentPath + symlinkTargetPath;
+            }
+
+            FileURL canonicalURL = (FileURL)fileURL.clone();
+            canonicalURL.setPath(symlinkTargetPath);
+
+            canonicalFile = FileFactory.getFile(canonicalURL);
+        }
+
+        return canonicalFile;
     }
 
 
@@ -1050,6 +1072,12 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         /** Encoding used by the FTP control connection */
         private String encoding;
 
+        /** Number of connection retry attempts after a recoverable connection failure */
+        private int nbConnectionRetries;
+
+        /** Amount of time (in seconds) to wait before retrying to connect after a recoverable connection failure */
+        private int connectionRetryDelay;
+
         /** False if SITE UTIME command is not supported by the remote server (once tried and failed) */
         private boolean utimeCommandSupported = true;
 
@@ -1073,15 +1101,37 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         private FTPConnectionHandler(FileURL location) {
             super(location);
 
-            // Determine if passive or active mode is to used
+            // Use the passive mode property if it is set
             String passiveModeProperty = location.getProperty(PASSIVE_MODE_PROPERTY_NAME);
             // Passive mode is enabled by default if property isn't specified
             this.passiveMode = passiveModeProperty==null || !passiveModeProperty.equals("false");
 
-            // Determine encoding to use based on the encoding URL property, UTF-8 if property is not set
+            // Use the encoding property if it is set
             this.encoding = location.getProperty(ENCODING_PROPERTY_NAME);
             if(encoding==null || encoding.equals(""))
                 encoding = DEFAULT_ENCODING;
+
+            // Use the property that controls the number of connection retries after a recoverable connection failure,
+            // if the property is set
+            String prop = location.getProperty(NB_CONNECTION_RETRIES_PROPERTY_NAME);
+            if(prop==null) {
+                nbConnectionRetries = DEFAULT_NB_CONNECTION_RETRIES;
+            }
+            else {
+                try { nbConnectionRetries = Integer.parseInt(prop); }
+                catch(NumberFormatException e) { nbConnectionRetries = DEFAULT_NB_CONNECTION_RETRIES; }
+            }
+
+            // Use the property that controls the connection retry delay after a recoverable connection failure,
+            // if the property is set
+            prop = location.getProperty(CONNECTION_RETRY_DELAY_PROPERTY_NAME);
+            if(prop==null) {
+                connectionRetryDelay = DEFAULT_CONNECTION_RETRY_DELAY;
+            }
+            else {
+                try { connectionRetryDelay = Integer.parseInt(prop); }
+                catch(NumberFormatException e) { connectionRetryDelay = DEFAULT_CONNECTION_RETRY_DELAY; }
+            }
 
             setKeepAlivePeriod(KEEP_ALIVE_PERIOD);
         }
@@ -1112,7 +1162,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
             // If not, throw an exception using the reply string
             if(!FTPReply.isPositiveCompletion(replyCode)) {
                 if(replyCode==FTPReply.CODE_503 || replyCode==FTPReply.NEED_PASSWORD || replyCode==FTPReply.NOT_LOGGED_IN)
-                    throw new AuthException(realm, ftpClient.getReplyString());
+                    throwAuthException(ftpClient.getReplyString());
                 else
                     throw new IOException(ftpClient.getReplyString());
             }
@@ -1142,77 +1192,108 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 //            this.ftpClient = new CustomFTPClient();
             this.ftpClient = new FTPClient();
 
-            try {
-                FileURL realm = getRealm();
+            int retriesLeft = nbConnectionRetries;
+            int retryDelay = connectionRetryDelay *1000;
+            do{
+	            try {
+	                FileURL realm = getRealm();
+	
+	                // Override default port (21) if a custom port was specified in the URL
+	                int port = realm.getPort();
+	                if(Debug.ON) Debug.trace("custom port="+port);
+	                if(port!=-1)
+	                    ftpClient.setDefaultPort(port);
+	
+	                // Sets the control encoding
+	                // - most modern FTP servers seem to default to UTF-8, but not all of them do.
+	                // - commons-ftp defaults to ISO-8859-1 which is not good
+	                // Note: this has to be done before the connection is established otherwise it won't be taken into account
+	                if(Debug.ON) Debug.trace("encoding="+encoding);
+	                ftpClient.setControlEncoding(encoding);
+	
+	                // Connect to the FTP server
+	                ftpClient.connect(realm.getHost());
+	
+	//                // Set a socket timeout: default value is 0 (no timeout)
+	//                ftpClient.setSoTimeout(CONNECTION_TIMEOUT*1000);
+	//                if(Debug.ON) Debug.trace("soTimeout="+ftpClient.getSoTimeout());
+	
+	                // Throw an IOException if server replied with an error
+	                checkServerReply();
 
-                // Override default port (21) if a custom port was specified in the URL
-                int port = realm.getPort();
-                if(Debug.ON) Debug.trace("custom port="+port);
-                if(port!=-1)
-                    ftpClient.setDefaultPort(port);
+	                Credentials credentials = getCredentials();
+	
+	                // Throw an AuthException if there are no credentials
+	                if(Debug.ON) Debug.trace("fileURL="+ realm.toString(true)+" credentials="+ credentials);
+	                if(credentials ==null)
+	                    throwAuthException(null);
+	
+	                // Login
+	                ftpClient.login(credentials.getLogin(), credentials.getPassword());
+	                // Throw an IOException (potentially an AuthException) if the server replied with an error
+	                checkServerReply();
+	
+	                // Enables/disables passive mode
+	                if(Debug.ON) Debug.trace("passiveMode="+passiveMode);
+	                if(passiveMode)
+	                    this.ftpClient.enterLocalPassiveMode();
+	                else
+	                    this.ftpClient.enterLocalActiveMode();
+	
+	                // Set file type to 'binary'
+	                ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
+	
+	                // Issue 'LIST -al' command to list hidden files (instead of LIST -l), only if the corresponding
+	                // configuration variable has been manually enabled in the preferences.
+	                // The reason for not doing so by default is that the commons-net library will fail to properly parse
+	                // directory listings on some servers when 'LIST -al' is used (bug).
+	                // Note that by default, if 'LIST -l' is used, the decision to list hidden files is left to the
+	                // FTP server: some servers will choose to show them, some other will not. This behavior usually is a
+	                // configuration setting of the FTP server.
+	                // Todo: this should not be a configuration variable but rather a FileURL property
+	                ftpClient.setListHiddenFiles(MuConfiguration.getVariable(MuConfiguration.LIST_HIDDEN_FILES, MuConfiguration.DEFAULT_LIST_HIDDEN_FILES));
+	
+	                if(encoding.equalsIgnoreCase("UTF-8")) {
+	                    // This command enables UTF8 on the remote server... but only a few FTP servers currently support this command
+	                    ftpClient.sendCommand("OPTS UTF8 ON");
+	                }
 
-                // Sets the control encoding
-                // - most modern FTP servers seem to default to UTF-8, but not all of them do.
-                // - commons-ftp defaults to ISO-8859-1 which is not good
-                // Note: this has to be done before the connection is established otherwise it won't be taken into account
-                if(Debug.ON) Debug.trace("encoding="+encoding);
-                ftpClient.setControlEncoding(encoding);
+	                break;
+	            }
+	            catch(IOException e) {
+                    // Attempt to retry if the connection failed, or if the server reply corresponds to a temporary error.
+                    // Unlike 5xx errors which are permanent, 4xx errors are temporary and may be retried, quote from
+                    // RFC 959: "The command was not accepted and the requested action did not take place, but the error
+                    // condition is temporary and the action may be requested again."
+	                int replyCode = ftpClient.getReplyCode();
+                    if(!ftpClient.isConnected() || FTPReply.isNegativeTransient(replyCode)) {
+                        if(Debug.ON) Debug.trace((!ftpClient.isConnected()?"Connection error":"Temporary server error ("+replyCode+")")+", retries left="+retriesLeft);
 
-                // Connect to the FTP server
-                ftpClient.connect(realm.getHost());
+                        // Retry to connect, if we have at least an attempt left
+                        if(retriesLeft>0) {
+                            retriesLeft--;
 
-//                // Set a socket timeout: default value is 0 (no timeout)
-//                ftpClient.setSoTimeout(CONNECTION_TIMEOUT*1000);
-//                if(Debug.ON) Debug.trace("soTimeout="+ftpClient.getSoTimeout());
+                            // Wait before retrying
+                            if(retryDelay>0) {
+                                if(Debug.ON) Debug.trace("waiting "+retryDelay+ "ms before retrying to connect");
 
-                // Throw an IOException if server replied with an error
-                checkServerReply();
+                                try { Thread.sleep(retryDelay); }
+                                catch(InterruptedException e2) {};
+                            }
 
-                Credentials credentials = getCredentials();
+                            continue;
+                        }
+                    }
 
-                // Throw an AuthException if there are no credentials
-                if(Debug.ON) Debug.trace("fileURL="+ realm.toString(true)+" credentials="+ credentials);
-                if(credentials ==null)
-                    throw new AuthException(realm);
+                    // Disconnect if the connection could not be established
+                    if(ftpClient.isConnected())
+                        try { ftpClient.disconnect(); } catch(IOException e2) {}
 
-                // Login
-                ftpClient.login(credentials.getLogin(), credentials.getPassword());
-                // Throw an IOException (potentially an AuthException) if the server replied with an error
-                checkServerReply();
-
-                // Enables/disables passive mode
-                if(Debug.ON) Debug.trace("passiveMode="+passiveMode);
-                if(passiveMode)
-                    this.ftpClient.enterLocalPassiveMode();
-                else
-                    this.ftpClient.enterLocalActiveMode();
-
-                // Set file type to 'binary'
-                ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
-
-                // Issue 'LIST -al' command to list hidden files (instead of LIST -l), only if the corresponding
-                // configuration variable has been manually enabled in the preferences.
-                // The reason for not doing so by default is that the commons-net library will fail to properly parse
-                // directory listings on some servers when 'LIST -al' is used (bug).
-                // Note that by default, if 'LIST -l' is used, the decision to list hidden files is left to the
-                // FTP server: some servers will choose to show them, some other will not. This behavior usually is a
-                // configuration setting of the FTP server.
-                // Todo: this should not be a configuration variable but rather a FileURL property
-                ftpClient.setListHiddenFiles(MuConfiguration.getVariable(MuConfiguration.LIST_HIDDEN_FILES, MuConfiguration.DEFAULT_LIST_HIDDEN_FILES));
-
-                if(encoding.equalsIgnoreCase("UTF-8")) {
-                    // This command enables UTF8 on the remote server... but only a few FTP servers currently support this command
-                    ftpClient.sendCommand("OPTS UTF8 ON");
-                }
+                    // Re-throw the exception
+                    throw e;
+	            }
             }
-            catch(IOException e) {
-                // Disconnect if something went wrong
-                if(ftpClient.isConnected())
-                    try { ftpClient.disconnect(); } catch(IOException e2) {}
-
-                // Re-throw exception
-                throw e;
-            }
+            while(true);
         }
 
 
@@ -1263,6 +1344,47 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
                     checkSocketException(e);
                 }
             }
+        }
+    }
+
+    /**
+     * A Permissions implementation for FTPFile.
+     */
+    private static class FTPFilePermissions extends IndividualPermissionBits implements FilePermissions {
+
+        private org.apache.commons.net.ftp.FTPFile file;
+
+        public FTPFilePermissions(org.apache.commons.net.ftp.FTPFile file) {
+            this.file = file;
+        }
+
+        public boolean getBitValue(int access, int type) {
+            int fAccess;
+            int fPermission;
+
+            if(access==USER_ACCESS)
+                fAccess = org.apache.commons.net.ftp.FTPFile.USER_ACCESS;
+            else if(access==GROUP_ACCESS)
+                fAccess = org.apache.commons.net.ftp.FTPFile.GROUP_ACCESS;
+            else if(access==OTHER_ACCESS)
+                fAccess = org.apache.commons.net.ftp.FTPFile.WORLD_ACCESS;
+            else
+                return false;
+
+            if(type==READ_PERMISSION)
+                fPermission = org.apache.commons.net.ftp.FTPFile.READ_PERMISSION;
+            else if(type==WRITE_PERMISSION)
+                fPermission = org.apache.commons.net.ftp.FTPFile.WRITE_PERMISSION;
+            else if(type==EXECUTE_PERMISSION)
+                fPermission = org.apache.commons.net.ftp.FTPFile.EXECUTE_PERMISSION;
+            else
+                return false;
+
+            return file.hasPermission(fAccess, fPermission);
+        }
+
+        public PermissionBits getMask() {
+            return FULL_PERMISSION_BITS;        
         }
     }
 }

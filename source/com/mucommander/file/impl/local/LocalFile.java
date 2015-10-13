@@ -19,11 +19,10 @@
 package com.mucommander.file.impl.local;
 
 import com.mucommander.Debug;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
-import com.mucommander.file.FileProtocols;
-import com.mucommander.file.FileURL;
+import com.mucommander.desktop.DesktopManager;
+import com.mucommander.file.*;
 import com.mucommander.file.filter.FilenameFilter;
+import com.mucommander.file.util.Kernel32;
 import com.mucommander.file.util.Kernel32API;
 import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
@@ -46,7 +45,7 @@ import java.util.regex.Matcher;
  * Note that despite the class' name, LocalFile instances may indifferently be residing on a local hard drive,
  * or on a remote server mounted locally by the operating system.
  *
- * <p>The associated {@link FileURL} protocol is {@link FileProtocols#FILE}. The host part should be {@link FileURL#LOCALHOST},
+ * <p>The associated {@link FileURL} scheme is {@link FileProtocols#FILE}. The host part should be {@link FileURL#LOCALHOST},
  * except for Windows UNC URLs (see below). Native path separators ('/' or '\\' depending on the OS) can be used
  * in the path part.
  *
@@ -74,17 +73,19 @@ import java.util.regex.Matcher;
  */
 public class LocalFile extends AbstractFile {
 
-    private File file;
-    private String parentFilePath;
-    private String absPath;
+    protected File file;
+    private FilePermissions permissions;
+
+    protected String parentFilePath;
+    protected String absPath;
 
     /** True if this file has a Windows-style UNC path. Can be true only under Windows. */
     private boolean isUNC;
 
     /** Caches the parent folder, initially null until getParent() gets called */
-    private AbstractFile parent;
+    protected AbstractFile parent;
     /** Indicates whether the parent folder instance has been retrieved and cached or not (parent can be null) */
-    private boolean parentValueSet;
+    protected boolean parentValueSet;
 	
     /** Underlying local filesystem's path separator: "/" under UNIX systems, "\" under Windows and OS/2 */
     public final static String SEPARATOR = File.separator;
@@ -97,19 +98,37 @@ public class LocalFile extends AbstractFile {
     public final static boolean USES_ROOT_DRIVES = IS_WINDOWS || OsFamilies.OS_2.isCurrent();
 
 
+    // Permissions can only be changed under Java 1.6 and up and are limited to 'user' access.
+    // Note: 'read' and 'execute' permissions have no meaning under Windows (files are either read-only or
+    // read-write) and as such can't be changed.
+
+    /** Changeable permissions mask for Java 1.6 and up, on OSes other than Windows */
+    private static PermissionBits CHANGEABLE_PERMISSIONS_JAVA_1_6_NON_WINDOWS = new GroupedPermissionBits(448);   // rwx------ (700 octal)
+
+    /** Changeable permissions mask for Java 1.6 and up, on Windows OS (any version) */
+    private static PermissionBits CHANGEABLE_PERMISSIONS_JAVA_1_6_WINDOWS = new GroupedPermissionBits(128);   // -w------- (200 octal)
+
+    /** Changeable permissions mask for Java 1.5 or below */
+    private static PermissionBits CHANGEABLE_PERMISSIONS_JAVA_1_5 = PermissionBits.EMPTY_PERMISSION_BITS;   // --------- (0)
+
+    /** Bit mask that indicates which permissions can be changed */
+    private final static PermissionBits CHANGEABLE_PERMISSIONS = JavaVersions.JAVA_1_6.isCurrentOrHigher()
+            ?(IS_WINDOWS?CHANGEABLE_PERMISSIONS_JAVA_1_6_WINDOWS:CHANGEABLE_PERMISSIONS_JAVA_1_6_NON_WINDOWS)
+            : CHANGEABLE_PERMISSIONS_JAVA_1_5;
+
     static {
         // Prevents Windows from poping up a message box when it cannot find a file. Those message box are triggered by
         // java.io.File methods when operating on removable drives such as floppy or CD-ROM drives which have no disk
         // inserted.
         // This has been fixed in Java 1.6 b55 but this fixes previous versions of Java.
         // See http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4089199
-        if(IS_WINDOWS)
-            Kernel32API.INSTANCE.SetErrorMode(Kernel32API.SEM_NOOPENFILEERRORBOX);
+        if(IS_WINDOWS && Kernel32.isAvailable())
+            Kernel32.getInstance().SetErrorMode(Kernel32API.SEM_NOOPENFILEERRORBOX|Kernel32API.SEM_FAILCRITICALERRORS);
     }
 
 
     /**
-     * Creates a new instance of LocalFile. The given FileURL's protocol should be {@link FileProtocols#FILE}, and the
+     * Creates a new instance of LocalFile. The given FileURL's scheme should be {@link FileProtocols#FILE}, and the
      * host {@link FileURL#LOCALHOST}.  
      */
     public LocalFile(FileURL fileURL) throws IOException {
@@ -126,6 +145,7 @@ public class LocalFile extends AbstractFile {
         }
 
         this.file = new File(path);
+        this.permissions = new LocalFilePermissions(file);
 
         // Throw an exception is the file's path is not absolute.
         if(!file.isAbsolute())
@@ -188,65 +208,68 @@ public class LocalFile extends AbstractFile {
         try {
             // OS is Windows
             if(IS_WINDOWS) {
-//                // Parses the output of 'dir "filePath"' command to retrieve free space information
-//
-//                // 'dir' command returns free space on the last line
-//                //Process process = PlatformManager.execute("dir \""+absPath+"\"", this);
-//                //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
-//                Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
-//
-//                // Check that the process was correctly started
-//                if(process!=null) {
-//                    br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-//                    String line;
-//                    String lastLine = null;
-//                    // Retrieves last line of dir
-//                    while((line=br.readLine())!=null) {
-//                        if(!line.trim().equals(""))
-//                            lastLine = line;
-//                    }
-//
-//                    // Last dir line may look like something this (might vary depending on system's language, below in French):
-//                    // 6 Rep(s)  14 767 521 792 octets libres
-//                    if(lastLine!=null) {
-//                        StringTokenizer st = new StringTokenizer(lastLine, " \t\n\r\f,.");
-//                        // Discard first token
-//                        st.nextToken();
-//
-//                        // Concatenates as many contiguous groups of numbers
-//                        String token;
-//                        String freeSpace = "";
-//                        while(st.hasMoreTokens()) {
-//                            token = st.nextToken();
-//                            char c = token.charAt(0);
-//                            if(c>='0' && c<='9')
-//                                freeSpace += token;
-//                            else if(!freeSpace.equals(""))
-//                                break;
-//                        }
-//
-//                        dfInfo[1] = Long.parseLong(freeSpace);
-//                    }
-//                }
+                // Use the Kernel32 DLL if it is available
+                if(Kernel32.isAvailable()) {
+                    // Retrieves the total and free space information using the GetDiskFreeSpaceEx function of the
+                    // Kernel32 API.
+                    LongByReference totalSpaceLBR = new LongByReference();
+                    LongByReference freeSpaceLBR = new LongByReference();
 
-                // Retrieves the total and free space information using the GetDiskFreeSpaceEx function of the
-                // Kernel32 API.
-                LongByReference totalSpaceLBR = new LongByReference();
-                LongByReference freeSpaceLBR = new LongByReference();
-
-                if(Kernel32API.INSTANCE.GetDiskFreeSpaceEx(absPath, null, totalSpaceLBR, freeSpaceLBR)) {
-                    dfInfo[0] = totalSpaceLBR.getValue();
-                    dfInfo[1] = freeSpaceLBR.getValue();
+                    if(Kernel32.getInstance().GetDiskFreeSpaceEx(absPath, null, totalSpaceLBR, freeSpaceLBR)) {
+                        dfInfo[0] = totalSpaceLBR.getValue();
+                        dfInfo[1] = freeSpaceLBR.getValue();
+                    }
+                    else {
+                        if(Debug.ON) Debug.trace("Call to GetDiskFreeSpaceEx failed, absPath="+absPath);
+                    }
                 }
+                // Otherwise, parse the output of 'dir "filePath"' command to retrieve free space information
                 else {
-                    if(Debug.ON) Debug.trace("Call to GetDiskFreeSpaceEx failed, absPath="+absPath);
+                    // 'dir' command returns free space on the last line
+                    //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
+//                    Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
+                    Process process = Runtime.getRuntime().exec(DesktopManager.getDefaultShell() + " dir \""+absPath+"\"");
+
+                    // Check that the process was correctly started
+                    if(process!=null) {
+                        br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                        String line;
+                        String lastLine = null;
+                        // Retrieves last line of dir
+                        while((line=br.readLine())!=null) {
+                            if(!line.trim().equals(""))
+                                lastLine = line;
+                        }
+
+                        // Last dir line may look like something this (might vary depending on system's language, below in French):
+                        // 6 Rep(s)  14 767 521 792 octets libres
+                        if(lastLine!=null) {
+                            StringTokenizer st = new StringTokenizer(lastLine, " \t\n\r\f,.");
+                            // Discard first token
+                            st.nextToken();
+
+                            // Concatenates as many contiguous groups of numbers
+                            String token;
+                            String freeSpace = "";
+                            while(st.hasMoreTokens()) {
+                                token = st.nextToken();
+                                char c = token.charAt(0);
+                                if(c>='0' && c<='9')
+                                    freeSpace += token;
+                                else if(!freeSpace.equals(""))
+                                    break;
+                            }
+
+                            dfInfo[1] = Long.parseLong(freeSpace);
+                        }
+                    }
                 }
             }
             else if(OsFamily.getCurrent().isUnixBased()) {
-                // Parses the output of 'df -k "filePath"' command on UNIX-based systems to retrieve free and total space information
+                // Parses the output of 'df -P -k "filePath"' command on UNIX-based systems to retrieve free and total space information
 
-                // 'df -k' returns totals in block of 1K = 1024 bytes
-                Process process = Runtime.getRuntime().exec(new String[]{"df", "-k", absPath}, null, file);
+                // 'df -P -k' returns totals in block of 1K = 1024 bytes, -P uses the POSIX output format, ensures that line won't break
+                Process process = Runtime.getRuntime().exec(new String[]{"df", "-P", "-k", absPath}, null, file);
 
                 // Check that the process was correctly started
                 if(process!=null) {
@@ -331,8 +354,8 @@ public class LocalFile extends AbstractFile {
      * @return <code>true</code> if this file is the root of a removable media drive (floppy, CD, DVD, USB drive...). 
      */
     public boolean guessRemovableDrive() {
-        if(IS_WINDOWS) {
-            int driveType = Kernel32API.INSTANCE.GetDriveType(getAbsolutePath(true));
+        if(IS_WINDOWS && Kernel32.isAvailable()) {
+            int driveType = Kernel32.getInstance().GetDriveType(getAbsolutePath(true));
             if(driveType!=Kernel32API.DRIVE_UNKNOWN)
                 return driveType==Kernel32API.DRIVE_REMOVABLE || driveType==Kernel32API.DRIVE_CDROM;
         }
@@ -438,24 +461,15 @@ public class LocalFile extends AbstractFile {
         return file.exists();
     }
 	
-
-    public boolean getPermission(int access, int permission) {
-        // Only the 'user' permissions are supported
-        if(access!=USER_ACCESS)
-            return false;
-
-        if(permission==READ_PERMISSION)
-            return file.canRead();
-        else if(permission==WRITE_PERMISSION)
-            return file.canWrite();
-        // Execute permission can only be retrieved under Java 1.6 and up
-        else if(permission==EXECUTE_PERMISSION && JavaVersions.JAVA_1_6.isCurrentOrHigher())
-            return file.canExecute();
-
-        return false;
+    public FilePermissions getPermissions() {
+        return permissions;
     }
 
-    public boolean setPermission(int access, int permission, boolean enabled) {
+    public PermissionBits getChangeablePermissions() {
+        return CHANGEABLE_PERMISSIONS;
+    }
+
+    public boolean changePermission(int access, int permission, boolean enabled) {
         // Only the 'user' permissions under Java 1.6 are supported
         if(access!=USER_ACCESS || JavaVersions.JAVA_1_6.isCurrentLower())
             return false;
@@ -468,24 +482,6 @@ public class LocalFile extends AbstractFile {
             return file.setExecutable(enabled);
 
         return false;
-    }
-
-    public boolean canGetPermission(int access, int permission) {
-        // Only the 'user' permissions are supported
-        if(access!=USER_ACCESS)
-            return false;
-
-        // Execute permission is supported only under Java 1.6 (and on platforms other than Windows)
-        return permission!=EXECUTE_PERMISSION || JavaVersions.JAVA_1_6.isCurrentOrHigher();
-    }
-
-    public boolean canSetPermission(int access, int permission) {
-        // setPermission is limited to the user access type
-        if(access!=USER_ACCESS || JavaVersions.JAVA_1_6.isCurrentLower())
-            return false;
-
-        // Windows only supports write permission: files are either read-only or read-write
-        return !IS_WINDOWS || permission==WRITE_PERMISSION;
     }
 
     /**
@@ -592,7 +588,7 @@ public class LocalFile extends AbstractFile {
 
     public long getFreeSpace() {
         if(JavaVersions.JAVA_1_6.isCurrentOrHigher())
-            return file.getFreeSpace();
+            return file.getUsableSpace();
 
         return getVolumeInfo()[1];
     }
@@ -719,7 +715,7 @@ public class LocalFile extends AbstractFile {
     public boolean moveTo(AbstractFile destFile) throws FileTransferException  {
         // If destination file is not a LocalFile nor has a LocalFile ancestor (for instance an archive entry),
         // renaming won't work so use the default moveTo() implementation instead
-        if(!destFile.getURL().getProtocol().equals(FileProtocols.FILE)) {
+        if(!destFile.getURL().getScheme().equals(FileProtocols.FILE)) {
             return super.moveTo(destFile);
         }
 
@@ -746,19 +742,21 @@ public class LocalFile extends AbstractFile {
 
         if(IS_WINDOWS) {
             // Windows 9x or Windows Me: Kernel32's MoveFileEx function is NOT available
-            if(OsVersions.WINDOWS_ME.isCurrentOrLower() && destFile.exists()) {
+            if(OsVersions.WINDOWS_ME.isCurrentOrLower()) {
                 // The destination file is deleted before calling java.io.File#renameTo().
                 // Note that in this case, the atomicity of this method is not guaranteed anymore -- if
                 // java.io.File#renameTo() fails (for whatever reason), the destination file is deleted anyway.
-                destJavaIoFile.delete();
+                if(destFile.exists())
+                    destJavaIoFile.delete();
             }
-            // Windows NT: Kernel32's MoveFileEx function is available.
-            else {
+            // Windows NT: Kernel32's MoveFileEx can be used, if the Kernel32 DLL is available.
+            else if(Kernel32.isAvailable()) {
                 // Note: MoveFileEx is always used, even if the destination file does not exist, to avoid having to
                 // call #exists() on the destination file which has a cost.
-                return  Kernel32API.INSTANCE.MoveFileEx(absPath, destFile.getAbsolutePath(),
+                return  Kernel32.getInstance().MoveFileEx(absPath, destFile.getAbsolutePath(),
                         Kernel32API.MOVEFILE_REPLACE_EXISTING|Kernel32API.MOVEFILE_WRITE_THROUGH);
             }
+            // else fall back to java.io.File#renameTo
         }
 
         return file.renameTo(destJavaIoFile);
@@ -767,53 +765,6 @@ public class LocalFile extends AbstractFile {
 
     public boolean isHidden() {
         return file.isHidden();
-    }
-
-
-    /**
-     * Overridden for performance reasons.
-     */
-    public int getPermissionGetMask() {
-        // Note: 'read' and 'execute' permissions have no meaning under Windows (files are either read-only or
-        // read-write), but we return default values.
-
-        // Get permission support is limited to the user access type. Executable permission flag is only available under
-        // Java 1.6 and up.
-        return JavaVersions.JAVA_1_6.isCurrentOrHigher()?
-                448         // rwx------ (700 octal)
-                :384;       // rw------- (300 octal)
-    }
-
-    /**
-     * Overridden for performance reasons.
-     */
-    public int getPermissionSetMask() {
-        // Under Windows, only the 'write' permissions can be changed: files are either read-only or read-write
-        if(IS_WINDOWS)
-            return 128;
-
-        // Set permission support is only available under Java 1.6 and up and is limited to the user access type
-        return JavaVersions.JAVA_1_6.isCurrentOrHigher()?
-                448         // rwx------ (700 octal)
-                :0;         // --------- (0 octal)
-    }
-
-    /**
-     * Overridden for performance reasons.
-     */
-    public int getPermissions() {
-        int userPerms = 0;
-
-        if(getPermission(USER_ACCESS, READ_PERMISSION))
-            userPerms |= READ_PERMISSION;
-
-        if(getPermission(USER_ACCESS, WRITE_PERMISSION))
-            userPerms |= WRITE_PERMISSION;
-
-        if(canGetPermission(USER_ACCESS, EXECUTE_PERMISSION) && getPermission(USER_ACCESS, EXECUTE_PERMISSION))
-            userPerms |= EXECUTE_PERMISSION;
-
-        return userPerms<<6;
     }
 
     /**
@@ -1061,5 +1012,68 @@ public class LocalFile extends AbstractFile {
     }
 
 
+    /**
+     * A Permissions implementation for LocalFile.
+     */
+    private static class LocalFilePermissions extends IndividualPermissionBits implements FilePermissions {
+        
+        private java.io.File file;
 
+        // Permissions are limited to the user access type. Executable permission flag is only available under Java 1.6
+        // and up.
+        // Note: 'read' and 'execute' permissions have no meaning under Windows (files are either read-only or
+        // read-write), but we return default values.
+
+        /** Mask for supported permissions under Java 1.6 */
+        private static PermissionBits JAVA_1_6_PERMISSIONS = new GroupedPermissionBits(448);   // rwx------ (700 octal)
+
+        /** Mask for supported permissions under Java 1.5 */
+        private static PermissionBits JAVA_1_5_PERMISSIONS = new GroupedPermissionBits(384);   // rw------- (300 octal)
+
+        private final static PermissionBits MASK = JavaVersions.JAVA_1_6.isCurrentOrHigher()
+                ?JAVA_1_6_PERMISSIONS
+                :JAVA_1_5_PERMISSIONS;
+
+        private LocalFilePermissions(java.io.File file) {
+            this.file = file;
+        }
+
+        public boolean getBitValue(int access, int type) {
+            // Only the 'user' permissions are supported
+            if(access!=USER_ACCESS)
+                return false;
+
+            if(type==READ_PERMISSION)
+                return file.canRead();
+            else if(type==WRITE_PERMISSION)
+                return file.canWrite();
+            // Execute permission can only be retrieved under Java 1.6 and up
+            else if(type==EXECUTE_PERMISSION && JavaVersions.JAVA_1_6.isCurrentOrHigher())
+                return file.canExecute();
+
+            return false;
+        }
+
+        /**
+         * Overridden for peformance reasons.
+         */
+        public int getIntValue() {
+            int userPerms = 0;
+
+            if(getBitValue(USER_ACCESS, READ_PERMISSION))
+                userPerms |= READ_PERMISSION;
+
+            if(getBitValue(USER_ACCESS, WRITE_PERMISSION))
+                userPerms |= WRITE_PERMISSION;
+
+            if(getBitValue(USER_ACCESS, EXECUTE_PERMISSION))
+                userPerms |= EXECUTE_PERMISSION;
+
+            return userPerms<<6;
+        }
+
+        public PermissionBits getMask() {
+            return MASK;
+        }
+    }
 }

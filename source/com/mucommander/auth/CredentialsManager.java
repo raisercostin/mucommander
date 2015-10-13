@@ -182,7 +182,7 @@ public class CredentialsManager implements VectorChangeListener {
      * and which can be used to authenticate. The location is compared against all known credentials, both volatile and
      * persistent.
      *
-     * <p>The returned credentials will match the given URL's protocol and host, but the path may differ so there is
+     * <p>The returned credentials will match the given URL's scheme and host, but the path may differ so there is
      * no guarantee that the credentials will successfully authenticate the location.
      *
      * <p>The best match (credentials with the 'closest' path to the provided location's path) is returned at the first
@@ -190,7 +190,7 @@ public class CredentialsManager implements VectorChangeListener {
      * (zero length) but never null.
      * 
      * @param location the location to be compared against known credentials instances, both volatile and persistent
-     * @return an array of CredentialsMapping matching the given URL's protocol and host, best match at the first position
+     * @return an array of CredentialsMapping matching the given URL's scheme and host, best match at the first position
      */
     public static CredentialsMapping[] getMatchingCredentials(FileURL location) {
         // Retrieve matches
@@ -205,11 +205,11 @@ public class CredentialsManager implements VectorChangeListener {
 
 
     /**
-     * Returns a Vector of CredentialsMapping matching the given URL's protocol and host, best match at the first position.
+     * Returns a Vector of CredentialsMapping matching the given URL's scheme and host, best match at the first position.
      * The returned Vector may be empty but never null.
      *
      * @param location the location to be compared against known credentials instances, both volatile and persistent
-     * @return a Vector of CredentialsMapping matching the given URL's protocol and host, best match at the first position
+     * @return a Vector of CredentialsMapping matching the given URL's scheme and host, best match at the first position
      */
     private static Vector getMatchingCredentialsV(FileURL location) {
         Vector matchesV = new Vector();
@@ -291,31 +291,47 @@ public class CredentialsManager implements VectorChangeListener {
         location.setCredentials(credentialsMapping.getCredentials());
 
         FileURL realm = credentialsMapping.getRealm();
-        Enumeration propertyKeys = realm.getPropertyKeys();
-        if(propertyKeys!=null) {
-            String key;
-            while(propertyKeys.hasMoreElements()) {
-                key = (String)propertyKeys.nextElement();
+        Enumeration propertyKeys = realm.getPropertyNames();
+        String key;
+        while(propertyKeys.hasMoreElements()) {
+            key = (String)propertyKeys.nextElement();
 
-                if(location.getProperty(key)==null)
-                    location.setProperty(key, realm.getProperty(key));
-            }
+            if(location.getProperty(key)==null)
+                location.setProperty(key, realm.getProperty(key));
         }
     }
 
 
     /**
-     * Looks for the best implicit credentials matching the given location (if any) and use them to authenticate the
-     * location by calling {@link #authenticate(com.mucommander.file.FileURL, CredentialsMapping)}.
+     * Looks for the best set of credentials matching the given location (if any) and use it to authenticate the
+     * URL by calling {@link #authenticate(com.mucommander.file.FileURL, CredentialsMapping)}.
+     * Returns <code>true</code> if a set of credentials was found and used to authenticate the URL, <code>false</code>
+     * otherwise.
+     *
+     * <p>Credentials are first looked for using {@link #getMatchingCredentials(com.mucommander.file.FileURL)}.
+     * If there is no match, guest credentials are retrieved from the URL and used (if any).</p>
      *
      * @param location the FileURL to authenticate
+     * @return <code>true</code> if a set of credentials was found and used to authenticate the URL, <code>false</code>
+     * otherwise
      */
-    public static void authenticateImplicit(FileURL location) {
+    public static boolean authenticateImplicit(FileURL location) {
         if(Debug.ON) Debug.trace("called, fileURL="+ location +" containsCredentials="+ location.containsCredentials());
 
         CredentialsMapping creds[] = getMatchingCredentials(location);
-        if(creds.length>0)
+        if(creds.length>0) {
             authenticate(location, creds[0]);
+            return true;
+        }
+        else {
+            Credentials guestCredentials = location.getGuestCredentials();
+            if(guestCredentials!=null) {
+                authenticate(location, new CredentialsMapping(guestCredentials, location.getRealm(), false));
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
@@ -328,11 +344,7 @@ public class CredentialsManager implements VectorChangeListener {
      * @param matches the Vector where matching CredentialsMapping instances will be added
      */
     private static void findMatches(FileURL location, Vector credentials, Vector matches) {
-        String protocol = location.getProtocol();
-        int port = location.getPort();
-        String host = location.getHost();
         CredentialsMapping tempCredentialsMapping;
-        String tempHost;
         FileURL tempRealm;
 
         int nbEntries = credentials.size();
@@ -340,18 +352,10 @@ public class CredentialsManager implements VectorChangeListener {
             tempCredentialsMapping = (CredentialsMapping)credentials.elementAt(i);
             tempRealm = tempCredentialsMapping.getRealm();
 
-            if(tempRealm.equals(location)) {
+            if(location.schemeEquals(tempRealm)
+            && location.portEquals(tempRealm)
+            && location.hostEquals(tempRealm))
                 matches.add(tempCredentialsMapping);
-            }
-            else {
-                tempHost = tempRealm.getHost();
-
-                if(tempRealm.getProtocol().equals(protocol)
-                        && (tempRealm.getPort()==port)
-                        && ((host!=null && tempHost!=null && host.equalsIgnoreCase(tempHost)) || (host!=null && host.equalsIgnoreCase(tempHost)) || (tempHost!=null && tempHost.equalsIgnoreCase(host)))) {
-                    matches.add(tempCredentialsMapping);
-                }
-            }
         }
 
         if(Debug.ON) Debug.trace("returning matches="+matches);

@@ -207,7 +207,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
                 if(e instanceof AuthException) {
                     // Prompts the user for a login and password.
                     AuthException authException = (AuthException)e;
-                    AuthDialog authDialog = new AuthDialog(currentMainFrame, authException.getFileURL(), authException.getMessage());
+                    AuthDialog authDialog = new AuthDialog(currentMainFrame, authException.getURL(), true, authException.getMessage());
                     authDialog.showDialog();
                     newCredentialsMapping = authDialog.getCredentialsMapping();
                     if(newCredentialsMapping !=null) {
@@ -561,10 +561,16 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     public void windowDeactivated(WindowEvent e) {
         Object source = e.getSource();
 
+        // Workaround for JRE bug #4841881 (http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4841881) /
+        // which causes Alt+Tab to focus the menu bar under certain L&F.
+        // This bug has also been reported as muCommmander bug #89.  
+        MenuSelectionManager.defaultManager().clearSelectedPath();
+
         // Return if event doesn't originate from a MainFrame (e.g. ViewerFrame or EditorFrame)
         if(!(source instanceof MainFrame))
             return;
 
+        // Let MainFrame know that it is not active anymore
         ((MainFrame)e.getSource()).setForegroundActive(false);
     }
 

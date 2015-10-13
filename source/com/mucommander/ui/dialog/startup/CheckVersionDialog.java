@@ -19,19 +19,21 @@
 package com.mucommander.ui.dialog.startup;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
 import com.mucommander.VersionChecker;
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.FileFactory;
 import com.mucommander.job.SelfUpdateJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.GoToWebsiteAction;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import java.awt.*;
+import java.net.URL;
 import java.util.Vector;
 
 /**
@@ -85,7 +87,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         String         text;
         String         title;
         VersionChecker version;
-        String         downloadURL = null;
+        URL            downloadURL = null;
         boolean        downloadOption = false;
         String         jarURL = null;
 
@@ -100,8 +102,8 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
                 title = Translator.get("version_dialog.new_version_title");
 
                 // Checks if the current platform can open a new browser window
-                downloadOption = PlatformManager.canOpenUrl();
-                downloadURL = version.getDownloadURL();
+                downloadURL    = new URL(version.getDownloadURL());
+                downloadOption = DesktopManager.isOperationSupported(DesktopManager.BROWSE, new Object[] {downloadURL});
                 
                 // If the platform is not capable of opening a new browser window,
                 // display the download URL.
@@ -109,7 +111,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
                     text = Translator.get("version_dialog.new_version");
                 }
                 else {
-                    text = Translator.get("version_dialog.new_version_url", downloadURL);
+                    text = Translator.get("version_dialog.new_version_url", downloadURL.toString());
                 }
 
                 jarURL = version.getJarURL();
@@ -155,7 +157,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         // 'Go to website' choice (if available)
         if(downloadOption) {
             actionsV.add(new Integer(GO_TO_WEBSITE_ACTION));
-            labelsV.add(Translator.get(GoToWebsiteAction.class.getName()+".label"));
+            labelsV.add(MuAction.getStandardLabel(GoToWebsiteAction.class));
         }
 
 //        // 'Install and restart' choice (if available)
@@ -189,7 +191,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         int action = getActionValue();
 
         if(action==GO_TO_WEBSITE_ACTION) {
-            try {PlatformManager.openUrl(FileFactory.getFile(downloadURL));}
+            try {DesktopManager.executeOperation(DesktopManager.BROWSE, new Object[] {downloadURL});}
             catch(Exception e) {JOptionPane.showMessageDialog(this, Translator.get("generic_error"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);}
         }
         else if(action==INSTALL_AND_RESTART_ACTION) {

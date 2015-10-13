@@ -18,20 +18,30 @@
 
 package com.mucommander.ui.dialog.file;
 
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.file.util.FileSet;
+import com.mucommander.file.util.OSXFileUtils;
 import com.mucommander.job.FileJob;
 import com.mucommander.job.PropertiesJob;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.icon.FileIcons;
+import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.icon.SpinningDial;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.FileLabel;
+import com.mucommander.ui.text.MultiLineLabel;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -60,41 +70,74 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
 
     /** How often should progress information be refreshed (in ms) */
     private final static int REFRESH_RATE = 500;
+
+    /** Dimension of the large file icon displayed on left side of the dialog */
+    private final static Dimension ICON_DIMENSION = new Dimension(64, 64);
+
 	
     public PropertiesDialog(MainFrame mainFrame, FileSet files) {
         super(mainFrame,
-              files.size() > 1 ? Translator.get(com.mucommander.ui.action.ShowFilePropertiesAction.class.getName()+".label") :
+              files.size() > 1 ? MuAction.getStandardLabel(com.mucommander.ui.action.ShowFilePropertiesAction.class) :
               Translator.get("properties_dialog.file_properties", files.fileAt(0).getName()), mainFrame);
         this.mainFrame = mainFrame;
 
-        // Display wait cursor while calculating size
-        mainFrame.setCursor(new Cursor(Cursor.WAIT_CURSOR));
-		
         this.job = new PropertiesJob(files, mainFrame);
 		
         Container contentPane = getContentPane();
-	
-        XAlignedComponentPanel mainPanel = new XAlignedComponentPanel(10);
-		
+
+        JPanel fileDetailsPanel = new JPanel(new BorderLayout());
+
+        Icon icon;
+        boolean isSingleFile = files.size()==1;
+        AbstractFile singleFile = isSingleFile?files.fileAt(0):null;
+        if(isSingleFile) {
+            icon = FileIcons.getFileIcon(singleFile, ICON_DIMENSION);
+        }
+        else {
+            ImageIcon imageIcon = IconManager.getIcon(IconManager.COMMON_ICON_SET, "many_files.png");
+            icon = IconManager.getScaledIcon(imageIcon, (float)ICON_DIMENSION.getWidth()/imageIcon.getIconWidth());
+        }
+
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setVerticalAlignment(JLabel.TOP);
+        iconLabel.setBorder(new EmptyBorder(0, 0, 0, 8));
+
+        fileDetailsPanel.add(iconLabel, BorderLayout.WEST);
+
+        XAlignedComponentPanel labelPanel = new XAlignedComponentPanel(10);
+
         // Contents (set later)
         counterLabel = new JLabel("");
-        mainPanel.addRow(Translator.get("properties_dialog.contents")+":", counterLabel, 10);
+        labelPanel.addRow(Translator.get("properties_dialog.contents")+":", counterLabel, 6);
 
         // Location (set here)
-        mainPanel.addRow(Translator.get("location")+":", new FileLabel(files.getBaseFolder(), true), 10);
+        labelPanel.addRow(Translator.get("location")+":", new FileLabel(files.getBaseFolder(), true), 6);
 
         // Combined size (set later)
         JPanel sizePanel;
         sizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         sizePanel.add(sizeLabel = new JLabel(""));
         sizePanel.add(new JLabel(dial = new SpinningDial()));
-        mainPanel.addRow(Translator.get("size")+":", sizePanel, 5);
+        labelPanel.addRow(Translator.get("size")+":", sizePanel, 6);
+
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_4.isCurrentOrHigher()
+        && isSingleFile && singleFile.hasAncestor(LocalFile.class)) {
+            String comment = OSXFileUtils.getSpotlightComment(singleFile);
+            JLabel commentLabel = new JLabel(Translator.get("comment")+":");
+            commentLabel.setAlignmentY(JLabel.TOP_ALIGNMENT);
+            commentLabel.setVerticalAlignment(SwingConstants.TOP);
+
+            labelPanel.addRow(commentLabel, new MultiLineLabel(comment), 6);
+        }
 
         updateLabels();
+
+        fileDetailsPanel.add(labelPanel, BorderLayout.CENTER);
+
         YBoxPanel yPanel = new YBoxPanel(5);
-        yPanel.add(mainPanel);
+        yPanel.add(fileDetailsPanel);
         contentPane.add(yPanel, BorderLayout.NORTH);
-		
+
         okCancelButton = new JButton(Translator.get("cancel"));
         contentPane.add(DialogToolkit.createOKPanel(okCancelButton, getRootPane(), this), BorderLayout.SOUTH);
 
@@ -148,7 +191,6 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
         // Updates button labels and stops spinning dial.
         updateLabels();
         okCancelButton.setText(Translator.get("ok"));
-        mainFrame.setCursor(Cursor.getDefaultCursor());
         dial.setAnimated(false);
     }
 

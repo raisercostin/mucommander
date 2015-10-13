@@ -18,9 +18,10 @@
 
 package com.mucommander.ui.dialog.about;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.RuntimeConstants;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.MainFrame;
@@ -33,6 +34,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Locale;
 
 /**
@@ -77,7 +79,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
      * @param mainFrame frame this dialog is relative to.
      */
     public AboutDialog(MainFrame mainFrame) {
-        super(mainFrame, Translator.get(com.mucommander.ui.action.ShowAboutAction.class.getName()+".label"), mainFrame);
+        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.ShowAboutAction.class), mainFrame);
 
         // Initialises the dialog's content.
         Container contentPane = getContentPane();
@@ -115,26 +117,38 @@ public class AboutDialog extends FocusDialog implements ActionListener {
         text.setEditable(false);
         try {
             // Team.
-            insertTitle(doc,         "The muCommander team");
+            insertTitle(doc,          "The muCommander team");
 
-            // Lead developers.
-            insertHeader(doc,         "Lead developers");
+            // Core developers.
+            insertHeader(doc,         "Core developers");
             insertNormalString(doc,   "Maxence Bernard");
             insertNormalString(doc,   "Nicolas Rinaudo");
+            insertNormalString(doc,   "Arik Hadas");
+            insertNormalString(doc,   "Mariusz Jakubowski");
             insertLineBreak(doc);
 
             // Contributors.
-            insertHeader(doc,         "Code contributors");
+            insertHeader(doc,         "Contributors");
+            insertNormalString(doc,   "Ivan Baidakov");
             insertNormalString(doc,   "Vassil Dichev");
-            insertNormalString(doc,   "Mariusz Jakubowski");
+            insertNormalString(doc,   "David Kovar");
+            insertNormalString(doc,   "Karel Klic");
+            insertNormalString(doc,   "Joshua Lebo");
             insertNormalString(doc,   "Xavier Martin");
             insertNormalString(doc,   "Alejandro Scandroli");
             insertLineBreak(doc);
 
+            // QA
+            insertHeader(doc,         "QA");
+            insertNormalString(doc,   "Joshua Lebo");
+            insertLineBreak(doc);
+
             // Translators.
             insertHeader(doc,         "Translators");
+            insertDetailedString(doc, "4X_Pro",              "Russian");
             insertDetailedString(doc, "Roberto Angeletti",   "Italian");
             insertDetailedString(doc, "Tamás Balogh-Walder", "Hungarian");
+            insertDetailedString(doc, "Mykola Bilovus",      "Ukrainian");
             insertDetailedString(doc, "György Varga",        "Hungarian");
             insertDetailedString(doc, "Frank Berger",        "German");
             insertDetailedString(doc, "Tony Klüver",         "German");
@@ -149,10 +163,10 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedString(doc, "Pieter Kristensen",   "Dutch");
             insertDetailedString(doc, "Ján Ľudvík",          "Slovak");
             insertDetailedString(doc, "Jaromír Mára",        "Czech");
-            insertDetailedString(doc, "Nardog",              "Japanese");
-            insertDetailedString(doc, "Peter Vasko",         "Czech");
             insertDetailedString(doc, "Jonathan Murphy",     "British English");
-            insertDetailedString(doc, "4X_Pro",              "Russian");
+            insertDetailedString(doc, "Nardog",              "Japanese");
+            insertDetailedString(doc, "Jeppe Toustrup",      "Danish");
+            insertDetailedString(doc, "Peter Vasko",         "Czech");
             insertDetailedString(doc, "Woodie",              "Simplified Chinese");
             insertLineBreak(doc);
 
@@ -175,6 +189,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
             insertDetailedUrl(doc,    "JmDNS",               "LGPL",                                 "http://jmdns.sourceforge.net");
             insertDetailedUrl(doc,    "JNA",                 "LGPL",                                 "http://jna.dev.java.net");
+            insertDetailedUrl(doc,    "JUnRar",              "Freeware",                             "http://sourceforge.net/projects/java-unrar");
             insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
             insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
             insertLineBreak(doc);
@@ -256,8 +271,8 @@ public class AboutDialog extends FocusDialog implements ActionListener {
         mainPanel.add(tempPanel, BorderLayout.NORTH);
 
         tempPanel = new JPanel(new BorderLayout());
-        if(PlatformManager.canOpenUrl()) {
-            tempPanel.add(homeButton = new JButton(Translator.get(com.mucommander.ui.action.GoToWebsiteAction.class.getName()+".label")), BorderLayout.NORTH);
+        if(DesktopManager.canBrowse()) {
+            tempPanel.add(homeButton = new JButton(MuAction.getStandardLabel(com.mucommander.ui.action.GoToWebsiteAction.class)), BorderLayout.NORTH);
             homeButton.addActionListener(this);
         }
         else {
@@ -420,7 +435,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
         if(e.getSource() == okButton)
             dispose();
         else if(e.getSource() == homeButton) {
-            try {PlatformManager.open(com.mucommander.file.FileFactory.getFile(RuntimeConstants.HOMEPAGE_URL));}
+            try {DesktopManager.browse(new URL(RuntimeConstants.HOMEPAGE_URL));}
             // Ignores errors here as there really isn't anything we can do.
             catch(IOException ignored) {}
         }

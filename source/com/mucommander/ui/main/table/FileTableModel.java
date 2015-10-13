@@ -43,6 +43,9 @@ public class FileTableModel extends AbstractTableModel {
     /** The current folder */
     private AbstractFile currentFolder;
 
+    /** Date of the current folder when it was changed */
+    private long currentFolderDateSnapshot;
+
     /** The current folder's parent folder, may be null */
     private AbstractFile parent;
 
@@ -114,6 +117,9 @@ public class FileTableModel extends AbstractTableModel {
     }
 
 
+    /**
+     * Creates a new FileTableModel, without any initial current folder.
+     */
     public FileTableModel() {
         // Init arrays to avoid NullPointerExcepions until setCurrentFolder() gets called for the first time
         cachedFiles = new AbstractFile[0];
@@ -123,33 +129,83 @@ public class FileTableModel extends AbstractTableModel {
         markedFiles = new FileSet();
     }
 
+    /**
+     * Sets the {@link com.mucommander.ui.main.table.SortInfo} instance that describes how the associated table is
+     * sorted.
+     *
+     * @param sortInfo SortInfo instance that describes how the associated table is sorted
+     */
     void setSortInfo(SortInfo sortInfo) {
         this.sortInfo = sortInfo;
     }
 
+    /**
+     * Returns the current folder, i.e. the last folder set using {@link #setCurrentFolder(com.mucommander.file.AbstractFile, com.mucommander.file.AbstractFile[])}.
+     *
+     * @return the current folder
+     */
     public synchronized AbstractFile getCurrentFolder() {
         return currentFolder;
     }
-	
+
+    /**
+     * Returns the date of the current folder, when it was set using {@link #setCurrentFolder(com.mucommander.file.AbstractFile, com.mucommander.file.AbstractFile[])}.
+     * In other words, the returned date is a snapshot of the current folder's date which is never updated.
+     *
+     * @return Returns the date of the current folder, when it was set using #setCurrentFolder(Abstract, Abstract[])
+     */
+    public synchronized long getCurrentFolderDateSnapshot() {
+        return currentFolderDateSnapshot;
+    }
+
+    /**
+     * Returns <code>true</code> if the current folder has a parent.
+     *
+     * @return <code>true</code> if the current folder has a parent
+     */
     public synchronized boolean hasParentFolder() {
         return parent!=null;
     }
 
-    public synchronized AbstractFile getParentFolder() {return parent;}
-	
-	
-    public synchronized void setCurrentFolder(AbstractFile folder, AbstractFile children[]) {	
+    /**
+     * Returns the current folder's parent if there is one, <code>null</code> otherwise.
+     *
+     * @return the current folder's parent if there is one, <code>null</code> otherwise
+     */
+    public synchronized AbstractFile getParentFolder() {
+        return parent;
+    }
+
+    /**
+     * Sets the current folder and its children.
+     *
+     * @param folder the current folder
+     * @param children the current folder's children
+     */
+    synchronized void setCurrentFolder(AbstractFile folder, AbstractFile children[]) {
         if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(""+folder);
         int nbFiles = children.length;
-        this.currentFolder = folder;
-        this.parent = folder.getParentSilently();
+
+        this.currentFolder = (folder instanceof CachedFile)?folder:new CachedFile(folder, true);
+
+        this.parent = currentFolder.getParentSilently();    // Note: the returned parent is a CachedFile instance
+        if(parent!=null) {
+            // Pre-fetch the attributes that are used by the table renderer and some actions.
+            prefetchCachedFileAttributes(parent);
+        }
 
         // Initialize file indexes and create CachedFile instances to speed up table display and navigation
         this.cachedFiles = children;
         this.fileArrayIndex = new int[nbFiles];
+        AbstractFile file;
         for(int i=0; i<nbFiles; i++) {
+            file = new CachedFile(children[i], true);
+
+            // Pre-fetch the attributes that are used by the table renderer and some actions.
+            prefetchCachedFileAttributes(file);
+
+            cachedFiles[i] = file;
             fileArrayIndex[i] = i;
-            cachedFiles[i] = new CachedFile(children[i], true);
         }
 
         // Reset marked files
@@ -160,14 +216,34 @@ public class FileTableModel extends AbstractTableModel {
 
         // Init and fill cell cache to speed up table even more
         this.cellValuesCache = new Object[nbRows][Columns.COLUMN_COUNT-1];
+
         fillCellCache();
+    }
+
+    /**
+     * Pre-fetch the attributes that are used by the table renderer and some actions from the given CachedFile.
+     * By doing so, the attributes will be available when the associated getters are called and thus the methods won't
+     * be I/O bound and will not lock.
+     *
+     * @param cachedFile a CachedFile instance from which to pre-fetch attributes
+     */
+    private static void prefetchCachedFileAttributes(AbstractFile cachedFile) {
+        cachedFile.isDirectory();
+        cachedFile.isBrowsable();
+        cachedFile.isHidden();
+        // Pre-fetch isSymlink attribute and if the file is a symlink, pre-fetch the canonical file and its attributes
+        if(cachedFile.isSymlink()) {
+            AbstractFile canonicalFile = cachedFile.getCanonicalFile();
+            if(canonicalFile!=cachedFile)   // Cheap test to prevent infinite recursion on bogus file implementations
+                prefetchCachedFileAttributes(canonicalFile);
+        }
     }
 
 	
     /**
      * Retrieves all cell values and stores them in an array for fast access.
      */
-    public synchronized void fillCellCache() {
+    synchronized void fillCellCache() {
         int len = cellValuesCache.length;
         if(len==0)
             return;
@@ -176,7 +252,8 @@ public class FileTableModel extends AbstractTableModel {
         if(parent!=null) {
             cellValuesCache[0][Columns.NAME-1] = "..";
             cellValuesCache[0][Columns.SIZE-1] = DIRECTORY_SIZE_STRING;
-            cellValuesCache[0][Columns.DATE-1] =	CustomDateFormat.format(new Date(currentFolder.getDate()));
+            currentFolderDateSnapshot = currentFolder.getDate();
+            cellValuesCache[0][Columns.DATE-1] =	CustomDateFormat.format(new Date(currentFolderDateSnapshot));
             // Don't display parent's permissions as they can have a different format from the folder contents
             // (e.g. for archives) and this looks weird
             cellValuesCache[0][Columns.PERMISSIONS-1] =	"";
@@ -200,6 +277,7 @@ public class FileTableModel extends AbstractTableModel {
                 cellValuesCache[cellIndex][Columns.OWNER-1] = file.getOwner();
             if(canGetGroup)
                 cellValuesCache[cellIndex][Columns.GROUP-1] = file.getGroup();
+
             fileIndex++;
         }
     }
@@ -215,7 +293,7 @@ public class FileTableModel extends AbstractTableModel {
      * @param rowIndex a row index, comprised between 0 and #getRowCount()
      * @return a CachedFile instance of the file located at the given row index
      */
-    synchronized AbstractFile getCachedFileAtRow(int rowIndex) {
+    public synchronized AbstractFile getCachedFileAtRow(int rowIndex) {
         if(rowIndex==0 && parent!=null)
             return parent;
 		
@@ -228,6 +306,21 @@ public class FileTableModel extends AbstractTableModel {
         if(rowIndex>=0 && rowIndex<fileArrayIndex.length)
             return cachedFiles[fileArrayIndex[rowIndex]];
         return null;
+    }
+
+    /**
+     * Returns the current folder's children. The returned array contains {@link CachedFile} instances, where
+     * most attributes have already been fetched and cached.
+     *
+     * @return the current folder's children, as an array of CachedFile instances
+     * @see #getFiles()
+     */
+    public synchronized AbstractFile[] getCachedFiles() {
+        // Clone the array to make sure it can't be modified outside of this class
+        AbstractFile[] cachedFilesCopy = new AbstractFile[cachedFiles.length];
+        System.arraycopy(cachedFiles, 0, cachedFilesCopy, 0, cachedFiles.length);
+
+        return cachedFiles;
     }
 
 
@@ -252,6 +345,21 @@ public class FileTableModel extends AbstractTableModel {
             return file;
     }
 	
+    /**
+     * Returns the current folder's children. The returned array contains {@link AbstractFile} instances, and not
+     * CachedFile instances contrary to {@link #getCachedFiles()}.
+     *
+     * @return the current folder's children
+     * @see #getCachedFiles()
+     */
+    public synchronized AbstractFile[] getFiles() {
+        int nbFiles = cachedFiles.length;
+        AbstractFile[] files = new AbstractFile[nbFiles];
+        for(int i=0; i<nbFiles; i++)
+            files[i] = cachedFiles[i]==null?null:((CachedFile)cachedFiles[i]).getProxiedFile();
+
+        return files;
+    }
 
     /**
      * Returns the index of the row where the given file is located, <code>-1<code> if the file is not in the
@@ -536,7 +644,7 @@ public class FileTableModel extends AbstractTableModel {
 
 
     /**
-     * Quick sort implementation (95/01/31 James Gosling).
+     * Quick sort implementation, based on James Gosling's implementation.
      */
     private void sort(FileComparator fc, int lo0, int hi0) {
         int lo = lo0;

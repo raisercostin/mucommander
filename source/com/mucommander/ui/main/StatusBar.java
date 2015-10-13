@@ -18,13 +18,12 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.cache.LRUCache;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.runtime.JavaVersions;
@@ -162,10 +161,8 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         add(Box.createHorizontalGlue());
 
         // Add a button for interacting with the trash, only if the current platform has a trash implementation
-        if(FileFactory.getTrash()!=null) {
+        if(DesktopManager.getTrash()!=null) {
             TrashPopupButton trashButton = new TrashPopupButton(mainFrame);
-            // Reduce the button's default margin which is too large, at least under Mac OS X 
-            trashButton.setMargin(new Insets(2, 2, 2, 2));
             trashButton.setPopupMenuLocation(SwingConstants.TOP);
 
             add(trashButton);
@@ -346,7 +343,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             key = archive;
         }
         else {
-            if(FileProtocols.FILE.equals(folder.getURL().getProtocol())) {
+            if(FileProtocols.FILE.equals(folder.getURL().getScheme())) {
                 try {
                     key = LocalFile.hasRootDrives()?
                         folder.getRoot():
@@ -521,7 +518,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             return;
 
         // Right clicking on the toolbar brings up a popup menu that allows the user to hide this status bar
-        if (PlatformManager.isRightMouseButton(e)) {
+        if (DesktopManager.isRightMouseButton(e)) {
             //		if (e.isPopupTrigger()) {	// Doesn't work under Mac OS X (CTRL+click doesn't return true)
             JPopupMenu popupMenu = new JPopupMenu();
             popupMenu.add(ActionManager.getActionInstance(com.mucommander.ui.action.ToggleStatusBarAction.class, mainFrame));

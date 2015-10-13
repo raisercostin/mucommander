@@ -20,6 +20,7 @@ package com.mucommander.file.impl;
 
 import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FilePermissions;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
@@ -98,10 +99,8 @@ public class CachedFile extends ProxyFile {
     private boolean exists;
     private boolean existsSet;
 
-    private int getPermissions;
+    private FilePermissions getPermissions;
     private boolean getPermissionsSet;
-
-    private int getPermissionsInt[][];
 
     private String getPermissionsString;
     private boolean getPermissionsStringSet;
@@ -272,7 +271,7 @@ public class CachedFile extends ProxyFile {
     }
 
     public boolean isDirectory() {
-        if(!isDirectorySet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getProtocol()))
+        if(!isDirectorySet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
         // Note: getFileAttributes() might fail to retrieve file attributes, so we need to test isDirectorySet again
 
@@ -294,7 +293,7 @@ public class CachedFile extends ProxyFile {
     }
 
     public boolean isHidden() {
-        if(!isHiddenSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getProtocol()))
+        if(!isHiddenSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
         // Note: getFileAttributes() might fail to retrieve file attributes, so we need to test isDirectorySet again
 
@@ -361,7 +360,7 @@ public class CachedFile extends ProxyFile {
     }
 
     public boolean exists() {
-        if(!existsSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getProtocol()))
+        if(!existsSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
         // Note: getFileAttributes() might fail to retrieve file attributes, so we need to test isDirectorySet again
 
@@ -373,26 +372,13 @@ public class CachedFile extends ProxyFile {
         return exists;
     }
 
-    public int getPermissions() {
+    public FilePermissions getPermissions() {
         if(!getPermissionsSet) {
             getPermissions = file.getPermissions();
             getPermissionsSet = true;
         }
 
         return getPermissions;
-    }
-
-    public boolean getPermission(int access, int permission) {
-        if(getPermissionsInt==null)
-            getPermissionsInt = new int[USER_ACCESS][READ_PERMISSION];
-
-        int val = getPermissionsInt[access][permission];
-        if(val==0) {
-            val = file.getPermission(access, permission)?1:-1;
-            getPermissionsInt[access][permission] = val;
-        }
-
-        return val==1;
     }
 
     public String getPermissionsString() {
@@ -461,8 +447,14 @@ public class CachedFile extends ProxyFile {
         if(!getCanonicalFileSet) {
             getCanonicalFile = file.getCanonicalFile();
             // Create a CachedFile instance around the file if recursion is enabled
-            if(recurseInstances)
-                getCanonicalFile = new CachedFile(getCanonicalFile, true);
+            if(recurseInstances) {
+                // AbstractFile#getCanonicalFile() may return 'this' if the file is not a symlink. In that case,
+                // no need to create a new CachedFile, simply use this one. 
+                if(getCanonicalFile==file)
+                    getCanonicalFile = this;
+                else
+                    getCanonicalFile = new CachedFile(getCanonicalFile, true);
+            }
 
             getCanonicalFileSet = true;
         }

@@ -31,6 +31,8 @@ import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.dialog.pref.PreferencesPanel;
+import com.mucommander.ui.dialog.pref.component.PrefCheckBox;
+import com.mucommander.ui.dialog.pref.component.PrefComboBox;
 import com.mucommander.ui.dialog.pref.theme.ThemeEditorDialog;
 import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.ui.icon.IconManager;
@@ -41,9 +43,23 @@ import com.mucommander.ui.main.WindowManager;
 import com.mucommander.ui.theme.Theme;
 import com.mucommander.ui.theme.ThemeManager;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.plaf.basic.BasicComboBoxRenderer;
-import java.awt.*;
+
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -61,11 +77,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     // - Look and feel fields ------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** Combo box containing the list of available look&feels. */
-    private JComboBox                 lookAndFeelComboBox;
+    private PrefComboBox              lookAndFeelComboBox;
     /** All available look&feels. */
     private UIManager.LookAndFeelInfo lookAndFeels[];
     /** 'Use brushed metal look' checkbox */
-    private JCheckBox                 brushedMetalCheckBox;
+    private PrefCheckBox              brushedMetalCheckBox;
     /** Triggers look and feel importing. */
     private JButton                   importLookAndFeelButton;
     /** Triggers look and feel deletion. */
@@ -80,11 +96,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     // - Icon size fields ----------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** Displays the list of available sizes for toolbar icons. */
-    private JComboBox           toolbarIconsSizeComboBox;
+    private PrefComboBox        toolbarIconsSizeComboBox;
     /** Displays the list of available sizes for command bar icons. */
-    private JComboBox           commandBarIconsSizeComboBox;
+    private PrefComboBox        commandBarIconsSizeComboBox;
     /** Displays the list of available sizes for file icons. */
-    private JComboBox           fileIconsSizeComboBox;
+    private PrefComboBox        fileIconsSizeComboBox;
     /** All icon sizes label. */
     private final static String ICON_SIZES[]                = {"100%", "125%", "150%", "175%", "200%", "300%"};
     /** All icon sizes scale factors. */
@@ -104,7 +120,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     // - Theme fields --------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** Lists all available themes. */
-    private JComboBox    themeComboBox;
+    private PrefComboBox themeComboBox;
     /** Triggers the theme editor. */
     private JButton      editThemeButton;
     /** Triggers the theme duplication dialog. */
@@ -129,7 +145,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     // - Misc. fields --------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** System icon combobox. */
-    private              JComboBox useSystemFileIconsComboBox;
+    private PrefComboBox 		   useSystemFileIconsComboBox;
     /** Identifier of 'yes' actions in question dialogs. */
     private final static int       YES_ACTION = 0;
     /** Identifier of 'no' actions in question dialogs. */
@@ -172,16 +188,25 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         mainPanel.add(createThemesPanel());
         mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
-        // Icon size.
-        mainPanel.add(createIconSizePanel());
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-
         // System icons.
         mainPanel.add(createSystemIconsPanel());
         mainPanel.add(Box.createVerticalGlue());
 
+        // Icon size.
+        mainPanel.add(createIconSizePanel());
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
         setLayout(new BorderLayout());
         add(mainPanel, BorderLayout.NORTH);
+        
+        lookAndFeelComboBox.addDialogListener(parent);
+        themeComboBox.addDialogListener(parent);
+        useSystemFileIconsComboBox.addDialogListener(parent);
+        toolbarIconsSizeComboBox.addDialogListener(parent);
+        commandBarIconsSizeComboBox.addDialogListener(parent);
+        fileIconsSizeComboBox.addDialogListener(parent);
+        if(OsFamilies.MAC_OS_X.isCurrent())
+        	brushedMetalCheckBox.addDialogListener(parent);
     }
 
     private void showGenericError() {JOptionPane.showMessageDialog(this, Translator.get("generic_error"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);}
@@ -192,7 +217,6 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     private void populateLookAndFeels() {
         int    currentIndex;
         String currentName;
-        String buffer;
 
         // Resets the content of the combo box and retrieves all available look&feels.
         lookAndFeelComboBox.removeAllItems();
@@ -200,21 +224,13 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 
         // Populates the combo box.
         currentIndex = -1;
-        currentName  = UIManager.getLookAndFeel().getName();
+        currentName  = UIManager.getLookAndFeel().getClass().getName();
         for(int i = 0; i < lookAndFeels.length; i++) {
-            buffer = lookAndFeels[i].getName();
-			
-            // Tries to select current L&F
-            if(currentName.equals(buffer))
+            // Looks for the currently selected look&feel.
+            if(lookAndFeels[i].getClassName().equals(currentName))
                 currentIndex = i;
 
-            // Under Mac OS X, Mac L&F is either reported as 'MacOS' or 'MacOS Adaptative'
-            // so we need this test
-            else if(currentIndex == -1
-                    && (currentName.startsWith(buffer) || buffer.startsWith(currentName)))
-                currentIndex = i;
-
-            lookAndFeelComboBox.addItem(buffer);
+            lookAndFeelComboBox.addItem(lookAndFeels[i].getName());
         }
 
         // Sets the initial selection.
@@ -236,7 +252,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         lnfPanel.setBorder(BorderFactory.createTitledBorder(Translator.get("prefs_dialog.look_and_feel")));
 
         // Creates the look and feel combo box.
-        lookAndFeelComboBox = new JComboBox();
+        lookAndFeelComboBox = new PrefComboBox() {
+			public boolean hasChanged() {
+				return !lookAndFeels[getSelectedIndex()].getClassName().equals(MuConfiguration.getVariable(MuConfiguration.LOOK_AND_FEEL));
+			}
+        };
         lookAndFeelComboBox.setRenderer(new BasicComboBoxRenderer() {
                 public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     JLabel label;
@@ -282,7 +302,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         // For Mac OS X only, creates the 'brushed metal' checkbox.
         if(OsFamilies.MAC_OS_X.isCurrent()) {
             // 'Use brushed metal look' option
-            brushedMetalCheckBox = new JCheckBox(Translator.get("prefs_dialog.use_brushed_metal"));
+            brushedMetalCheckBox = new PrefCheckBox(Translator.get("prefs_dialog.use_brushed_metal")) {
+            	public boolean hasChanged() {
+            		return !String.valueOf(isSelected()).equals(MuConfiguration.getVariable(MuConfiguration.USE_BRUSHED_METAL));
+				}
+			};
             brushedMetalCheckBox.setSelected(MuConfiguration.getVariable(MuConfiguration.USE_BRUSHED_METAL,
                                                                               MuConfiguration.DEFAULT_USE_BRUSHED_METAL));
             flowPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -341,7 +365,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         typeLabel = new JLabel("");
 
         // Creates the theme combo box.
-        themeComboBox   = new JComboBox();
+        themeComboBox   = new PrefComboBox() {
+			public boolean hasChanged() {
+				return !ThemeManager.isCurrentTheme((Theme)getSelectedItem());
+			}        	
+        };
         themeComboBox.addActionListener(this);
 
         // Sets the combobox's renderer.
@@ -410,14 +438,33 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
      */
     private JPanel createSystemIconsPanel() {
         /* 'Use system file icons' combo box */
-        this.useSystemFileIconsComboBox = new JComboBox();
+        this.useSystemFileIconsComboBox = new PrefComboBox() {
+			public boolean hasChanged() {
+				String systemIconsPolicy;
+				switch(useSystemFileIconsComboBox.getSelectedIndex()) {
+				case 0:
+					systemIconsPolicy = FileIcons.USE_SYSTEM_ICONS_NEVER;
+					break;
+				case 1:
+					systemIconsPolicy = FileIcons.USE_SYSTEM_ICONS_APPLICATIONS;
+					break;
+				default:
+					systemIconsPolicy = FileIcons.USE_SYSTEM_ICONS_ALWAYS;
+				}
+				return !systemIconsPolicy.equals(MuConfiguration.getVariable(MuConfiguration.USE_SYSTEM_FILE_ICONS, systemIconsPolicy));
+			}
+        };
         useSystemFileIconsComboBox.addItem(Translator.get("prefs_dialog.use_system_file_icons.never"));
         useSystemFileIconsComboBox.addItem(Translator.get("prefs_dialog.use_system_file_icons.applications"));
         useSystemFileIconsComboBox.addItem(Translator.get("prefs_dialog.use_system_file_icons.always"));
         String systemIconsPolicy = FileIcons.getSystemIconsPolicy();
         useSystemFileIconsComboBox.setSelectedIndex(FileIcons.USE_SYSTEM_ICONS_ALWAYS.equals(systemIconsPolicy)?2:FileIcons.USE_SYSTEM_ICONS_APPLICATIONS.equals(systemIconsPolicy)?1:0);
 
-        return createComboPanel("prefs_dialog.use_system_file_icons", useSystemFileIconsComboBox);
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.setBorder(BorderFactory.createTitledBorder(Translator.get("prefs_dialog.use_system_file_icons")));
+        panel.add(useSystemFileIconsComboBox);
+
+        return panel;
     }
 
     /**
@@ -428,8 +475,13 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
      * @param defaultValue the default value for the icon scale factor if the configuration variable has no value
      * @return a combo box that allows to choose a size for a certain type of icon
      */
-    private JComboBox createIconSizeCombo(String confVar, float defaultValue) {
-        JComboBox iconSizeCombo = new JComboBox();
+    private PrefComboBox createIconSizeCombo(final String confVar, float defaultValue) {
+    	PrefComboBox iconSizeCombo = new PrefComboBox() {
+			public boolean hasChanged() {
+				return !String.valueOf(ICON_SCALE_FACTORS[getSelectedIndex()]).equals(
+						MuConfiguration.getVariable(confVar));
+			}
+    	};
 
         for(int i=0; i<ICON_SIZES.length; i++)
             iconSizeCombo.addItem(ICON_SIZES[i]);
@@ -445,14 +497,6 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         iconSizeCombo.setSelectedIndex(index);
 
         return iconSizeCombo;
-    }
-
-    private JPanel createComboPanel(String labelKey, JComboBox comboBox) {
-        JPanel comboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        comboPanel.add(new JLabel(Translator.get(labelKey)+": "));
-        comboPanel.add(comboBox);
-
-        return comboPanel;
     }
 
 
