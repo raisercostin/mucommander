@@ -21,7 +21,7 @@ package com.mucommander.ui.action.impl;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileOperation;
 import com.mucommander.ui.action.*;
-import com.mucommander.ui.dialog.file.MkdirDialog;
+import com.mucommander.ui.dialog.file.MakeDirectoryFileDialog;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
@@ -52,7 +52,7 @@ public class MkdirAction extends ParentFolderAction {
 
     @Override
     public void performAction() {
-        new MkdirDialog(mainFrame, false).showDialog();
+        new MakeDirectoryFileDialog(mainFrame, false).showDialog();
     }
 
 

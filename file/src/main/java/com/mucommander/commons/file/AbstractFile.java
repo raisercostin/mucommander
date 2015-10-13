@@ -495,8 +495,10 @@ public abstract class AbstractFile implements FileAttributes, PermissionTypes, P
         if(exists())
             throw new IOException();
 
-        if(isFileOperationSupported(FileOperation.WRITE_FILE))
+      if(isFileOperationSupported(FileOperation.WRITE_FILE)) {
+    		
             getOutputStream().close();
+    }
         else
             copyStream(new ByteArrayInputStream(new byte[]{}), false, 0);
     }

@@ -114,8 +114,9 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     /** Frame containing this file table. */
     private MainFrame   mainFrame;
     /** Folder panel containing this frame. */
-    private FolderPanel folderPanel;
+    private static FolderPanel folderPanel;
 
+    
 
     // - UI components -------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
@@ -317,10 +318,12 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      *
      * @return the FolderPanel that contains this FileTable
      */
+    public static FolderPanel getFolderPanel2() {
+        return folderPanel;
+    }
     public FolderPanel getFolderPanel() {
         return folderPanel;
     }
-
 
     /**
      * Returns <code>true/</code> if this table is the active one in the MainFrame.

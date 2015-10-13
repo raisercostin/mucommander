@@ -18,7 +18,16 @@
 
 package com.mucommander.text;
 
-import java.io.*;
+import com.mucommander.commons.file.util.ResourceLoader;
+import com.mucommander.commons.io.bom.BOMReader;
+import com.mucommander.conf.MuConfigurations;
+import com.mucommander.conf.MuPreference;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
@@ -26,14 +35,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.Vector;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.mucommander.commons.file.util.ResourceLoader;
-import com.mucommander.commons.io.bom.BOMReader;
-import com.mucommander.conf.MuConfigurations;
-import com.mucommander.conf.MuPreference;
 
 
 /**
@@ -47,7 +50,8 @@ import com.mucommander.conf.MuPreference;
  * @author Maxence Bernard
  */
 public class Translator {
-	private static final Logger LOGGER = LoggerFactory.getLogger(Translator.class);
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(Translator.class);
 	
     /** Contains key/value pairs for the current language */
     private static Map<String, String> dictionary;
@@ -66,6 +70,7 @@ public class Translator {
 
     /** Key for available languages */
     private final static String AVAILABLE_LANGUAGES_KEY = "available_languages";
+    private static boolean loaded = false;
 
     /**
      * Prevents instance creation.
@@ -142,6 +147,11 @@ public class Translator {
      * @throws IOException thrown if an IO error occurs.
      */
     public static void loadDictionaryFile(String filePath) throws IOException {
+        
+        if(loaded){
+            return;
+        }
+        
         availableLanguages = new Vector<String>();
         dictionary         = new Hashtable<String, String>();
         defaultDictionary  = new Hashtable<String, String>();
@@ -212,6 +222,8 @@ public class Translator {
             }
         }
         br.close();
+        
+        loaded = true;
     }
 
     /**
@@ -552,4 +564,13 @@ public class Translator {
         originalFileReader.close();
         pw.close();
     }
+    
+    /**
+     * Returns the state of the translator
+     * @return True if the dictionary files has been loaded otherwise false
+     */
+    public static boolean isLoaded() {
+        return loaded;
+    }
+
 }

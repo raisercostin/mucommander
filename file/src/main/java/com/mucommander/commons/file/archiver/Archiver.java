@@ -75,6 +75,17 @@ public abstract class Archiver {
         true,
         true
     };
+    
+    /** Boolean array describing for each format if it can store more than one entry */
+    public final static boolean SUPPORTS_FILE_STREAMING[] = {
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false
+    };
 	
     /** Array of single entry formats: many entries formats are considered to be single entry formats as well */
     private final static int SINGLE_ENTRY_FORMATS[] = {
@@ -420,6 +431,34 @@ public abstract class Archiver {
     public abstract OutputStream createEntry(String entryPath, FileAttributes attributes) throws IOException;
 
 
+    /**
+     * @return Name of current file being processed
+     */
+    public String getProcessingFile(){return null;}
+    
+    /**
+     * Written bytes in total without the current file progress
+     * @return number of bytes written as a long
+     */
+    public long totalWrittenBytes(){return -1;}
+    
+    /**
+     * Written bytes to the current file being processed, will be the same size as the
+     * file if complete.
+     * @return number of bytes written as a long
+     */
+    public long writtenBytesCurrentFile(){return -1;}
+    
+    /**
+     * @return Size of the current file being processed in bytes
+     */
+    public long currentFileLength(){return -1;}
+    
+    /**
+     * Finish the archiving process when all files have been added.
+     */
+    public abstract void postProcess() throws IOException;
+    
     /**
      * Closes the underlying OuputStream and ressources used by this Archiver to write the archive. This method
      * must be called when all entries have been added to the archive.

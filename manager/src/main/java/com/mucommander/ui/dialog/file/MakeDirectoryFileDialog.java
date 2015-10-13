@@ -37,12 +37,12 @@ import javax.swing.JTextField;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.util.FileSet;
 import com.mucommander.commons.file.util.PathUtils;
-import com.mucommander.job.MkdirJob;
+import com.mucommander.job.MakeDirectoryFileJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.ActionProperties;
 import com.mucommander.ui.action.impl.MkdirAction;
-import com.mucommander.ui.action.impl.MkfileAction;
+import com.mucommander.ui.action.impl.MakeFileAction;
 import com.mucommander.ui.chooser.SizeChooser;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
@@ -56,10 +56,10 @@ import com.mucommander.ui.text.FilePathField;
  * Dialog invoked when the user wants to create a new folder or an empty file in the current folder.
  *
  * @see MkdirAction
- * @see MkfileAction
+ * @see MakeFileAction
  * @author Maxence Bernard
  */
-public class MkdirDialog extends FocusDialog implements ActionListener, ItemListener {
+public class MakeDirectoryFileDialog extends FocusDialog implements ActionListener, ItemListener {
 
     private MainFrame mainFrame;
 	
@@ -90,15 +90,15 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
      *
      * @param mkfileMode if true, the dialog will operate in 'mkfile' mode, if false in 'mkdir' mode
      */
-    public MkdirDialog(MainFrame mainFrame, boolean mkfileMode) {
-        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MkfileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID,mainFrame).getLabel(), mainFrame);
+    public MakeDirectoryFileDialog(MainFrame mainFrame, boolean mkfileMode) {
+        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MakeFileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID,mainFrame).getLabel(), mainFrame);
         this.mainFrame = mainFrame;
         this.mkfileMode = mkfileMode;
 
         Container contentPane = getContentPane();
 
         YBoxPanel mainPanel = new YBoxPanel();
-        mainPanel.add(new JLabel(ActionProperties.getActionTooltip(mkfileMode?MkfileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID)+" :"));
+        mainPanel.add(new JLabel(ActionProperties.getActionTooltip(mkfileMode?MakeFileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID)+" :"));
 
         // Create a path field with auto-completion capabilities
         pathField = new FilePathField();
@@ -168,7 +168,7 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
 
 
     /**
-     * Starts an {@link com.mucommander.job.MkdirJob}. This method is trigged by the 'OK' button or the return key.
+     * Starts an {@link com.mucommander.job.MakeDirectoryFileJob}. This method is trigged by the 'OK' button or the return key.
      */
     public void startJob() {
         String enteredPath = pathField.getText();
@@ -197,11 +197,11 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
 
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, getTitle());
 
-        MkdirJob job;
+        MakeDirectoryFileJob job;
         if(mkfileMode)
-            job = new MkdirJob(progressDialog, mainFrame, fileSet, allocateSpaceCheckBox.isSelected()?allocateSpaceChooser.getValue():-1);
+            job = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet, allocateSpaceCheckBox.isSelected()?allocateSpaceChooser.getValue():-1);
         else
-            job = new MkdirJob(progressDialog, mainFrame, fileSet);
+            job = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet);
 
         progressDialog.start(job);
     }

@@ -45,19 +45,22 @@ public class CommandBarAttributes {
     	com.mucommander.ui.action.impl.CopyAction.Descriptor.ACTION_ID,
     	com.mucommander.ui.action.impl.MoveAction.Descriptor.ACTION_ID,
     	com.mucommander.ui.action.impl.MkdirAction.Descriptor.ACTION_ID,
+    	com.mucommander.ui.action.impl.MakeFileAction.Descriptor.ACTION_ID,
     	com.mucommander.ui.action.impl.DeleteAction.Descriptor.ACTION_ID,
     	com.mucommander.ui.action.impl.RefreshAction.Descriptor.ACTION_ID,
-    	com.mucommander.ui.action.impl.CloseWindowAction.Descriptor.ACTION_ID
+    	com.mucommander.ui.action.impl.CloseWindowAction.Descriptor.ACTION_ID  	
+    	
     };
     /** Command bar default alternate actions */
     private static final String DEFAULT_ALTERNATE_ACTION_IDS[] =
     {
     	null,
     	null,
+    	
     	com.mucommander.ui.action.impl.LocalCopyAction.Descriptor.ACTION_ID,
-    	com.mucommander.ui.action.impl.RenameAction.Descriptor.ACTION_ID,
-    	com.mucommander.ui.action.impl.MkfileAction.Descriptor.ACTION_ID,
+    	com.mucommander.ui.action.impl.RenameAction.Descriptor.ACTION_ID,    	
     	com.mucommander.ui.action.impl.PermanentDeleteAction.Descriptor.ACTION_ID,
+    	
     	null,
     	null
     };

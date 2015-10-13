@@ -19,14 +19,6 @@
 
 package com.mucommander.job;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.apple.eio.FileManager;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileOperation;
@@ -43,6 +35,12 @@ import com.mucommander.commons.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -446,10 +444,11 @@ public abstract class TransferFileJob extends FileJob {
      */
     public float getFilePercentDone() {
         long currentFileSize = getCurrentFileSize();
+        long byteCount = getCurrentFileByteCounter().getByteCount();
         if(currentFileSize<=0)
             return 0;
         else
-            return getCurrentFileByteCounter().getByteCount()/(float)currentFileSize;
+            return byteCount/(float)currentFileSize;
     }
 
     /**
@@ -477,7 +476,7 @@ public abstract class TransferFileJob extends FileJob {
      * @return the size of the file currently being processed, -1 if this information is not available.
      */
     public long getCurrentFileSize() {
-        return getCurrentFile()==null?-1:getCurrentFile().getSize();
+        return getCurrentFile()==null? -1 : getCurrentFile().getSize();
     }
 
 
@@ -629,8 +628,12 @@ public abstract class TransferFileJob extends FileJob {
     public String getStatusString() {
         if(isCheckingIntegrity())
             return Translator.get("progress_dialog.verifying_file", getCurrentFilename());
-
+        
         return super.getStatusString();
+    }
+    
+    public boolean supportThroughputLimit() {
+        return true;
     }
 
 //    /**
