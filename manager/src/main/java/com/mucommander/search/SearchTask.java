@@ -9,7 +9,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
@@ -54,13 +53,16 @@ public class SearchTask extends SwingWorker<Boolean, String> {
             indexPath.mkdir();
         }
         dir = FSDirectory.open(new File(indexPath.getAbsolutePath()));
-        if (!DirectoryReader.indexExists(dir)){
+        if (!DirectoryReader.indexExists(dir)) {
             IndexWriter index = new IndexWriter(dir, new IndexWriterConfig(Version.LUCENE_43, new StandardAnalyzer(Version.LUCENE_43)));
             index.commit();
             index.close();
         }
         searchStringInIndex();
         indexFolder();
+        if (isCancelled()) {
+            return false;
+        }
         searchStringInIndex();
         removeNotExistingDocs();
         return true;
@@ -109,7 +111,11 @@ public class SearchTask extends SwingWorker<Boolean, String> {
             walkBFS(FileFactory.getFile(targetFolder), writer);
             writer.commit();
         } catch (Exception ex) {
-            writer.rollback();
+            try {
+                writer.commit();
+            } catch (Exception e) {
+                writer.rollback();
+            }
             throw ex;
         } finally {
             Closeables.closeQuietly(writer);
@@ -122,13 +128,22 @@ public class SearchTask extends SwingWorker<Boolean, String> {
     private void walkBFS(AbstractFile rootFile, IndexWriter writer) throws IOException {
         Deque<AbstractFile> taskList = new LinkedList<AbstractFile>();
         taskList.add(rootFile);
-        while (!taskList.isEmpty()) {
-            AbstractFile file = taskList.pop();
+        while (!taskList.isEmpty() && !isCancelled()) {
+            AbstractFile file = taskList.pollLast();
             if (file.isBrowsable() && !file.isHidden() && !file.isSymlink()) {
                 indexDoc(writer, file);
                 try {
                     AbstractFile[] ls = file.ls();
-                    taskList.addAll(Arrays.asList(ls));
+                    for (int i = 0; i < ls.length; i++) {
+                        AbstractFile l = ls[i];
+                        //{@link com.mucommander.commons.file.AbstractArchiveFile#ls} may return itself!
+                        if (!file.equals(l)) {
+                            taskList.addLast(l);
+                        }
+                    }
+                } catch (NullPointerException ignored) {
+                    //com.github.junrar.Archive setFile
+                    //exception in archive constructor maybe file is encrypted or currupt
                 } catch (IOException ignored) {
                     //broken channel or archive error can occur
                 }
@@ -191,7 +206,7 @@ public class SearchTask extends SwingWorker<Boolean, String> {
         // year/month/day/hour/minutes/seconds, down the resolution you require.
         // For example the long value 2011021714 would mean
         // February 17, 2011, 2-3 PM.
-        doc.add(new LongField("modified", file.getDate(), Field.Store.NO));
+        //doc.add(new LongField("modified", file.getDate(), Field.Store.NO));
 
         // Add the contents of the file to a field named "contents".  Specify a Reader,
         // so that the text of the file is tokenized and indexed, but not stored.
