@@ -61,7 +61,7 @@ public class ValueListTest extends TestCase {
 
         data = new Vector();
         for(int i = 0; i < 7; i++)
-            data.add(new Boolean(i % 2 == 0));
+            data.add(Boolean.valueOf(i % 2 == 0));
         return data;
     }
 
@@ -178,7 +178,7 @@ public class ValueListTest extends TestCase {
     public void testBooleanValues() {testBooleanValues(new ValueList(ValueList.toString(createBooleanData(), ";"), ";"));}
 
     /**
-     * Tests the {@link ValueList#listValueAt(int)} method.
+     * Tests the {@link ValueList#listValueAt(int, String)} method.
      */
     public void testListValues() {
         Vector    data;

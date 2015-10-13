@@ -1472,7 +1472,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
             super(textField);
             this.filenameField = textField;
             // Sets the font to the same one that's used for cell rendering (user-defined)
-            filenameField.setFont(cellRenderer.getCellFont());
+            filenameField.setFont(FileTableCellRenderer.getCellFont());
             textField.addKeyListener(
                 new KeyAdapter() {
                     // Cancel editing when escape key pressed, this is unfortunately not DefaultCellEditor's
@@ -1527,9 +1527,10 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         /**
          * Notifies this editor that the given row's filename cell is being edited. This method has to be called once
          * when a row just started being edited. It will save the row number and select the filename without
-         * its extension to make it easier to rename using {@link AbstractCopyDialog.highlightFilename}.
+         * its extension to make it easier to rename.
          *
          * @param row row which is being edited
+         * @see AbstractCopyDialog#selectDestinationFilename(AbstractFile, String, int)
          */
         public void notifyEditingRow(int row) {
             // The editing row has to be saved as it could change after row editing has been started
