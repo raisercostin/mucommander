@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,39 +19,47 @@
 package com.mucommander.bonjour;
 
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.OpenLocationAction;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.icon.IconManager;
-import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
-import java.util.Hashtable;
 
 /**
- * A JMenu that contains an item for each available Bonjour service (as returned {@link BonjourDirectory#getServices()}
- * , displaying the Bonjour service's name. When a menu item is clicked, the corresponding url is opened in the
- * active table.
+ * An abstract JMenu that contains an item for each Bonjour service available
+ * (as returned {@link BonjourDirectory#getServices()} displaying the Bonjour service's name. When an item is clicked,
+ * the action returned by {@link #getMenuItemAction(BonjourService)} is returned.
  *
  * <p>Note: the items list is refreshed each time the menu is selected. In other words, a new instance of BonjourMenu
- * does not have to be created in order to see new Bonjour services.
+ * does not have to be created in order to see new Bonjour services.</p>
  *
  * @author Maxence Bernard
  */
-public class BonjourMenu extends JMenu implements MenuListener {
+public abstract class BonjourMenu extends JMenu implements MenuListener {
 
-    private MainFrame mainFrame;
-
-    public BonjourMenu(MainFrame mainFrame) {
+    /**
+     * Creates a new instance of <code>BonjourMenu</code>.
+     */
+    public BonjourMenu() {
         super(Translator.get("bonjour.bonjour_services"));
-        this.mainFrame = mainFrame;
 
         setIcon(IconManager.getIcon(IconManager.FILE_ICON_SET, "bonjour.png"));
 
         // Menu items will be added when menu gets selected
         addMenuListener(this);
     }
+
+
+    /**
+     * Returns the action to perform for the given {@link BonjourService}. This method is called for every
+     * BonjourService available when this menu is selected.
+     *
+     * @param bs the BonjourService
+     * @return the action to perform for the given BonjourService
+     */
+    public abstract MuAction getMenuItemAction(BonjourService bs);
 
 
     /////////////////////////////////
@@ -73,7 +81,7 @@ public class BonjourMenu extends JMenu implements MenuListener {
                 MnemonicHelper mnemonicHelper = new MnemonicHelper();
 
                 for(int i=0; i<nbServices; i++) {
-                    menuItem = new JMenuItem(new OpenLocationAction(mainFrame, new Hashtable(), services[i]));
+                    menuItem = new JMenuItem(getMenuItemAction(services[i]));
                     menuItem.setMnemonic(mnemonicHelper.getMnemonic(menuItem.getText()));
 
                     add(menuItem);

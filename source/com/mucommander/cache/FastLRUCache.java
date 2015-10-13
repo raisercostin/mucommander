@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,7 +68,6 @@ public class FastLRUCache extends LRUCache {
      * Returns a String representation of this cache.
      */
     public String toString() {
-        int size = cacheMap.size();
         String s = super.toString()+" size="+cacheMap.size()+" capacity="+capacity+" eldestExpirationDate="+eldestExpirationDate+"\n";
 
         Iterator iterator = cacheMap.entrySet().iterator();
@@ -105,7 +104,6 @@ public class FastLRUCache extends LRUCache {
         this.eldestExpirationDate = Long.MAX_VALUE;
         Long expirationDateL;
         long expirationDate;
-        Object value[];
         Iterator iterator = cacheMap.values().iterator();
         // Iterate on all cached values
         while(iterator.hasNext()) {

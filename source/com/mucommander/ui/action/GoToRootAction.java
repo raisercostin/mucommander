@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,12 +41,13 @@ public class GoToRootAction extends GoToParentAction {
     public void performAction() {
         // Changes the current folder to make it the current folder's root folder.
         // Does nothing if the current folder already is the root.
-        FolderPanel folderPanel = mainFrame.getActiveTable().getFolderPanel();
+        FolderPanel folderPanel = mainFrame.getActivePanel();
         AbstractFile currentFolder = folderPanel.getCurrentFolder();
         try {
             folderPanel.tryChangeCurrentFolder(currentFolder.getRoot());
         }
         catch(IOException e) {
+            reportGenericError();
             if(Debug.ON) Debug.trace("Failed to retrieve root folder for : "+currentFolder+" :"+e);
         }
     }

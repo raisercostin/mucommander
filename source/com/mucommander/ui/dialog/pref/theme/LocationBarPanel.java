@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,13 +26,13 @@ import com.mucommander.ui.combobox.EditableComboBox;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.layout.ProportionalGridPanel;
 import com.mucommander.ui.layout.YBoxPanel;
-import com.mucommander.ui.theme.ThemeData;
 import com.mucommander.ui.progress.ProgressTextField;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeEvent;
+import com.mucommander.ui.theme.ThemeData;
 
 import javax.swing.*;
 import java.awt.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 
 /**
  * @author Nicolas Rinaudo, Maxence Bernard
@@ -60,7 +60,6 @@ class LocationBarPanel extends ThemeEditorPanel implements PropertyChangeListene
         JPanel                flowPanel;
         ProportionalGridPanel colorsPanel;
         PreviewLabel          label;
-        ColorButton           button;
 
         fontChooser = createFontChooser(ThemeData.LOCATION_BAR_FONT);
         addFontChooserListener(fontChooser, normalPreview);
@@ -78,7 +77,7 @@ class LocationBarPanel extends ThemeEditorPanel implements PropertyChangeListene
         addFontChooserListener(fontChooser, label);
         colorsPanel.add(createCaptionLabel("theme_editor.progress"));
         colorsPanel.add(new JLabel());
-        colorsPanel.add(button = new ColorButton(parent, themeData, ThemeData.LOCATION_BAR_PROGRESS_COLOR, PreviewLabel.OVERLAY_COLOR_PROPERTY_NAME, label));
+        colorsPanel.add(new ColorButton(parent, themeData, ThemeData.LOCATION_BAR_PROGRESS_COLOR, PreviewLabel.OVERLAY_COLOR_PROPERTY_NAME, label));
         label.addPropertyChangeListener(this);
 
         flowPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));

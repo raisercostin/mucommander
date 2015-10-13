@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,14 +63,6 @@ public class FontChooser extends YBoxPanel implements ActionListener {
     // - Initialisation ---------------------------------------------------------
     // --------------------------------------------------------------------------
     /**
-     * Creates a new FontChooser with no preselected font.
-     */
-    public FontChooser() {
-        super();
-        initUI(null);
-    }
-
-    /**
      * Creates a new FontChooser with the specified selection.
      * @param selection font that should be pre-selected.
      */
@@ -97,7 +89,7 @@ public class FontChooser extends YBoxPanel implements ActionListener {
         selectedIndex = 0;
         for(int i = 0; i < familyNames.length; i++) {
             families.addItem(familyNames[i]);
-            if(selection != null && selection.getFamily().equalsIgnoreCase(familyNames[i]))
+            if(selection.getFamily().equalsIgnoreCase(familyNames[i]))
                 selectedIndex = i;
         }
         families.setSelectedIndex(selectedIndex);
@@ -112,8 +104,7 @@ public class FontChooser extends YBoxPanel implements ActionListener {
         sizes = new JComboBox();
         for(int i = 0; i < FONT_SIZES.length; i++)
             sizes.addItem(Integer.toString(FONT_SIZES[i]));
-        if(selection != null)
-            sizes.setSelectedItem(Integer.toString(selection.getSize()));
+        sizes.setSelectedItem(Integer.toString(selection.getSize()));
         sizes.addActionListener(this);
 
         // Font styles.
@@ -134,7 +125,7 @@ public class FontChooser extends YBoxPanel implements ActionListener {
         add(panel);
 
         // Initialises the current font.
-        font = selection == null ? createFont() : selection;
+        font = selection;
 
         // Creates the preview panel.
         panel = new JPanel(new FlowLayout(FlowLayout.LEFT));

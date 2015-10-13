@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractROArchiveFile;
 import com.mucommander.file.ArchiveEntry;
 import com.mucommander.io.ByteLimitInputStream;
+import com.mucommander.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,7 +52,7 @@ public class ArArchiveFile extends AbstractROArchiveFile {
      * Skips the global header: "!<arch>" string followed by LF char (8 characters in total).
      */
     private static void skipGlobalHeader(InputStream in) throws IOException {
-        skipFully(in, 8);
+        StreamUtils.skipFully(in, 8);
     }
 
 
@@ -64,7 +65,7 @@ public class ArArchiveFile extends AbstractROArchiveFile {
         try {
             // Fully read the 60 file header bytes. If it cannot be read, it most likely means we've reached
             // the end of the archive.
-            readFully(in, fileHeader);
+            StreamUtils.readFully(in, fileHeader);
         }
         catch(IOException e) {
             return null;
@@ -91,7 +92,7 @@ public class ArArchiveFile extends AbstractROArchiveFile {
             if(name.startsWith("#1/")) {
                 // Read extended name
                 int extendedNameLength = Integer.parseInt(name.substring(3, name.length()));
-                name = new String(readFully(in, new byte[extendedNameLength])).trim();
+                name = new String(StreamUtils.readFully(in, new byte[extendedNameLength])).trim();
                 // Decrease remaining file size
                 size -= extendedNameLength;
             }
@@ -100,11 +101,11 @@ public class ArArchiveFile extends AbstractROArchiveFile {
             // followed by a decimal offset to the start of the filename in the extended filename data section.
             // This entry appears first in the archive, i.e. before any other entries.
             else if(name.equals("//")) {
-                this.gnuExtendedNames = readFully(in, new byte[(int)size]);
+                this.gnuExtendedNames = StreamUtils.readFully(in, new byte[(int)size]);
 
                 // Skip one padding byte if size is odd
                 if(size%2!=0)
-                    skipFully(in, 1);
+                    StreamUtils.skipFully(in, 1);
 
                 // Don't return this entry which should not be visible, but recurse to return next entry instead
                 return getNextEntry(in);
@@ -142,47 +143,10 @@ public class ArArchiveFile extends AbstractROArchiveFile {
         long size = entry.getSize();
 
         // Skip file's data, plus 1 padding byte if size is odd
-        skipFully(in, size + (size%2));
+        StreamUtils.skipFully(in, size + (size%2));
     }
 
-
-    /**
-     * Fully reads the given byte array from the given InputStream.
-     *
-     * @throws IOException if the byte array could not be read
-     */
-    private static byte[] readFully(InputStream in, byte b[]) throws IOException {
-        int off = 0;
-        int len = b.length;
-        do {
-            int nbRead = in.read(b, off, len-off);
-            if(nbRead==-1)
-                throw new IOException();
-
-            off += nbRead;
-        }
-        while(off<len);
-
-        return b;
-    }
-
-
-    /**
-     * Fully skips the given number of bytes in the given InputStream.
-     *
-     * @throws IOException if the bytes could not be skipped
-     */
-    private static void skipFully(InputStream in, long n) throws IOException {
-        do {
-            long nbSkipped = in.skip(n);
-            if(nbSkipped<0)
-                throw new IOException();
-
-            n -= nbSkipped;
-        } while(n>0);
-    }
-
-
+    
     ////////////////////////////////////////
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////

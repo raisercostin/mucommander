@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -94,10 +94,6 @@ public class ChangeFileAttributesJob extends FileJob {
 
 //        if(date!=-1)
         return file.changeDate(date);
-    }
-
-    public String getStatusString() {
-        return Translator.get("progress_dialog.processing_file", getCurrentFileInfo());
     }
 
     // This job modifies the FileSet's base folder and potentially its subfolders

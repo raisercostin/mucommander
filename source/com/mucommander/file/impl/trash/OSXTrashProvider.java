@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.file.impl.trash;
 
-import com.mucommander.file.TrashProvider;
 import com.mucommander.file.AbstractTrash;
+import com.mucommander.file.TrashProvider;
 
 public class OSXTrashProvider implements TrashProvider {
     public AbstractTrash getTrash() {return new OSXTrash();}

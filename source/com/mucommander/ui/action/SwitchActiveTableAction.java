@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,11 +37,11 @@ public class SwitchActiveTableAction extends MuAction {
 
     public void performAction() {
         FileTable activeTable = mainFrame.getActiveTable();
-        FileTable table1 = mainFrame.getFolderPanel1().getFileTable();
-        FileTable table2 = mainFrame.getFolderPanel2().getFileTable();
-        if(activeTable == table1)
-            table2.requestFocus();
-        else if(activeTable == table2)
-            table1.requestFocus();
+        FileTable leftTable = mainFrame.getLeftPanel().getFileTable();
+        FileTable rightTable = mainFrame.getRightPanel().getFileTable();
+        if(activeTable == leftTable)
+            rightTable.requestFocus();
+        else if(activeTable == rightTable)
+            leftTable.requestFocus();
     }
 }

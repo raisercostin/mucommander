@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +19,26 @@
 
 package com.mucommander.ui.viewer;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
+import com.mucommander.job.FileCollisionChecker;
+import com.mucommander.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.QuestionDialog;
+import com.mucommander.ui.dialog.file.FileCollisionDialog;
+import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.helper.MenuToolkit;
 import com.mucommander.ui.helper.MnemonicHelper;
+import com.mucommander.ui.layout.AsyncPanel;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 
 
@@ -42,10 +48,7 @@ import java.io.IOException;
  *
  * @author Maxence Bernard
  */
-public class EditorFrame extends JFrame implements ActionListener, Runnable, WindowListener {
-
-    private JMenuBar menuBar;
-    private MnemonicHelper menuMnemonicHelper;
+public class EditorFrame extends JFrame implements ActionListener {
 
     private JMenuItem saveItem;
     private JMenuItem saveAsItem;
@@ -81,71 +84,107 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         this.file = file;
 		
         // Create default menu
-        this.menuMnemonicHelper = new MnemonicHelper();
+        MnemonicHelper menuMnemonicHelper = new MnemonicHelper();
         MnemonicHelper menuItemMnemonicHelper = new MnemonicHelper();
 
         // File menu
-        this.menuBar = new JMenuBar();
-        JMenu menu = addMenu(Translator.get("file_editor.file_menu"));
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menu = MenuToolkit.addMenu(Translator.get("file_editor.file_menu"), menuMnemonicHelper, null);
         saveItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.save"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_MASK), this);
         saveAsItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.save_as"), menuItemMnemonicHelper, null, this);
         menu.add(new JSeparator());
         closeItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.close"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), this);
-		
-        // Add menu to frame
-        setJMenuBar(menuBar);
-		
-        // Do nothing on close, window close events are caught and window disposed manually 
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+		menuBar.add(menu);
 
-        // Catch window close events to ask the user if he wants to save his modifications
-        addWindowListener(this);
+        setJMenuBar(menuBar);
+        
+        // Call #dispose() on close (default is hide)
+        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
         setResizable(true);
 
-        new Thread(this, "com.mucommander.ui.viewer.EditorFrame's Thread").start();
+        initContentPane();
     }
 
-    public JMenu addMenu(String menuTitle) {
-        JMenu menu = MenuToolkit.addMenu(menuTitle, menuMnemonicHelper, null);
-        this.menuBar.add(menu);
-        return menu;
-    }
-	
-    private void setEditor(FileEditor editor) {
-        this.editor = editor;
-	
-        //		setBackground(BG_COLOR);
-        JScrollPane scrollPane = new JScrollPane(editor, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED) {
-                public Insets getInsets() {
-                    return new Insets(0, 0, 0, 0);
+    private void initContentPane() {
+        AsyncPanel asyncPanel = new AsyncPanel() {
+            public JComponent getTargetComponent() {
+                try {
+                    editor = EditorRegistrar.createFileEditor(file);
+                    if(editor==null)
+                        throw new Exception("No suitable editor found");
+
+                    editor.setFrame(EditorFrame.this);
+                    editor.setCurrentFile(file);
+
+                    editor.edit(file);
                 }
-            };
-		
-        setContentPane(scrollPane);
+                catch(Exception e) {
+                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught: "+e);
 
-        // Catch Apple+W keystrokes under Mac OS X to try and close the window
-        if(com.mucommander.PlatformManager.getOsFamily()==com.mucommander.PlatformManager.MAC_OS_X) {
-            scrollPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.META_MASK), CUSTOM_DISPOSE_EVENT);
-            scrollPane.getActionMap().put(CUSTOM_DISPOSE_EVENT, new AbstractAction() {
-                    public void actionPerformed(ActionEvent e){
-                        dispose();
-                    }
-                });
-        }
+                    // May be a UserCancelledException if the user cancelled (refused to confirm the operation after a warning)
+                    if(!(e instanceof UserCancelledException))
+                        showGenericEditErrorDialog();
+
+                    dispose();
+                    return editor==null?new JPanel():editor;
+                }
+
+                setTitle(editor.getTitle());
+
+                JScrollPane scrollPane = new JScrollPane(editor, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED) {
+                        public Insets getInsets() {
+                            return new Insets(0, 0, 0, 0);
+                        }
+                    };
+
+                // Catch Apple+W keystrokes under Mac OS X to try and close the window
+                if(OsFamilies.MAC_OS_X.isCurrent()) {
+                    scrollPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.META_MASK), CUSTOM_DISPOSE_EVENT);
+                    scrollPane.getActionMap().put(CUSTOM_DISPOSE_EVENT, new AbstractAction() {
+                            public void actionPerformed(ActionEvent e){
+                                dispose();
+                            }
+                        });
+                }
+
+                return scrollPane;
+            }
+
+            protected void updateLayout() {
+                super.updateLayout();
+
+                // Request focus on the viewer when it is visible
+                FocusRequester.requestFocus(editor);
+            }
+        };
+
+        // Add the AsyncPanel to the content pane
+        JPanel contentPane = new JPanel(new BorderLayout());
+        contentPane.add(asyncPanel, BorderLayout.CENTER);
+        setContentPane(contentPane);
+
+        // Sets panel to preferred size, without exceeding a maximum size and with a minumum size
+        pack();
+        setVisible(true);
     }
-	
+
+    public void showGenericEditErrorDialog() {
+        JOptionPane.showMessageDialog(mainFrame, Translator.get("file_editor.edit_error"), Translator.get("file_editor.edit_error_title"), JOptionPane.ERROR_MESSAGE);
+    }
+
+
     public void setSaveNeeded(boolean saveNeeded) {
         if(this.saveNeeded!=saveNeeded) {
             this.saveNeeded = saveNeeded;
             // Marks/unmarks the window as dirty under Mac OS X (symbolized by a dot in the window closing icon)
-            if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X)
+            if(OsFamilies.MAC_OS_X.isCurrent())
                 this.getRootPane().putClientProperty("windowModified", saveNeeded?Boolean.TRUE:Boolean.FALSE);
         }
 		
     }
 
-    private void saveAs() {
+    public void trySaveAs() {
         JFileChooser fileChooser = new JFileChooser();
 		
         // Sets selected file in JFileChooser to current file
@@ -155,36 +194,42 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
         int ret = fileChooser.showSaveDialog(this);
 		
         if (ret==JFileChooser.APPROVE_OPTION) {
-            AbstractFile selectedFile = null;
+            AbstractFile destFile;
             try {
-                selectedFile = FileFactory.getFile(fileChooser.getSelectedFile().getAbsolutePath(), true);
+                destFile = FileFactory.getFile(fileChooser.getSelectedFile().getAbsolutePath(), true);
             }
             catch(IOException e) {
                 JOptionPane.showMessageDialog(this, Translator.get("file_editor.cannot_write"), Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
                 return;
             }
-			
-            if (selectedFile.exists()) {
-                QuestionDialog dialog = new QuestionDialog(this, null, Translator.get("file_already_exists", selectedFile.getName()), this, 
-                                                           new String[] {Translator.get("replace"), Translator.get("dont_replace"), Translator.get("cancel")},
-                                                           new int[]  {YES_ACTION, NO_ACTION, CANCEL_ACTION},
-                                                           0);
-                ret = dialog.getActionValue();
-				
-                if (ret==NO_ACTION || ret==CANCEL_ACTION)
+
+            // Check for file collisions, i.e. if the file already exists in the destination
+            int collision = FileCollisionChecker.checkForCollision(null, destFile);
+            if(collision!=FileCollisionChecker.NO_COLLOSION) {
+                // File already exists in destination, ask the user what to do (cancel, overwrite,...) but
+                // do not offer the multiple files mode options such as 'skip' and 'apply to all'.
+                int action = new FileCollisionDialog(this, mainFrame, collision, null, destFile, false, false).getActionValue();
+
+                // User chose to overwrite the file
+                if (action== FileCollisionDialog.OVERWRITE_ACTION) {
+                    // Do nothing, simply continue and file will be overwritten
+                }
+                // User chose to cancel or closed the dialog
+                else {
                     return;
+                }
             }
-			
-            if (trySaveAs(selectedFile)) {
-                this.file = selectedFile;
+
+            if (trySave(destFile)) {
+                this.file = destFile;
                 editor.setCurrentFile(file);
                 setTitle(editor.getTitle());
             }
         }
     }
 
-	
-    public boolean trySaveAs(AbstractFile destFile) {
+    // Returns false if an error occurred while saving the file.
+    public boolean trySave(AbstractFile destFile) {
         try {
             editor.saveAs(destFile);
             return true;
@@ -194,46 +239,28 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
             return false;
         }
     }
-	
 
-    //////////////////////
-    // Runnable methods //
-    //////////////////////
+    // Returns true if the file does not have any unsaved change or if the user refused to save the changes,
+    // false if the user cancelled the dialog or the save failed.
+    public boolean askSave() {
+        if(!saveNeeded)
+            return true;
 
-    public void run() {
-        try {
-            FileEditor editor = EditorRegistrar.createFileEditor(file);
+        QuestionDialog dialog = new QuestionDialog(this, null, Translator.get("file_editor.save_warning"), this,
+                                                   new String[] {Translator.get("save"), Translator.get("dont_save"), Translator.get("cancel")},
+                                                   new int[]  {YES_ACTION, NO_ACTION, CANCEL_ACTION},
+                                                   0);
+        int ret = dialog.getActionValue();
 
-            // Test if file is too large to be viewed and warns user
-            long max = editor.getMaxRecommendedSize();
-            if (max!=-1 && file.getSize()>max) {
-                QuestionDialog dialog = new QuestionDialog(mainFrame, Translator.get("warning"), Translator.get("file_editor.large_file_warning"), mainFrame,
-                                                           new String[] {Translator.get("file_editor.open_anyway"), Translator.get("cancel")},
-                                                           new int[]  {0, 1},
-                                                           0);
-	
-                int ret = dialog.getActionValue();
-				
-                if (ret==1 || ret==-1)
-                    return;
-            }
-
-            editor.setFrame(this);
-            editor.setCurrentFile(file);
-            editor.edit(file);
-            setEditor(editor);
-
-            // Sets panel to preferred size, without exceeding a maximum size and with a minumum size
-            pack();
-            DialogToolkit.centerOnWindow(this, mainFrame);
-            setVisible(true);
+        if((ret==YES_ACTION && trySave(file)) || ret==NO_ACTION) {
+            setSaveNeeded(false);
+            return true;
         }
-        catch(Exception e) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught: "+e);
 
-            JOptionPane.showMessageDialog(mainFrame, Translator.get("file_editor.edit_error"), Translator.get("file_editor.edit_error_title"), JOptionPane.ERROR_MESSAGE);
-        }
+        return false;       // User cancelled or the file couldn't be properly saved
     }
+
+
 
 
     ////////////////////////////
@@ -245,46 +272,14 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
 		
         // File menu
         if (source==saveItem) {
-            trySaveAs(file);
+            trySave(file);
         }		
         else if (source==saveAsItem) {
-            saveAs();
+            trySaveAs();
         }		
         else if (source==closeItem) {
             dispose();
         }			
-    }
-
-
-    ///////////////////////////////////
-    // WindowListener implementation //
-    ///////////////////////////////////
-
-    public void windowClosing(WindowEvent e) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
-        
-        dispose();
-    }
-
-    public void windowActivated(WindowEvent e) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
-        
-        editor.requestFocus();
-    }
-
-    public void windowDeactivated(WindowEvent e) {
-    }
-
-    public void windowIconified(WindowEvent e) {
-    }
-
-    public void windowDeiconified(WindowEvent e) {
-    }
-
-    public void windowOpened(WindowEvent e) {
-    }
-
-    public void windowClosed(WindowEvent e) {
     }
 
 
@@ -295,30 +290,15 @@ public class EditorFrame extends JFrame implements ActionListener, Runnable, Win
     public void pack() {
         super.pack();
 
-        setTitle(editor.getTitle());
-
         DialogToolkit.fitToScreen(this);
         DialogToolkit.fitToMinDimension(this, MIN_DIMENSION);
+
+        DialogToolkit.centerOnWindow(this, mainFrame);
     }
 
 
     public void dispose() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
-
-        // Has any change to the file been made ?
-        if (saveNeeded) {
-            QuestionDialog dialog = new QuestionDialog(this, null, Translator.get("file_editor.save_warning"), this,
-                                                       new String[] {Translator.get("save"), Translator.get("dont_save"), Translator.get("cancel")},
-                                                       new int[]  {YES_ACTION, NO_ACTION, CANCEL_ACTION},
-                                                       0);
-            int ret = dialog.getActionValue();
-
-            if ((ret==YES_ACTION && trySaveAs(file)) || ret==NO_ACTION) {   // Do not dispose editor if save failed
-                super.dispose();
-            }
-        }
-        else {
+        if(askSave())   /// Returns true if the file does not have any unsaved change or if the user refused to save the changes
             super.dispose();
-        }
     }
 }

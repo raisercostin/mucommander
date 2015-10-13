@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ public class AndFileFilter extends ChainedFileFilter {
      * @param file the file to test against the registered filters
      * @return if the file was matched by all filters, false if one of them didn't 
      */
-    public synchronized boolean accept(AbstractFile file) {
+    public boolean accept(AbstractFile file) {
         int nbFilters = filters.size();
 
         for(int i=0; i<nbFilters; i++)

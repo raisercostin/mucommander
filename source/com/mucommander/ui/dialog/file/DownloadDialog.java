@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,11 +31,8 @@ import com.mucommander.ui.main.MainFrame;
  *
  * @author Maxence Bernard
  */
-public class DownloadDialog extends DestinationDialog {
+public class DownloadDialog extends TransferDestinationDialog {
 
-    private FileSet files;
-	
-	
     public DownloadDialog(MainFrame mainFrame, FileSet files) {
         super(mainFrame, files,
               Translator.get("download_dialog.download"),
@@ -43,7 +40,6 @@ public class DownloadDialog extends DestinationDialog {
               Translator.get("download_dialog.download"),
               Translator.get("download_dialog.error_title"));
 
-        this.files = files;
         AbstractFile file = (AbstractFile)files.elementAt(0);
 		
         //		AbstractFile activeFolder = mainFrame.getActiveTable().getCurrentFolder();
@@ -53,11 +49,12 @@ public class DownloadDialog extends DestinationDialog {
         showDialog();
     }
 
-	
-    protected void startJob(AbstractFile destFolder, String newName, int defaultFileExistsAction) {
-        // Starts moving files
+    protected void startJob(AbstractFile destFolder, String newName, int defaultFileExistsAction, boolean verifyIntegrity) {
         ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("download_dialog.downloading"));
+
         CopyJob downloadJob = new CopyJob(progressDialog, mainFrame, files, destFolder, newName, CopyJob.DOWNLOAD_MODE, defaultFileExistsAction);
+        downloadJob.setIntegrityCheckEnabled(verifyIntegrity);
+
         progressDialog.start(downloadJob);
     }
 	

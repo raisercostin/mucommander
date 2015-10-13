@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,10 @@
 package com.mucommander.ui.action;
 
 import com.mucommander.conf.impl.MuConfiguration;
-import com.mucommander.conf.ConfigurationListener;
-import com.mucommander.conf.ConfigurationEvent;
-import com.mucommander.text.Translator;
-import com.mucommander.ui.main.CommandBar;
-import com.mucommander.ui.main.WindowManager;
 import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.main.WindowManager;
 
 import java.util.Hashtable;
-import java.util.Iterator;
 
 /**
  * A simple action that toggles hidden files visibility on and off.
@@ -48,9 +43,6 @@ public class ToggleHiddenFilesAction extends MuAction {
      * Toggles hidden files display on and off and requests for all file tables to be repainted.
      */
     public void performAction() {
-        Iterator  frames;
-        MainFrame frame;
-
         MuConfiguration.setVariable(MuConfiguration.SHOW_HIDDEN_FILES,
                                     !MuConfiguration.getVariable(MuConfiguration.SHOW_HIDDEN_FILES, MuConfiguration.DEFAULT_SHOW_HIDDEN_FILES));
         WindowManager.tryRefreshCurrentFolders();

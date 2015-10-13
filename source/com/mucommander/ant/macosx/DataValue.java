@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -19,9 +19,9 @@
 package com.mucommander.ant.macosx;
 
 import com.mucommander.xml.XmlWriter;
+import org.apache.tools.ant.BuildException;
 
 import java.io.IOException;
-import org.apache.tools.ant.BuildException;
 
 class DataValue implements InfoElement {
     private static final String DATA_ELEMENT = "data";

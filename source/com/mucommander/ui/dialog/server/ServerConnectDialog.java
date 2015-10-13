@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 package com.mucommander.ui.dialog.server;
 
 import com.mucommander.auth.Credentials;
-import com.mucommander.auth.MappedCredentials;
+import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.file.FileURL;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
@@ -28,6 +28,7 @@ import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.layout.XBoxPanel;
 import com.mucommander.ui.layout.YBoxPanel;
+import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
@@ -44,64 +45,66 @@ import java.util.Vector;
 
 
 /**
- * Dialog that facilitate the connection to a server. It contains tabs and associated panels for each of the protocols
- * supported.   
+ * Dialog that assists the user in connecting to a filesystem. It contains tabs and associated panels for each of the
+ * supported protocols.
  *
  * @author Maxence Bernard
  */
 public class ServerConnectDialog extends FocusDialog implements ActionListener, ChangeListener, DocumentListener {
 
-    private MainFrame mainFrame;
+    private FolderPanel folderPanel;
 	
     private JButton cancelButton;
     private ServerPanel currentServerPanel;
 
     private JTabbedPane tabbedPane;
-    private Vector serverPanels;
+    private Vector serverPanels = new Vector();
 
     private JLabel urlLabel;
     private JCheckBox saveCredentialsCheckBox;
 
     // Dialog's width has to be at least 320
-    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(360,0);	
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(420,0);	
 	
-    public final static int SMB_INDEX = 0;
-    public final static int FTP_INDEX = 1;
-    public final static int SFTP_INDEX = 2;
-    public final static int HTTP_INDEX = 3;
-    public final static int NFS_INDEX = 4;
+    private static Class lastPanelClass = SMBPanel.class;
 
-    private static int lastPanelIndex = SMB_INDEX;
-	
-	
-    public ServerConnectDialog(MainFrame mainFrame) {
-        this(mainFrame, lastPanelIndex);
+
+    /**
+     * Creates a new <code>ServerConnectDialog</code> that changes the current folder on the specified {@link FolderPanel}.
+     *
+     * @param folderPanel the panel on which to change the current folder
+     */
+    public ServerConnectDialog(FolderPanel folderPanel) {
+        this(folderPanel, lastPanelClass);
     }
 	
 		
-    public ServerConnectDialog(MainFrame mainFrame, int panelIndex) {
-        super(mainFrame, Translator.get(com.mucommander.ui.action.ConnectToServerAction.class.getName()+".label"), mainFrame);
-        this.mainFrame = mainFrame;
-        this.lastPanelIndex = panelIndex;
+    /**
+     * Creates a new <code>ServerConnectDialog</code> that changes the current folder on the specified {@link FolderPanel}.
+     * The specified panel is selected when the dialog appears.
+     *
+     * @param folderPanel the panel on which to change the current folder
+     * @param selectPanelClass class of the ServerPanel to select
+     */
+    public ServerConnectDialog(FolderPanel folderPanel, Class selectPanelClass) {
+        super(folderPanel.getMainFrame(), Translator.get(com.mucommander.ui.action.ConnectToServerAction.class.getName()+".label"), folderPanel.getMainFrame());
+        this.folderPanel = folderPanel;
+        lastPanelClass = selectPanelClass;
 
+        MainFrame mainFrame = folderPanel.getMainFrame();
         Container contentPane = getContentPane();
 		
         this.tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-        this.serverPanels = new Vector();
 
-//        Enumeration registeredProtocols = FileFactory.getRegisteredFileProtocols();
-//        if(registeredProtocols.contains(FileProtocols.SMB))
-            addTab("SMB", new SMBPanel(this, mainFrame));
-//        if(registeredProtocols.contains(FileProtocols.FTP))
-            addTab("FTP", new FTPPanel(this, mainFrame));
-//        if(registeredProtocols.contains(FileProtocols.SFTP))
-            addTab("SFTP", new SFTPPanel(this, mainFrame));
-//        if(registeredProtocols.contains(FileProtocols.HTTP))
-            addTab("HTTP", new HTTPPanel(this, mainFrame));
-        addTab("NFS", new NFSPanel(this, mainFrame));
+        addTab("SMB", new SMBPanel(this, mainFrame), selectPanelClass);
+        addTab("FTP", new FTPPanel(this, mainFrame), selectPanelClass);
+        // SFTP support is not compatible with all version of the Java runtime
+        if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
+            addTab("SFTP", new SFTPPanel(this, mainFrame), selectPanelClass);
+        addTab("HTTP", new HTTPPanel(this, mainFrame), selectPanelClass);
+        addTab("NFS", new NFSPanel(this, mainFrame), selectPanelClass);
 
-        tabbedPane.setSelectedIndex(panelIndex);
-        currentServerPanel = (ServerPanel)serverPanels.elementAt(panelIndex);
+        currentServerPanel = getCurrentServerPanel();
 
         // Listen to tab change events
         tabbedPane.addChangeListener(this);
@@ -125,24 +128,25 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
 
         JButton okButton = new JButton(Translator.get("server_connect_dialog.connect"));
         cancelButton = new JButton(Translator.get("cancel"));
-        yPanel.add(DialogToolkit.createOKCancelPanel(okButton, cancelButton, this));
+        yPanel.add(DialogToolkit.createOKCancelPanel(okButton, cancelButton, getRootPane(), this));
 
         contentPane.add(yPanel, BorderLayout.SOUTH);
 		
         // initial focus
         setInitialFocusComponent(currentServerPanel);		
 		
-        // Selects OK when enter is pressed
-        getRootPane().setDefaultButton(okButton);
-
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
     }
 
 
-    public void addTab(String title, ServerPanel serverPanel) {
+    public void addTab(String title, ServerPanel serverPanel, Class selectPanelClass) {
         JPanel northPanel = new JPanel(new BorderLayout());
         northPanel.add(serverPanel, BorderLayout.NORTH);
         tabbedPane.addTab(title, northPanel);
+
+        if(selectPanelClass.equals(serverPanel.getClass()))
+            tabbedPane.setSelectedComponent(northPanel);
+
         serverPanels.add(serverPanel);
     }
 
@@ -155,6 +159,10 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
         catch(MalformedURLException ex) {
             urlLabel.setText(" ");
         }
+    }
+
+    private ServerPanel getCurrentServerPanel() {
+        return (ServerPanel)serverPanels.elementAt(tabbedPane.getSelectedIndex());
     }
 	
 	
@@ -173,21 +181,25 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
         try {
             FileURL serverURL = currentServerPanel.getServerURL();	// Can thrown a MalformedURLException
 
-            // Create MappedCedentials instance and use it in the URL so that it's added to CredentialsManager once the
-            // location has been properly opened
+            // Create a CredentialsMapping instance and pass to Folder so that it uses it to connect to the folder and
+            // adds to CredentialsManager once the folder has been successfully changed
             Credentials credentials = serverURL.getCredentials();
-            if(credentials!=null)
-                serverURL.setCredentials(new MappedCredentials(credentials, serverURL, saveCredentialsCheckBox.isSelected()));
+            CredentialsMapping credentialsMapping;
+            if(credentials!=null) {
+                credentialsMapping = new CredentialsMapping(credentials, serverURL, saveCredentialsCheckBox.isSelected());
+            }
+            else {
+                credentialsMapping = null;
+            }
 
             currentServerPanel.dispose();
             dispose();
 
-            // Change current folder
-            mainFrame.getActiveTable().getFolderPanel().tryChangeCurrentFolder(serverURL);
+            // Change the current folder
+            folderPanel.tryChangeCurrentFolder(serverURL, credentialsMapping);
         }
         catch(IOException ex) {
             JOptionPane.showMessageDialog(this, Translator.get("folder_does_not_exist"), Translator.get("table.folder_access_error_title"), JOptionPane.ERROR_MESSAGE);
-            return;
         }
     }
 	
@@ -197,8 +209,8 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     ///////////////////////////
 	
     public void stateChanged(ChangeEvent e) {
-        lastPanelIndex = tabbedPane.getSelectedIndex();
-        currentServerPanel = (ServerPanel)serverPanels.elementAt(lastPanelIndex);
+        currentServerPanel = getCurrentServerPanel();
+        lastPanelClass = currentServerPanel.getClass();
 
         // Enables 'save credentials' checkbox only if server panel/protocol uses credentials
         saveCredentialsCheckBox.setEnabled(currentServerPanel.usesCredentials());

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,6 +74,7 @@ public class CommandAction extends MuAction {
         if(selectedFiles.getBaseFolder().getURL().getProtocol().equals(FileProtocols.FILE) && (selectedFiles.getBaseFolder() instanceof LocalFile)) {
             try {ProcessRunner.execute(command.getTokens(selectedFiles), selectedFiles.getBaseFolder());}
             catch(Exception e) {
+                reportGenericError();
                 if(Debug.ON) {
                     Debug.trace("Failed to execute command: " + command.getCommand());
                     Debug.trace(e);

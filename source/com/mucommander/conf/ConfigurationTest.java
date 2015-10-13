@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -20,11 +20,10 @@ package com.mucommander.conf;
 
 import junit.framework.TestCase;
 
-import java.util.Hashtable;
-import java.util.Stack;
-import java.util.Vector;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Stack;
+import java.util.Vector;
 
 /**
  * A test case for the {@link Configuration} class.
@@ -1214,6 +1213,7 @@ public class ConfigurationTest extends TestCase implements ConfigurationListener
 
     /**
      * Ignored.
+     * @see #setOutputStream(OutputStream)
      */
     public OutputStream getOutputStream() {return null;}
 
@@ -1259,6 +1259,7 @@ public class ConfigurationTest extends TestCase implements ConfigurationListener
 
     /**
      * Ignored.
+     * @see #getOutputStream()
      */
     public void setOutputStream(OutputStream out) {}
 

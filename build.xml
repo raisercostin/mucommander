@@ -1,6 +1,6 @@
 <!--
 This file is part of muCommander, http://www.mucommander.com
-Copyright (C) 2002-2007 Maxence Bernard
+Copyright (C) 2002-2008 Maxence Bernard
 
 muCommander is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <!-- ========================================================= -->
 <!-- Main muCommander buildfile.                               -->
-<!-- This acts as a proxy to all other buildfiles.             -->
+<!--                                                           -->
+<!-- This file acts as a proxy to all other necessary          -->
+<!-- buildfiles:                                               -->
+<!-- - directory structure.                                    -->
+<!-- - common targets.                                         -->
+<!-- - mucommander specific targets.                           -->
+<!-- - Ant tools specific targets.                             -->
+<!-- - Configuration API specific targets.                     -->
+<!-- - if available, local configuration.                      -->
+<!--                                                           -->
+<!-- Author: Nicolas Rinaudo                                   -->
 <!-- ========================================================= -->
 <project name="mucommander" default="run" basedir=".">
   <!-- Common targets and directory structure.                 -->

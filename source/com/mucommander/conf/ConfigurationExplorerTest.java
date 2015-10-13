@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -59,7 +59,9 @@ public class ConfigurationExplorerTest extends TestCase {
         conf   = new Configuration();
         for(int i = 0; i < DEPTH; i++) {
             conf.setVariable(buffer.toString() + VARIABLE_NAME + i, VARIABLE_VALUE + i);
-            buffer.append(SECTION_NAME + i + '.');
+            buffer.append(SECTION_NAME);
+            buffer.append(i);
+            buffer.append('.');
         }
     }
 
@@ -69,11 +71,15 @@ public class ConfigurationExplorerTest extends TestCase {
     // -----------------------------------------------------------------------------------
     /**
      * Returns a configuration explorer on the test section.
+     * @return a configuration explorer on the test section.
      */
     protected ConfigurationExplorer getExplorer() {return new ConfigurationExplorer(conf.getRoot());}
 
     /**
      * Moves to the specified depth.
+     * @param  explorer explorer to use when moving to the specified depth.
+     * @param  depth    depth in the configuration tree at which to move.
+     * @return          section that was found at the specified depth.
      */
     protected ConfigurationSection moveTo(ConfigurationExplorer explorer, int depth) {
         ConfigurationSection section;

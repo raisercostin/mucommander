@@ -1,0 +1,342 @@
+/*
+ * This file is part of muCommander, http://www.mucommander.com
+ * Copyright (C) 2002-2008 Maxence Bernard
+ *
+ * muCommander is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * muCommander is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package com.mucommander.io;
+
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+/**
+ * This class provides convience static methods that operate on streams. All read/write buffers are allocated using
+ * {@link BufferPool} for memory efficiency reasons.
+ *
+ * @author Maxence Bernard
+ */
+public class StreamUtils {
+
+    /**
+     * This method is a shorthand for {@link #copyStream(java.io.InputStream, java.io.OutputStream, int)} called with a
+     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     *
+     * @param in the InputStream to read from
+     * @param out the OutputStream to write to
+     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
+     */
+    public static void copyStream(InputStream in, OutputStream out) throws FileTransferException {
+        copyStream(in, out, BufferPool.DEFAULT_BUFFER_SIZE);
+    }
+
+    /**
+     * Copies the contents of the given <code>InputStream</code> to the specified </code>OutputStream</code>
+     * and throws an IOException if something went wrong. This method does *NOT* close the streams.
+     *
+     * <p>Read and write operations are buffered, using a buffer of the specified size (in bytes). For performance
+     * reasons, this buffer is provided by {@link BufferPool}. There is no need to provide a
+     * <code>BufferedInputStream</code>. A <code>BufferedOutputStream</code> also isn't necessary, unless this method
+     * is called repeatedly with the same <code>OutputStream</code> and with potentially small <code>InputStream</code>
+     * (smaller than the buffer's size): in this case, providing a <code>BufferedOutputStream</code> will further
+     * improve performance by grouping calls to the underlying <code>OutputStream</code> write method.</p>
+     *
+     * <p>Copy progress can optionally be monitored by supplying a {@link com.mucommander.io.CounterInputStream} and/or
+     * {@link com.mucommander.io.CounterOutputStream}.</p>
+     *
+     * @param in the InputStream to read from
+     * @param out the OutputStream to write to
+     * @param bufferSize size of the buffer to use, in bytes
+     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
+     */
+    public static void copyStream(InputStream in, OutputStream out, int bufferSize) throws FileTransferException {
+        // Use BufferPool to reuse any available buffer of the same size
+        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+        try {
+            // Copies the InputStream's content to the OutputStream chunks by chunks
+            int nbRead;
+
+            while(true) {
+                try {
+                    nbRead = in.read(buffer, 0, buffer.length);
+                }
+                catch(IOException e) {
+                    throw new FileTransferException(FileTransferException.READING_SOURCE);
+                }
+
+                if(nbRead==-1)
+                    break;
+
+                try {
+                    out.write(buffer, 0, nbRead);
+                }
+                catch(IOException e) {
+                    throw new FileTransferException(FileTransferException.WRITING_DESTINATION);
+                }
+            }
+        }
+        finally {
+            // Make the buffer available for further use
+            BufferPool.releaseArrayBuffer(buffer);
+        }
+    }
+
+
+    /**
+     * This method is a shorthand for {@link #fillWithConstant(java.io.OutputStream, byte, long, int)} called with a
+     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     *
+     * @param out the OutputStream to write to
+     * @param value the byte constant to write len times
+     * @param len number of bytes to write
+     * @throws java.io.IOException if an error occurred while writing
+     */
+    public static void fillWithConstant(OutputStream out, byte value, long len) throws IOException {
+        fillWithConstant(out, value, len, BufferPool.DEFAULT_BUFFER_SIZE);
+    }
+
+    /**
+     * Writes the specified byte constant <code>len</code> times to the given <code>OutputStream</code>.
+     * This method does *NOT* close the stream when it is finished.
+     *
+     * @param out the OutputStream to write to
+     * @param value the byte constant to write len times
+     * @param len number of bytes to write
+     * @param bufferSize size of the buffer to use, in bytes
+     * @throws java.io.IOException if an error occurred while writing
+     */
+    public static void fillWithConstant(OutputStream out, byte value, long len, int bufferSize) throws IOException {
+        // Use BufferPool to avoid excessive memory allocation and garbage collection
+        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+
+        // Fill the buffer with the constant byte value, not necessary if the value is zero
+        if(value!=0) {
+            for(int i=0; i<bufferSize; i++)
+                buffer[i] = value;
+        }
+
+        try {
+            long remaining = len;
+            int nbWrite;
+            while(remaining>0) {
+                nbWrite = (int)(remaining>bufferSize?bufferSize:remaining);
+                out.write(buffer, 0, nbWrite);
+                remaining -= nbWrite;
+            }
+        }
+        finally {
+            BufferPool.releaseArrayBuffer(buffer);
+        }
+    }
+
+    /**
+     * This method is a shorthand for {@link #copyChunk(RandomAccessInputStream, RandomAccessOutputStream, long, long, long, int)}
+     * called with a {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     *
+     * @param rais the source stream
+     * @param raos the destination stream
+     * @param srcOffset offset to the beginning of the chunk in the source stream
+     * @param destOffset offset to the beginning of the chunk in the destination stream
+     * @param length number of bytes to copy
+     * @throws java.io.IOException if an error occurred while copying data
+     */
+    public static void copyChunk(RandomAccessInputStream rais, RandomAccessOutputStream raos, long srcOffset, long destOffset, long length) throws IOException {
+        copyChunk(rais, raos, srcOffset, destOffset, length, BufferPool.DEFAULT_BUFFER_SIZE);
+    }
+
+    /**
+     * Copies a chunk of data from the given {@link com.mucommander.io.RandomAccessInputStream} to the specified
+     * {@link com.mucommander.io.RandomAccessOutputStream}.
+     *
+     * @param rais the source stream
+     * @param raos the destination stream
+     * @param srcOffset offset to the beginning of the chunk in the source stream
+     * @param destOffset offset to the beginning of the chunk in the destination stream
+     * @param length number of bytes to copy
+     * @param bufferSize size of the buffer to use, in bytes
+     * @throws java.io.IOException if an error occurred while copying data
+     */
+    public static void copyChunk(RandomAccessInputStream rais, RandomAccessOutputStream raos, long srcOffset, long destOffset, long length, int bufferSize) throws IOException {
+        rais.seek(srcOffset);
+        raos.seek(destOffset);
+
+        // Use BufferPool to avoid excessive memory allocation and garbage collection
+        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+
+        try {
+            long remaining = length;
+            int nbBytes;
+            while(remaining>0) {
+                nbBytes = (int)(remaining<bufferSize?remaining:bufferSize);
+                rais.readFully(buffer, 0, nbBytes);
+                raos.write(buffer, 0, nbBytes);
+                remaining -= nbBytes;
+            }
+        }
+        finally {
+            BufferPool.releaseArrayBuffer(buffer);
+        }
+    }
+
+
+    /**
+     * This method is a shorthand for {@link #readFully(java.io.InputStream, byte[], int, int)}.
+     *
+     * @param in the InputStream to read from
+     * @param b the buffer into which the stream data is copied
+     * @return the same byte array that was passed, returned only for convience
+     * @throws java.io.EOFException if EOF is reached before all bytes have been read
+     * @throws IOException if an I/O error occurs
+     */
+    public static byte[] readFully(InputStream in, byte b[]) throws EOFException, IOException {
+        return readFully(in, b, 0, b.length);
+    }
+
+    /**
+     * Reads exactly <code>len</code> bytes from the <code>InputStream</code> and copies them into the byte array,
+     * starting at position <code>off</code>.
+     *
+     * <p>This method calls the <code>read()</code> method of the given stream until the requested number of bytes have
+     * been skipped, or throws an {@link EOFException} if the end of file has been reached prematurely.</p>
+     *
+     * @param in the InputStream to read from
+     * @param b the buffer into which the stream data is copied
+     * @param off specifies where the copy should start in the buffer
+     * @param len the number of bytes to read
+     * @return the same byte array that was passed, returned only for convience
+     * @throws java.io.EOFException if EOF is reached before all bytes have been read
+     * @throws IOException if an I/O error occurs
+     */
+    public static byte[] readFully(InputStream in, byte b[], int off, int len) throws EOFException, IOException {
+        if(len>0) {
+            int totalRead = 0;
+            do {
+                int nbRead = in.read(b, off + totalRead, len - totalRead);
+                if (nbRead < 0)
+                    throw new EOFException();
+                totalRead += nbRead;
+            }
+            while (totalRead < len);
+        }
+
+        return b;
+    }
+
+    /**
+     * Skips exactly <code>n</code>bytes from the given InputStream.
+     *
+     * <p>This method calls the <code>skip()</code> method of the given stream until the requested number of bytes have
+     * been skipped, or throws an {@link EOFException} if the end of file has been reached prematurely.</p>
+     *
+     * @param in the InputStream to skip bytes from
+     * @param n the number of bytes to skip
+     * @throws java.io.EOFException if the EOF is reached before all bytes have been skipped
+     * @throws java.io.IOException if an I/O error occurs
+     */
+    public static void skipFully(InputStream in, long n) throws IOException {
+        if(n<=0)
+            return;
+
+        do {
+            long nbSkipped = in.skip(n);
+            if(nbSkipped<0)
+                throw new IOException();
+
+            n -= nbSkipped;
+        } while(n>0);
+    }
+
+    /**
+     * This method is a shorthand for {@link #readUpTo(java.io.InputStream, byte[], int, int) readUpTo(in, b, 0, b.length)}.
+     *
+     * @param in the InputStream to read from
+     * @param b the buffer into which the stream data is copied
+     * @return the number of bytes that have been read, can be less than len if EOF has been reached prematurely
+     * @throws IOException if an I/O error occurs
+     */
+    public static int readUpTo(InputStream in, byte b[]) throws IOException {
+        return readUpTo(in, b, 0, b.length);
+    }
+
+    /**
+     * Reads up to <code>len</code> bytes from the <code>InputStream</code> and copies them into the byte array,
+     * starting at position <code>off</code>.
+     *
+     * <p>This method differs from {@link #readFully(java.io.InputStream, byte[], int, int)} in that it does not throw
+     * a <code>java.io.EOFException</code> if the end of stream is reached before all bytes have been read. In that
+     * case (and in that case only), the number of bytes returned by this method will be lower than <code>len</code>.
+     * </p>
+     *
+     * @param in the InputStream to read from
+     * @param b the buffer into which the stream data is copied
+     * @param off specifies where the copy should start in the buffer
+     * @param len the number of bytes to read
+     * @return the number of bytes that have been read, can be less than len if EOF has been reached prematurely
+     * @throws IOException if an I/O error occurs
+     */
+    public static int readUpTo(InputStream in, byte b[], int off, int len) throws IOException {
+        int totalRead = 0;
+        if(len>0) {
+            do {
+                int nbRead = in.read(b, off + totalRead, len - totalRead);
+                if (nbRead < 0)
+                    break;
+                totalRead += nbRead;
+            }
+            while (totalRead < len);
+        }
+
+        return totalRead;
+    }
+
+
+    /**
+     * This method is a shorthand for {@link #readUntilEOF(java.io.InputStream, int)} called with a
+     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     *
+     * @param in the InputStream to read
+     * @throws IOException if an I/O error occurs
+     */
+    public static void readUntilEOF(InputStream in) throws IOException {
+        readUntilEOF(in, BufferPool.DEFAULT_BUFFER_SIZE);
+    }
+
+    /**
+     * This method reads the given InputStream until the End Of File is reached, discarding all the data that is read
+     * in the process. It is noteworthy that this method does <b>not</b> close the stream.
+     *
+     * @param in the InputStream to read
+     * @param bufferSize size of the read buffer
+     * @throws IOException if an I/O error occurs
+     */
+    public static void readUntilEOF(InputStream in, int bufferSize) throws IOException {
+        // Use BufferPool to avoid excessive memory allocation and garbage collection
+        byte buffer[] = BufferPool.getArrayBuffer(bufferSize);
+
+        try {
+            int nbRead;
+            while(true) {
+                nbRead = in.read(buffer, 0, buffer.length);
+
+                if(nbRead==-1)
+                    break;
+            }
+        }
+        finally {
+            BufferPool.releaseArrayBuffer(buffer);
+        }
+    }
+}

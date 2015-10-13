@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 package com.mucommander.ui.action;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
 import com.mucommander.file.util.ResourceLoader;
+import com.mucommander.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.MainFrame;
@@ -169,13 +169,22 @@ public abstract class MuAction extends AbstractAction {
         }
 
         if(lookupIconManager) {
-            // Look for an icon image file with the /action/<classname>.png path and use it if it exists
-            String iconPath = getIconPath(classInstance);
-            if(ResourceLoader.getResourceAsURL(iconPath)!=null)
-                setIcon(IconManager.getIcon(iconPath));
+            ImageIcon icon;
+
+            if((icon = getIcon(classInstance)) != null)
+                setIcon(icon);
         }
     }
 
+    protected static ImageIcon getIcon(Class action) {
+        String iconPath;
+
+        // Look for an icon image file with the /action/<classname>.png path and use it if it exists
+        iconPath = getIconPath(action);
+        if(ResourceLoader.getResourceAsURL(iconPath) == null)
+            return null;
+        return IconManager.getIcon(iconPath);
+    }
 
     /**
      * Returns the path to the icon image within the application's JAR file corresponding to the specified
@@ -334,7 +343,7 @@ public abstract class MuAction extends AbstractAction {
         if((modifiers&KeyEvent.CTRL_MASK)!=0)
             modifiersString += (modifiersString.equals("")?"":"+")+CTRL_MODIFIER_STRING;
 
-        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X) {
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
             if((modifiers&KeyEvent.ALT_MASK)!=0)
                 modifiersString += (modifiersString.equals("")?"":"+")+ALT_MODIFIER_STRING;
 
@@ -401,6 +410,43 @@ public abstract class MuAction extends AbstractAction {
      */
     public boolean ignoreEventsWhileInNoEventsMode() {
         return true;
+    }
+
+
+    /////////////////////
+    // Error reporting //
+    /////////////////////
+    /**
+     * Opens a dialog with a generic error message.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling
+     * <code>{@link #reportError(String,String) reportError(}{@link Translator#get(String) Translator.get(}("error"),
+     * {@link Translator#get(String) Translator.get(}("generic_error"))<code>
+     * </p>
+     */
+    protected void reportGenericError() {
+        reportError(Translator.get("error"), Translator.get("generic_error"));
+    }
+
+    /**
+     * Opens a dialog with the specified error message.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling
+     * <code>{@link #reportError(String,String) reportError(}{@link Translator#get(String) Translator.get(}("error"), message)</code>
+     * </p>
+     * @param message error message to display.
+     */
+    protected void reportError(String message) {
+        reportError(Translator.get("error"), message);
+    }
+
+    /**
+     * Opens an error dialog with the specified title and message.
+     * @param title   title for the error dialog.
+     * @param message message contained by the error dialog.
+     */
+    protected void reportError(String title, String message) {
+        JOptionPane.showMessageDialog(mainFrame, message, title, JOptionPane.ERROR_MESSAGE);
     }
 
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,22 +18,25 @@
 
 package com.mucommander.file;
 
-import com.mucommander.PlatformManager;
+import com.mucommander.file.compat.CompatURLStreamHandler;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.impl.ProxyFile;
-import com.mucommander.io.BufferPool;
-import com.mucommander.io.FileTransferException;
-import com.mucommander.io.RandomAccessInputStream;
-import com.mucommander.io.RandomAccessOutputStream;
+import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.file.util.FileToolkit;
+import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
+import com.mucommander.runtime.OsFamilies;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.regex.Pattern;
 
 /**
@@ -98,6 +101,26 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
+     * Creates and returns a <code>java.net.URL</code> referring to the same location as the {@link FileURL} associated
+     * with this <code>AbstractFile</code>.
+     * The <code>java.net.URL</code> is created from the string representation of this file's <code>FileURL</code>.
+     * Thus, any credentials this <code>FileURL</code> contains are preserved, but properties are lost.
+     *
+     * <p>The returned <code>URL</code> uses this {@link AbstractFile} to access the associated resource, via the
+     * underlying <code>URLConnection</code> which delegates to this class.</p>
+     *
+     * <p>It is important to note that this method is provided for interoperability purposes, for the sole purpose of
+     * connecting to APIs that require a <code>java.net.URL</code>.</p>
+     *
+     * @return a <code>java.net.URL</code> referring to the same location as this <code>FileURL</code>
+     * @throws java.net.MalformedURLException if the java.net.URL could not parse the location of this FileURL
+     */
+    public URL getJavaNetURL() throws MalformedURLException {
+        return new URL(null, getURL().toString(true), new CompatURLStreamHandler(this));
+    }
+
+
+    /**
      * Returns this file's name.
      *
      * <p>The returned name is the filename extracted from this file's <code>FileURL</code>
@@ -146,7 +169,7 @@ public abstract class AbstractFile implements FilePermissions {
      * <li>For any other file protocol, the full URL including the protocol and host parts is returned (e.g. smb://192.168.1.1/root/blah)
      * </ul>
      *
-     * <p>The returned path will always be free of any login and password and thus can be safely displayed or stored.
+     * <p>The returned path will always be free of any login and password and thus can be safely displayed or stored.</p>
      *
      * @return the absolute path to this file
      */
@@ -154,8 +177,14 @@ public abstract class AbstractFile implements FilePermissions {
         FileURL fileURL = getURL();
 
         // For local files: return file's path 'sans' the protocol and host parts
-        if(fileURL.getProtocol().equals(FileProtocols.FILE))
-            return fileURL.getPath();
+        if(fileURL.getProtocol().equals(FileProtocols.FILE)) {
+            String path = fileURL.getPath();
+            // Under for OSes with 'root drives' (Windows, OS/2), remove the leading '/' character
+            if(LocalFile.hasRootDrives())
+                path = FileToolkit.removeLeadingSeparator(path, "/");
+
+            return path;
+        }
 
         // For any other file protocols: return the full URL that includes the protocol and host parts
         return fileURL.toString(false);
@@ -266,25 +295,27 @@ public abstract class AbstractFile implements FilePermissions {
      *  <li>For local files under other OS: if the path is "/"
      *  <li>For any other file kinds: if the FileURL's path is '/'
      * </ul>
+     * </p>
      *
      * @return <code>true</code> if this file is a root folder
      */
     public boolean isRoot() {
-        String path = fileURL.getPath();
-
-        if(fileURL.getProtocol().equals(FileProtocols.FILE))
-            return PlatformManager.isWindowsFamily()?windowsDriveRootPattern.matcher(path).matches():path.equals("/");
+        if(fileURL.getProtocol().equals(FileProtocols.FILE)) {
+            String path = getAbsolutePath();
+            return OsFamilies.WINDOWS.isCurrent()?windowsDriveRootPattern.matcher(path).matches():path.equals("/");
+        }
         else
-            return path.equals("/");
+            return getURL().getPath().equals("/");
     }
 
 
     /**
      * Returns an <code>InputStream</code> to read this file's contents, starting at the specified offset (in bytes).
+     * A <code>java.io.IOException</code> is thrown if the file doesn't exist. 
      *
-     * <p>This method should be overridden whenever possible to provide a more efficient implementation, as this
-     * default implementation uses {@link java.io.InputStream#skip(long)} which may just read bytes and discards them, 
-     * which is very slow.</p>
+     * <p>This method should be overridden whenever possible to provide a more efficient implementation as this
+     * default implementation uses {@link java.io.InputStream#skip(long)} which, depending on the particular InputStream
+     * implementation may just read bytes and discards them, which is very slow.</p>
      *
      * @param offset the offset in bytes from the beginning of the file, must be >0
      * @throws IOException if this file cannot be read or is a folder.
@@ -293,14 +324,8 @@ public abstract class AbstractFile implements FilePermissions {
     public InputStream getInputStream(long offset) throws IOException {
         InputStream in = getInputStream();
 		
-        // Call InputStream.skip() until the specified number of bytes have been skipped
-        long nbSkipped = 0;
-        long n;
-        while(nbSkipped<offset) {
-            n = in.skip(offset-nbSkipped);
-            if(n>0)
-                nbSkipped += n;
-        }
+        // Skip exactly the specified number of bytes
+        StreamUtils.skipFully(in, offset);
 
         return in;
     }
@@ -311,12 +336,12 @@ public abstract class AbstractFile implements FilePermissions {
      * will *NOT* be closed by this method.
      * 
      * <p>This method should be overridden by file protocols that do not offer a {@link #getOutputStream(boolean)}
-     * implementation, but that can take an <code>InputStream</code> and use it to write the file.
+     * implementation, but that can take an <code>InputStream</code> and use it to write the file.</p>
      *
      * <p>Read and write operations are buffered, with a buffer of {@link #IO_BUFFER_SIZE} bytes. For performance
-     * reasons, this buffer is provided by {@link BufferPool}. There is no need to provide a BufferedInputStream.
+     * reasons, this buffer is provided by {@link BufferPool}. There is no need to provide a BufferedInputStream.</p>
      *
-     * <p>Copy progress can optionally be monitored by supplying a {@link com.mucommander.io.CounterInputStream}.
+     * <p>Copy progress can optionally be monitored by supplying a {@link com.mucommander.io.CounterInputStream}.</p>
      *
      * @param in the InputStream to read from
      * @param append if true, data written to the OutputStream will be appended to the end of this file. If false, any existing data will be overwritten.
@@ -333,7 +358,7 @@ public abstract class AbstractFile implements FilePermissions {
         }
 
         try {
-            copyStream(in, out);
+            StreamUtils.copyStream(in, out, IO_BUFFER_SIZE);
         }
         finally {
             // Close stream even if copyStream() threw an IOException
@@ -351,7 +376,6 @@ public abstract class AbstractFile implements FilePermissions {
      * Throws a {@link FileTransferException} in any of the following conditions are true, does nothing otherwise:
      * <ul>
      *   <li>this file does not exist</li>
-     *   <li>the destination file exists</li>
      *   <li>this file and the destination file are the same, unless <code>allowCaseVariations</code> is <code>true</code>
      * and the destination filename is a case variation of the source</li>
      *   <li>this file is a parent of the destination file</li>
@@ -388,22 +412,17 @@ public abstract class AbstractFile implements FilePermissions {
         // Throw an exception if the source file does not exist
         if(!exists())
             throw new FileTransferException(FileTransferException.FILE_NOT_FOUND);
-
-        // Throw an exception if the destination file exists
-        if(destFile.exists() && !isAllowedCaseVariation)
-            throw new FileTransferException(FileTransferException.DESTINATION_EXISTS);
     }
 
 
     /**
-     * Copies this file to a specified destination file. If this file is a directory, any file or directory
-     * it contains will also be copied. An exception will be thrown if the destination file exists.
+     * Copies this file to a specified destination file, overwriting the destination if it exists. If this file is a
+     * directory, any file or directory it contains will also be copied.
      *
      * <p>This method returns <code>true</code> if the operation was successfully completed, <code>false</code> if the
      * operation could not be performed because of unsatisfied conditions (not an error).
      * A {@link FileTransferException} if the operation was attempted but failed for any of the following reasons:
      * <ul>
-     *  <li>the destination file exists</li>
      *  <li>this file and the destination file are the same</li>
      *  <li>this file is a directory and a parent of the destination file (operation would otherwise loop indefinitely)</li>
      *  <li>this file (or one if its child) could not be read</li>
@@ -447,10 +466,11 @@ public abstract class AbstractFile implements FilePermissions {
      * <li>{@link #MUST_HINT} if the file can only be copied using copyTo(), that's the case when getOutputStream() or copyStream() is not implemented
      * <li>{@link #MUST_NOT_HINT} if the file can only be copied using copyStream()
      * </ul>
+     * </p>
      *
      * <p>This default implementation returns {@link #SHOULD_NOT_HINT} as some granularity is lost when using
      *  <code>copyTo()</code> making it impossible to monitor progress when copying a file.
-     * This method should be overridden when <code>copyTo()</code> should be favored over <code>copyStream()</code>.
+     * This method should be overridden when <code>copyTo()</code> should be favored over <code>copyStream()</code>.</p>
      *
      * @param destFile the destination file that is considered being copied
      * @return the hint int indicating whether the {@link #copyTo(AbstractFile)} method should be used
@@ -461,19 +481,18 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
-     * Moves this file to a specified destination file. If this file is a directory, any file or directory
-     * it contains will also be moved. An exception will be thrown if the destination file exists.
+     * Moves this file to a specified destination file, overwriting the destination if it exists. If this file is a
+     * directory, any file or directory it contains will also be moved.
      * After normal completion, this file will not exist anymore: {@link #exists()} will return <code>false</code>.
      *
      * <p>This method returns <code>true</code> if the operation was successfully completed, <code>false</code> if the
      * operation could not be performed because of unsatisfied conditions (not an error).
      * A {@link FileTransferException} if the operation was attempted but failed for any of the following reasons:
      * <ul>
-     *  <li>the destination file exists</li>
      *  <li>this file and the destination file are the same</li>
      *  <li>this file is a directory and a parent of the destination file (operation would otherwise loop indefinitely)</li>
      *  <li>this file (or one if its child) could not be read</li>
-     *  <li>this file )or one of its child) could not be written</li>
+     *  <li>this file (or one of its child) could not be written</li>
      *  <li>the destination file (or one of its children) could not be written</li>
      *  <li>an I/O error occurred</li>
      * </ul>
@@ -530,11 +549,12 @@ public abstract class AbstractFile implements FilePermissions {
      * <li>{@link #MUST_HINT} if the file can only be copied using copyTo(), that's the case when getOutputStream() or copyStream() is not implemented
      * <li>{@link #MUST_NOT_HINT} if the file can only be copied using copyStream()
      * </ul>
+     * </p>
      *
      * <p>This default implementation returns {@link #SHOULD_HINT} if both this file and the specified destination file
      * use the same protocol and are located on the same host, {@link #SHOULD_NOT_HINT} otherwise.
      * This method should be overridden to return {@link #SHOULD_NOT_HINT} if the underlying file protocol doesn't not
-     * allow direct move/renaming without copying the contents of the source (this) file.
+     * allow direct move/renaming without copying the contents of the source (this) file.</p>
      *
      * @param destFile the destination file that is considered being copied
      * @return the hint int indicating whether the {@link #moveTo(AbstractFile)} method should be used
@@ -596,7 +616,7 @@ public abstract class AbstractFile implements FilePermissions {
      * <code>true</code>.
      *
      * <p>This default implementation filters out files *after* they have been created. This method
-     * should be overridden if a more efficient implementation can be provided by subclasses.
+     * should be overridden if a more efficient implementation can be provided by subclasses.</p>
      *
      * @param filter the FilenameFilter to be used to filter out files from the list, may be <code>null</code>
      * @return the children files that this file contains
@@ -615,7 +635,7 @@ public abstract class AbstractFile implements FilePermissions {
      * <p>Implementation note: the default implementation of this method calls sequentially {@link #getPermission(int, int)} for
      * each permission and access (that's a total of 9 calls). This may affect performance on filesystems which need to perform
      * an I/O request to retrieve each permission individually. In that case, and if the fileystem allows to retrieve all
-     * permissions at once, this method should be overridden.
+     * permissions at once, this method should be overridden.</p>
      *
      * @return permissions as an int, UNIX octal style.
      */
@@ -645,8 +665,8 @@ public abstract class AbstractFile implements FilePermissions {
      * <p>Implementation note: the default implementation of this method calls sequentially {@link #setPermission(int, int, boolean)},
      * for each permission and access (that's a total 9 calls). This may affect performance on filesystems which need
      * to perform an I/O request to change each permission individually. In that case, and if the fileystem allows
-     * to change all permissions at once, this method should be overridden.
-         *
+     * to change all permissions at once, this method should be overridden.</p>
+     *
      * @param permissions the new permissions this file should have
      * @return true if the operation was successful, false if at least one of the file permissions could not be changed
      */
@@ -668,6 +688,70 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
+     * Pads the given file's permissions with the specified ones: the permission bits that are not supported by the
+     * file (as reported by {@link #getPermissionGetMask()} are replaced by those of the default permissions.
+     * That means:<br/>
+     *  - if the file has support for all permission bits (mask = 777 octal), the file's permissions will simply be
+     * returned, without using any of the default permissions<br/>
+     *  - if the file doesn't have support for any of the permission bits (mask = 0), the default permissions will be
+     * returned, without using any of the file's permissions<br/>
+     *
+     * @param file the file for which to retrieve the permissions and pad them
+     * @param defaultPermissions permissions to use for the bits that are not supported by the given file
+     * @return the given file's permissions padded with the default permissions
+     */
+    public static int padPermissions(AbstractFile file, int defaultPermissions) {
+        return padPermissions(file.getPermissions(), file.getPermissionGetMask(), defaultPermissions);
+    }
+
+    /**
+     * Pads the given permissions with the specified ones: the permission bits that are not supported by the
+     * file (as reported by the supplied permissions mask} are replaced by those of the default permissions.
+     * That means:<br/>
+     *  - if the mask indicates that all permission bits are supported (mask = 777 octal), the supplied permissions will
+     * simply be returned, without using any of the default permissions<br/>
+     *  - if the mask indicates that none of the permission bits are supported (mask = 0), the default permissions will
+     * be returned, without using any of the supplied permissions<br/>
+     *
+     * @param permissions the permissions to pad with default permissions for the bits that are not supported
+     * @param supportedPermissionsMask the bit mask that indicates which bits of the given permissions are supported
+     * @param defaultPermissions permissions to use for the bits that are not supported
+     * @return the given permissions padded with the default permissions
+     */
+    public static int padPermissions(int permissions, int supportedPermissionsMask, int defaultPermissions) {
+        return (permissions & supportedPermissionsMask) | (~supportedPermissionsMask & defaultPermissions);
+    }
+
+
+    /**
+     * This method is a shorthand for {@link #importPermissions(AbstractFile, int)} called with
+     * {@link #DEFAULT_DIRECTORY_PERMISSIONS} if this file is a directory or {@link #DEFAULT_FILE_PERMISSIONS} if this
+     * file is a regular file.
+     *
+     * @param sourceFile the file from which to import permissions
+     */
+    public void importPermissions(AbstractFile sourceFile) {
+        importPermissions(sourceFile,isDirectory()
+                ?DEFAULT_DIRECTORY_PERMISSIONS
+                :DEFAULT_FILE_PERMISSIONS);
+    }
+
+    /**
+     * Imports the given source file's permissions, overwriting this file's permissions. Only the bits that are
+     * supported by the source file (as reported by {@link #getPermissionGetMask()} are preserved. Other bits are be
+     * set to those of the specified default permissions. See {@link #padPermissions(AbstractFile, int)} for more
+     * information about permissions padding.
+     *
+     * @param sourceFile the file from which to import permissions
+     * @param defaultPermissions default permissions to use
+     * @see #padPermissions(AbstractFile, int)
+     */
+    public void importPermissions(AbstractFile sourceFile, int defaultPermissions) {
+        setPermissions(padPermissions(sourceFile, defaultPermissions));
+    }
+
+
+    /**
      * Returns a mask describing the permission bits that the filesystem can read and which can be returned by
      * {@link #getPermission(int, int)} and {@link #getPermissions()}. This allows to determine which permissions are
      * meaningful. 0 is returned if no permission can be read or if the filesystem doesn't have a notion of permissions,
@@ -676,7 +760,7 @@ public abstract class AbstractFile implements FilePermissions {
      * <p>Implementation note: the default implementation of this method calls sequentially {@link #canGetPermission(int, int)},
      * for each permission and access (that's a total 9 calls). This method should be overridden if a more efficient
      * implementation can be provided. Usually, file permissions support is the same for all files on a filesystem. If
-     * that is the case, this method should be overridden to return a static permission mask.
+     * that is the case, this method should be overridden to return a static permission mask.</p>
      *
      * @return a bit mask describing the permission bits that the filesystem can read
      */
@@ -706,7 +790,7 @@ public abstract class AbstractFile implements FilePermissions {
      * <p>Implementation note: the default implementation of this method calls sequentially {@link #canGetPermission(int, int)},
      * for each permission and access (that's a total 9 calls). This method should be overridden if a more efficient
      * implementation can be provided. Usually, file permissions support is the same for all files on a filesystem. If
-     * that is the case, this method should be overridden to return a static permission mask.
+     * that is the case, this method should be overridden to return a static permission mask.</p>
      *
      * @return a bit mask describing the permission bits that the filesystem can change
      */
@@ -739,6 +823,7 @@ public abstract class AbstractFile implements FilePermissions {
      *  <li>'w' if this file has write permission, '-' otherwise
      *  <li>'x' if this file has executable permission, '-' otherwise
      * </ul>
+     * </p>
      *
      * <p>The first character triplet for 'user' access will always be added to the permissions. Then the 'group' and 'other'
      * triplets will only be added if at least one of the user permission bits can be retrieved, as tested with
@@ -750,6 +835,7 @@ public abstract class AbstractFile implements FilePermissions {
      *  <li>a regular file for which {@link #getPermissionGetMask()} returns 777 (full permissions support) and which
      * has read/write/executable permissions for all three 'user', 'group' and 'other' access types will return "-rwxrwxrwx".
      * </ul>
+     * </p>
      *
      * @return a string representation of this file's permissions
      */
@@ -928,6 +1014,23 @@ public abstract class AbstractFile implements FilePermissions {
         getChild(name).mkdir();
     }
 
+
+    /**
+     * Creates this file as a directory and any parent directory that does not already exist. This method will fail
+     * (throw an <code>IOException</code>) if this file already exists. It may also fail because of an I/O error ;
+     * in this case, this method will not remove the parent directories it has created (if any).
+     *
+     * @throws IOException if this file already exists or if an I/O error occurred.
+     */
+    public final void mkdirs() throws IOException {
+        AbstractFile parent;
+        if(((parent=getParent())!=null) && !parent.exists())
+            parent.mkdirs();
+
+        mkdir();
+    }
+
+
     /**
      * Convenience method that creates a file as a direct child of this directory.
      * This method will fail if this file is not a directory.
@@ -1070,8 +1173,10 @@ public abstract class AbstractFile implements FilePermissions {
      * registered in {@link FileFactory}. The specified preferred resolution will be used as a hint, but the returned
      * icon may have different dimension; see {@link com.mucommander.file.icon.FileIconProvider#getFileIcon(AbstractFile, java.awt.Dimension)}
      * for full details.
+     * This method may return <code>null</code> if the JVM is running on a headless environment.
+     *
      * @param preferredResolution the preferred icon resolution
-     * @return an icon representing this file
+     * @return an icon representing this file, <code>null</code> if the JVM is running on a headless environment
      * @see com.mucommander.file.FileFactory#getDefaultFileIconProvider()
      * @see com.mucommander.file.icon.FileIconProvider#getFileIcon(AbstractFile, java.awt.Dimension)
      */
@@ -1082,8 +1187,9 @@ public abstract class AbstractFile implements FilePermissions {
     /**
      * Returns an icon representing this file, using the default {@link com.mucommander.file.icon.FileIconProvider}
      * registered in {@link FileFactory}. The default preferred resolution for the icon is 16x16 pixels.
+     * This method may return <code>null</code> if the JVM is running on a headless environment.
      *
-     * @return an icon representing this file
+     * @return an icon representing this file, <code>null</code> if the JVM is running on a headless environment
      * @see com.mucommander.file.FileFactory#getDefaultFileIconProvider()
      * @see com.mucommander.file.icon.FileIconProvider#getFileIcon(AbstractFile, java.awt.Dimension)
      */
@@ -1094,21 +1200,44 @@ public abstract class AbstractFile implements FilePermissions {
         return getIcon(new java.awt.Dimension(16, 16));
     }
 
+
     /**
-     * Returns a digest (also referred to as a <i>hash</i> or <i>checksum</i>) of this file calculated by reading this
-     * file's input stream and feeding the bytes to the <code>MessageDigest</code> until EOF is reached.
+     * Returns a checksum of this file (also referred to as <i>hash</i> or <i>digest</i>) calculated by reading this
+     * file's contents and feeding the bytes to the given <code>MessageDigest</code>, until EOF is reached.
      *
-     * <p>This method does not reset the <code>MessageDigest</code> after the digest has been calculated.
+     * <p>The checksum is returned as an hexadecimal string, such as "6d75636f0a". The length of this string depends on
+     * the kind of algorithm.</p>
      *
-     * @param messageDigest the MessageDigest that is used to calculate the digest
-     * @return the digest that identifies this file's contents
-     * @throws IOException if an I/O error occurred while calculating the digest
+     * <p>Note: this method does not reset the <code>MessageDigest</code> after the checksum has been calculated.</p>
+     *
+     * @param algorithm the algorithm to use for calculating the checksum
+     * @return this file's checksum, as an hexadecimal string
+     * @throws IOException if an I/O error occurred while calculating the checksum
+     * @throws NoSuchAlgorithmException if the specified algorithm does not correspond to any MessageDigest registered
+     * with the Java Cryptography Extension.
      */
-    public final byte[] digest(MessageDigest messageDigest) throws IOException {
+    public final String calculateChecksum(String algorithm) throws IOException, NoSuchAlgorithmException {
+        return calculateChecksum(MessageDigest.getInstance(algorithm));
+    }
+
+    /**
+     * Returns a checksum of this file (also referred to as <i>hash</i> or <i>digest</i>) calculated by reading this
+     * file's contents and feeding the bytes to the given <code>MessageDigest</code>, until EOF is reached.
+     *
+     * <p>The checksum is returned as an hexadecimal string, such as "6d75636f0a". The length of this string depends on
+     * the kind of <code>MessageDigest</code>.</p>
+     *
+     * <p>Note: this method does not reset the <code>MessageDigest</code> after the checksum has been calculated.</p>
+     *
+     * @param messageDigest the MessageDigest to use for calculating the checksum
+     * @return this file's checksum, as an hexadecimal string
+     * @throws IOException if an I/O error occurred while calculating the checksum
+     */
+    public final String calculateChecksum(MessageDigest messageDigest) throws IOException {
         InputStream in = getInputStream();
 
         try {
-            return digestStream(in, messageDigest);
+            return calculateChecksum(in, messageDigest);
         }
         finally {
             in.close();
@@ -1263,137 +1392,30 @@ public abstract class AbstractFile implements FilePermissions {
 
 
     /**
-     * Copies the contents of the given <code>InputStream</code> to the specified </code>OutputStream</code>
-     * and throws an IOException if something went wrong. The streams will *NOT* be closed by this method.
-     *
-     * <p>Read and write operations are buffered, with a buffer of {@link #IO_BUFFER_SIZE} bytes. For performance
-     * reasons, this buffer is provided by {@link BufferPool}. There is no need to provide a BufferedInputStream.
-     * A BufferedOutputStream also isn't necessary, unless this method is called repeatedly with the same OutputStream
-     * and with potentially small InputStream (smaller than {@link #IO_BUFFER_SIZE}: in this case, providing a
-     * BufferedOutputStream will further improve performance by grouping calls to the underlying OutputStream write method.
-     *
-     * <p>Copy progress can optionally be monitored by supplying a {@link com.mucommander.io.CounterInputStream}
-     * and/or {@link com.mucommander.io.CounterOutputStream}.
-     *
-     * @param in the InputStream to read from
-     * @param out the OutputStream to write to
-     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
-     */
-    public static void copyStream(InputStream in, OutputStream out) throws FileTransferException {
-        // Use BufferPool to reuse any available buffer of the same size
-        byte buffer[] = BufferPool.getBuffer(IO_BUFFER_SIZE);
-        try {
-            // Copies the InputStream's content to the OutputStream chunks by chunks
-            int nbRead;
-
-            while(true) {
-                try {
-                    nbRead = in.read(buffer, 0, buffer.length);
-                }
-                catch(IOException e) {
-                    throw new FileTransferException(FileTransferException.READING_SOURCE);
-                }
-
-                if(nbRead==-1)
-                    break;
-
-                try {
-                    out.write(buffer, 0, nbRead);
-                }
-                catch(IOException e) {
-                    throw new FileTransferException(FileTransferException.WRITING_DESTINATION);
-                }
-            }
-        }
-        finally {
-            // Make the buffer available for further use
-            BufferPool.releaseBuffer(buffer);
-        }
-    }
-
-    /**
-     * Returns a digest (also referred to as a <i>hash</i> or <i>checksum</i>) of the given <code>InputStream</code>
-     * calculated by reading the stream and feeding the bytes to the <code>MessageDigest</code> until EOF is reached.
+     * Returns the checksum (also referred to as <i>hash</i> or <i>digest</i>) of the given <code>InputStream</code>
+     * calculated by reading the stream and feeding the bytes to the given <code>MessageDigest</code> until EOF is
+     * reached.
      *
      * <p><b>Important:</b> this method does not close the <code>InputStream</code>, and does not reset the
-     * <code>MessageDigest</code> after the digest has been calculated.
+     * <code>MessageDigest</code> after the checksum has been calculated.</p>
      *
-     * @param in the InputStream to digest
-     * @param messageDigest the MessageDigest that is used to calculate the digest
-     * @return the digest that identifies the stream's contents
-     * @throws IOException if an I/O error occurred while calculating the digest
+     * @param in the InputStream for which to calculate the checksum
+     * @param messageDigest the MessageDigest to use for calculating the checksum
+     * @return the given InputStream's checksum, as an hexadecimal string
+     * @throws IOException if an I/O error occurred while calculating the checksum
      */
-    public static byte[] digestStream(InputStream in, MessageDigest messageDigest) throws IOException {
-        // Use BufferPool to reuse any available buffer of the same size
-        byte buffer[] = BufferPool.getBuffer(IO_BUFFER_SIZE);
-
+    public static String calculateChecksum(InputStream in, MessageDigest messageDigest) throws IOException {
+        ChecksumInputStream cin = new ChecksumInputStream(in, messageDigest);
         try {
-            int nbRead;
-            while(true) {
-                try {
-                    nbRead = in.read(buffer, 0, buffer.length);
-                }
-                catch(IOException e) {
-                    throw new FileTransferException(FileTransferException.READING_SOURCE);
-                }
-
-                if(nbRead==-1)
-                    break;
-
-                messageDigest.update(buffer, 0, nbRead);
-            }
-
-            return messageDigest.digest();
+            StreamUtils.readUntilEOF(cin);
+            return cin.getChecksumString();
         }
-        finally {
-            // Make the buffer available for further use
-            BufferPool.releaseBuffer(buffer);
+        catch(IOException e) {
+            throw new FileTransferException(FileTransferException.READING_SOURCE);
         }
     }
 
-
-    /**
-     * Returns an hexadecimal string representation of the given digest, where each byte is represented by 2
-     * characters and padded with a zero if its value is comprised between 0 and 15 (inclusive).
-     * Here's an example returned for a 128-bit MD5 digest: "8350e5a3e24c153df2275c9f80692773".
-     *
-     * @param digest a digest value
-     * @return an hexadecimal string representation of the given digest
-     */
-    public static String getDigestHexString(byte digest[]) {
-        StringBuffer sb = new StringBuffer();
-
-        int digestLength = digest.length;
-        String hexByte;
-        for(int i=0; i<digestLength; i++) {
-            hexByte = Integer.toHexString(digest[i] & 0xFF);
-            if(hexByte.length()==1)
-                sb.append('0');
-            sb.append(hexByte);
-        }
-
-        return sb.toString();
-    }
-
-
-    /**
-     * Convenience method that sets/unsets a bit in the given permissions int.
-     *
-     * @param permissions the permission int
-     * @param bit the bit to set
-     * @param enabled true to enable the bit, false to disable it
-     * @return the modified permission int
-     */
-    protected static int setPermissionBit(int permissions, int bit, boolean enabled) {
-        if(enabled)
-            permissions |= bit;
-        else
-            permissions &= ~bit;
-
-        return permissions;
-    }
-
-
+    
     ////////////////////////
     // Overridden methods //
     ////////////////////////
@@ -1402,8 +1424,13 @@ public abstract class AbstractFile implements FilePermissions {
      * Tests a file for equality: returns <code>true</code> if the given file has the same canonical path,
      * as returned by {@link #getCanonicalPath()}.
      *
+     * <p>It is noteworthy that this method uses <code>java.lang.String#equals(Object)</code> to compare paths, which
+     * in some rare cases may return <code>false</code> for non-ascii/Unicode paths that have the same written
+     * representation but are not equal according to <code>java.lang.String#equals(Object)</code>. Handling such cases
+     * would require a locale-aware String comparison which is not an option here.</p>
+     *
      * <p>This method should be overriden for network-based filesystems for which a host can have multiple
-     * path representations (hostname and IP address).
+     * path representations (hostname and IP address).</p>
      */
     public boolean equals(Object f) {
         if(f==null || !(f instanceof AbstractFile))
@@ -1524,6 +1551,48 @@ public abstract class AbstractFile implements FilePermissions {
      * @return true if this file can change the specified permission flag for the given access type
      */
     public abstract boolean canSetPermission(int access, int permission);
+
+    /**
+     * Returns information about the owner of this file. The kind of information that is returned is implementation-dependant.
+     * It may typically be a username (e.g. 'bob') or a user ID (e.g. '501').
+     * If the owner information is not available to the <code>AbstractFile</code> implementation (cannot be retrieved or
+     * the filesystem doesn't have any notion of owner) or not available for this particular file, <code>null</code>
+     * will be returned.
+     *
+     * @return information about the owner of this file
+     */
+    public abstract String getOwner();
+
+    /**
+     * Returns <code>true</code> if this file implementation is able to return some information about file owners, not
+     * necessarily for all files or this file in particular but at least for some of them. In other words, a
+     * <code>true</code> return value doesn't mean that {@link #getOwner()} will necessarily return a non-null value,
+     * but rather that there is a chance that it does.
+     *
+     * @return true if this file implementation is able to return information about file owners  
+     */
+    public abstract boolean canGetOwner();
+
+    /**
+     * Returns information about the group this file belongs to. The kind of information that is returned is implementation-dependant.
+     * It may typically be a group name (e.g. 'www-data') or a group ID (e.g. '501').
+     * If the group information is not available to the <code>AbstractFile</code> implementation (cannot be retrieved or
+     * the filesystem doesn't have any notion of owner) or not available for this particular file, <code>null</code>
+     * will be returned.
+     *
+     * @return information about the owner of this file
+     */
+    public abstract String getGroup();
+
+    /**
+     * Returns <code>true</code> if this file implementation is able to return some information about file groups, not
+     * necessarily for all files or this file in particular but at least for some of them. In other words, a
+     * <code>true</code> return value doesn't mean that {@link #getGroup()} will necessarily return a non-null value,
+     * but rather that there is a chance that it does.
+     *
+     * @return true if this file implementation is able to return information about file groups
+     */
+    public abstract boolean canGetGroup();
 
     /**
      * Returns <code>true</code> if this file is a directory, <code>false</code> in any of the following cases:

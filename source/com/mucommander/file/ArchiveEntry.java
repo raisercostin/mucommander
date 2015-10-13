@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,10 +40,16 @@ public class ArchiveEntry {
     protected boolean isDirectory;
 
     /** This entry's permissions */
-    protected int permissions = 292;        // r--r--r--
+    protected int permissions;
 
     /** This entry's permission mask */
-    protected int permissionMask = 0;       // permissions should not be taken into acount
+    protected int permissionMask = 0;       // by default, permissions should not be taken into acount
+
+    /** This entry's owner */
+    protected String owner;
+
+    /** This entry's group */
+    protected String group;
 
     /** Encapsulated entry object */
     protected Object entryObject;
@@ -79,6 +85,7 @@ public class ArchiveEntry {
         this.date = date;
         this.size = size;
         this.isDirectory = isDirectory;
+        this.permissions = isDirectory?FilePermissions.DEFAULT_FILE_PERMISSIONS:FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS;
     }
 
 
@@ -241,6 +248,42 @@ public class ArchiveEntry {
      */
     public void setPermissionMask(int permissionMask) {
         this.permissionMask = permissionMask;
+    }
+
+    /**
+     * Returns the owner of this entry, <code>null</code> if this information is not available.
+     *
+     * @return the owner of this entry, null if this information is not available
+     */
+    public String getOwner() {
+        return owner;
+    }
+
+    /**
+     * Sets the owner of this entry, <code>null</code> if this information is not available.
+     *
+     * @param owner the owner of this entry, null if this information is not available
+     */
+    public void setOwner(String owner) {
+        this.owner = owner;
+    }
+
+    /**
+     * Returns the group this entry belongs to, <code>null</code> if this information is not available.
+     *
+     * @return the group this entry belongs to, null if this information is not available
+     */
+    public String getGroup() {
+        return group;
+    }
+
+    /**
+     * Sets the group of this entry, <code>null</code> if this information is not available.
+     *
+     * @param group the group this entry belongs to, null if this information is not available
+     */
+    public void setGroup(String group) {
+        this.group = group;
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,6 +65,10 @@ import java.util.List;
  * @author Maxence Bernard
  */
 public class SFTPFile extends AbstractFile {
+
+    /** Name of the property that holds the path to a private key. This property is optional; if it is set, private key
+     * authentication is used. */
+    public final static String PRIVATE_KEY_PATH_PROPERTY_NAME = "privateKeyPath";
 
     /** The absolute path to the file on the remote server, without the file protocol */
     protected String absPath;
@@ -242,7 +246,7 @@ public class SFTPFile extends AbstractFile {
     }
 
     public boolean setPermission(int access, int permission, boolean enabled) {
-        return setPermissions(setPermissionBit(getPermissions(), (permission << (access*3)), enabled));
+        return setPermissions(ByteUtils.setBit(getPermissions(), (permission << (access*3)), enabled));
     }
 
     public boolean canGetPermission(int access, int permission) {
@@ -253,6 +257,21 @@ public class SFTPFile extends AbstractFile {
         return true;    // Full permission support
     }
 
+    public String getOwner() {
+        return fileAttributes.getOwner();
+    }
+
+    public boolean canGetOwner() {
+        return true;
+    }
+
+    public String getGroup() {
+        return fileAttributes.getGroup();
+    }
+
+    public boolean canGetGroup() {
+        return true;
+    }
 
     /**
      * Changes the SFTP file permissions to the given permissions int.
@@ -481,12 +500,13 @@ public class SFTPFile extends AbstractFile {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
+            // Note: this J2SSH method has been patched to set the permissions of the new directory to 0755 (rwxr-xr-x)
+            // instead of 0. This patches allows to avoid a 'change permissions' request (cf comment code hereunder).
             connHandler.sftpSubsystem.makeDirectory(absPath);
 
-            // Todo: patch j2ssh to create the directory directly with those permissions, would save one request
-            // Set new directory permissions to 755 octal (493 dec): "rwxr-xr-x"
-            // Note: by default, permissions for files freshly created is 0 (not readable/writable/executable by anyone)!
-            connHandler.sftpSubsystem.changePermissions(absPath, 493);
+//            // Set new directory permissions to 755 octal (493 dec): "rwxr-xr-x"
+//            // Note: by default, permissions for files freshly created is 0 (not readable/writable/executable by anyone)!
+//            connHandler.sftpSubsystem.changePermissions(absPath, 493);
 
             // Update local attributes
             fileAttributes.setExists(true);
@@ -546,11 +566,11 @@ public class SFTPFile extends AbstractFile {
     }
 
     public int getPermissionGetMask() {
-        return 511;     // Full permission get support (777 octal)
+        return FULL_PERMISSIONS;     // Full permission get support (777 octal)
     }
 
     public int getPermissionSetMask() {
-        return 511;     // Full permission set support (777 octal)
+        return FULL_PERMISSIONS;     // Full permission set support (777 octal)
     }
 
     /**
@@ -571,6 +591,10 @@ public class SFTPFile extends AbstractFile {
             return super.moveTo(destFile);
         }
 
+        // Special tests to fail in situations where SmbFile#renameTo() does not, for instance:
+        // - when the source and destination are the same
+        checkCopyPrerequisites(destFile, true);
+
         // If destination file is an SFTP file located on the same server, tell the server to rename the file.
 
         // Retrieve a ConnectionHandler and lock it
@@ -578,6 +602,10 @@ public class SFTPFile extends AbstractFile {
         try {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
+
+            // SftpClient#rename() throws an IOException if the destination exists (instead of overwriting the file)
+            if(destFile.exists())
+                destFile.delete();
 
             // Will throw an IOException if the operation failed
             connHandler.sftpClient.rename(absPath, destFile.getURL().getPath());
@@ -756,7 +784,7 @@ public class SFTPFile extends AbstractFile {
             catch(IOException e) {
                 // File doesn't exist on the server, create FileAttributes instance with default values
                 attrs = new FileAttributes();
-                attrs.setPermissions(new UnsignedInteger32(0));     // need to prevent getPermissions() from returning null
+                attrs.setPermissions(new UnsignedInteger32(0));     // needed to prevent getPermissions() from returning null
                 exists = false;
 
                 // Rethrow AuthException
@@ -846,11 +874,23 @@ public class SFTPFile extends AbstractFile {
         private int getPermissions() {
             checkForExpiration();
 
-            return attrs.getPermissions().intValue() & 511;
+            return attrs.getPermissions().intValue() & FULL_PERMISSIONS;
         }
 
         private void setPermissions(int permissions) {
-            attrs.setPermissions(new UnsignedInteger32((attrs.getPermissions().intValue() & ~511) | (permissions & 511)));
+            attrs.setPermissions(new UnsignedInteger32((attrs.getPermissions().intValue() & ~FULL_PERMISSIONS) | (permissions & FULL_PERMISSIONS)));
+        }
+
+        private String getOwner() {
+            checkForExpiration();
+
+            return attrs.getUID().toString();
+        }
+
+        private String getGroup() {
+            checkForExpiration();
+
+            return attrs.getGID().toString();
         }
 
         private boolean isSymlink() {
@@ -938,15 +978,15 @@ public class SFTPFile extends AbstractFile {
                 // by one of the J2SSH developers : http://sourceforge.net/forum/message.php?msg_id=1826569
 
                 // Concatenates all tokens to create the command string
-                String command = "";
+                StringBuffer command = new StringBuffer();
                 int nbTokens = tokens.length;
                 for(int i=0; i<nbTokens; i++) {
-                    command += tokens[i];
+                    command.append(tokens[i]);
                     if(i!=nbTokens-1)
-                        command += " ";
+                        command.append(" ");
                 }
 
-                success = sessionClient.executeCommand(command);
+                success = sessionClient.executeCommand(command.toString());
                 if(Debug.ON) Debug.trace("commmand="+command+" returned "+success);
             }
             catch(IOException e) {

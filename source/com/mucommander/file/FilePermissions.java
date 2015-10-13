@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,17 +25,28 @@ package com.mucommander.file;
  */
 public interface FilePermissions {
 
-    /** Bit mask for 'execute' permission */
+    /** Bit mask for 'execute' permission. */
     public final static int EXECUTE_PERMISSION = 1;
-    /** Bit mask for 'write' permission */
+    /** Bit mask for 'write' permission. */
     public final static int WRITE_PERMISSION = 2;
-    /** Bit mask for 'read' permission */
+    /** Bit mask for 'read' permission. */
     public final static int READ_PERMISSION = 4;
 
-    /** Bit mask for 'other' permissions */
+    /** Bit mask for 'other' permissions. */
     public final static int OTHER_ACCESS = 0;
-    /** Bit mask for 'group' permissions */
+    /** Bit mask for 'group' permissions. */
     public final static int GROUP_ACCESS = 1;
-    /** Bit mask for 'owner' permissions */
+    /** Bit mask for 'owner' permissions. */
     public final static int USER_ACCESS = 2;
+
+    /** Default file permissions used by {@link AbstractFile#importPermissions(AbstractFile)} for permission bits that
+     * are not available in the source: rw-r--r-- (644 octal) */
+    public final static int DEFAULT_FILE_PERMISSIONS = 420;
+
+    /** Default directory permissions used by {@link AbstractFile#importPermissions(AbstractFile)} for permission bits that
+     * are not available in the source: rwxr-xr-x (755 octal) */
+    public final static int DEFAULT_DIRECTORY_PERMISSIONS = 493;
+
+    /** Full read/write/execute permissions for user/group/other (777 octal) */
+    public final static int FULL_PERMISSIONS = 511;
 }

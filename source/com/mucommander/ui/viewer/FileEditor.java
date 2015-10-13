@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,10 +34,10 @@ import java.io.IOException;
  */
 public abstract class FileEditor extends JPanel implements ThemeListener {
 	
-    /** EditorFrame instance that contains this editor (may be null) */
+    /** EditorFrame instance that contains this editor (may be null). */
     protected EditorFrame frame;
 	
-    /** File currently being edited */
+    /** File currently being edited. */
     protected AbstractFile file;
 
     /**
@@ -51,6 +51,8 @@ public abstract class FileEditor extends JPanel implements ThemeListener {
 
     /**
      * Sets the EditorFrame (separate window) that contains this FileEditor.
+     * @param frame frame that contains this <code>FileEditor</code>.
+     * @see         #getFrame()
      */
     public void setFrame(EditorFrame frame) {
         this.frame = frame;
@@ -58,37 +60,21 @@ public abstract class FileEditor extends JPanel implements ThemeListener {
 	
 	
     /**
-     * Returns the frame which contains this editor, may return <code>null</code>
-     * if the editor is not inside a EditorFrame.
+     * Returns the frame which contains this editor.
+     * <p>
+     * This method may return <code>null</code> if the editor is not inside a EditorFrame.
+     * @return the frame which contains this editor.
+     * @see    #setFrame(EditorFrame)
      */
     protected EditorFrame getFrame() {
         return frame;
-    }
-	
-	
-    /**
-     * Returns <code>true</code> if the given file can be handled by this FileEditor.<br>
-     * The FileEditor may base its decision only upon the filename and its extension or may
-     * wish to read some of the file and compare it to a magic number.
-     */
-    public static boolean canEditFile(AbstractFile file) {
-        return false;
-    }
-	
-	
-    /**
-     * Returns maximum file size this FileEditor can handle for sure, -1 if there is no such limit.
-     * If a user wish to edit a file that exceeds this size, he/she will be asked if he/she still
-     * wants to edit it.
-     */
-    public long getMaxRecommendedSize() {
-        return -1;
     }
 
 
     /**
      * Returns a description of the file currently being edited which will be used as a window title.
      * This method returns the file's path but it can be overridden to provide more information.
+     * @return the editor's title.
      */
     public String getTitle() {
         return file.getAbsolutePath();
@@ -98,6 +84,7 @@ public abstract class FileEditor extends JPanel implements ThemeListener {
     /**
      * Sets the file that is to be edited.
      * This method will automatically be called after a file editor is created and should not be called directly.
+     * @param file file that is to be edited.
      */
     public final void setCurrentFile(AbstractFile file) {
         this.file = file;
@@ -140,6 +127,7 @@ public abstract class FileEditor extends JPanel implements ThemeListener {
      * This method should retrieve the file and do whatever's necessary for this component can be displayed.
      *
      * @param file the file that is about to be edited.
+     * @throws IOException if an I/O error occurs.
      */
     public abstract void edit(AbstractFile file) throws IOException;
 
@@ -150,6 +138,7 @@ public abstract class FileEditor extends JPanel implements ThemeListener {
      *
      * @param saveAsFile the file which should be used to save the file currently being edited
      * (path can be different from current file if the user chose 'Save as').
+     * @throws IOException if an I/O error occurs.
      */
     protected abstract void saveAs(AbstractFile saveAsFile) throws IOException;
 }

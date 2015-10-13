@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,9 +68,17 @@ public class TrashPopupButton extends PopupButton {
             if(trash.canEmpty()) {
                 JMenuItem emptyTrashItem = new JMenuItem(ActionManager.getActionInstance(EmptyTrashAction.class, mainFrame));
 
-                // Disable the 'empty trash' action if the trash contains no item
-                if(trash.getItemCount()==0)
+                // Retrieve the number of items that the trash contains, -1 if this information is not available.
+                int itemCount = trash.getItemCount();
+                if(itemCount==0) {
+                    // Disable the 'empty trash' action if the trash contains no item
                     emptyTrashItem.setEnabled(false);
+                }
+                else if(itemCount>0) {
+                    // Append the number of items to the menu item's label
+                    emptyTrashItem.setText(emptyTrashItem.getText()+" ("+itemCount+")");
+                }
+                // Note: 'empty trash' is enabled if itemCount==-1
 
                 popupMenu.add(emptyTrashItem);
             }

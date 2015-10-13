@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,9 @@
 package com.mucommander.file;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
 import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsFamily;
 
 import java.io.*;
 import java.util.StringTokenizer;
@@ -45,7 +46,7 @@ public class RootFolders {
 
         // Add Mac OS X's /Volumes subfolders and not file roots ('/') since Volumes already contains a named link 
         // (like 'Hard drive' or whatever silly name the user gave his primary hard disk) to /
-        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X) {
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
             addMacOSXVolumes(rootFoldersV);
             if(Debug.ON) Debug.trace("/Volumes's subfolders added: "+rootFoldersV);
         }
@@ -54,9 +55,8 @@ public class RootFolders {
             addFileRoots(rootFoldersV);
             if(Debug.ON) Debug.trace("java.io.File's root folders: "+rootFoldersV);
 	
-            // Add /etc/fstab folders
-            // If we're running Windows, we can just skip that
-            if(!PlatformManager.isWindowsFamily()) {
+            // Add /etc/fstab folders under UNIX-based systems.
+            if(OsFamily.getCurrent().isUnixBased()) {
                 addFstabEntries(rootFoldersV);
                 if(Debug.ON) Debug.trace("/etc/fstab mount points added: "+rootFoldersV);
             }
@@ -95,8 +95,11 @@ public class RootFolders {
      * Parses /etc/fstab file and adds resolved folders to the given vector.
      */
     private static void addFstabEntries(Vector v) {
+        BufferedReader br;
+
+        br = null;
         try {
-            BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("/etc/fstab")));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream("/etc/fstab")));
             StringTokenizer st;
             String line;
             AbstractFile file;
@@ -119,7 +122,12 @@ public class RootFolders {
         catch(Exception e) {
             if(Debug.ON) Debug.trace("Error reading /etc/fstab entries: "+ e);
         }
-		
+        finally {
+            if(br != null) {
+                try {br.close();}
+                catch(IOException e) {}
+            }
+        }
     }
 	
 	

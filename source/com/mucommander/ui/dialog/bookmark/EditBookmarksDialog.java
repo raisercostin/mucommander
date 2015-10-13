@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -287,7 +287,7 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
         }
 
 
-        String newName = null;
+        String newName;
         while(containsName(newName=(name+" ("+num+++")")));
 
         return newName;
@@ -376,7 +376,7 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
             // Dispose dialog first
             dispose();
             // Change active panel's folder
-            mainFrame.getActiveTable().getFolderPanel().tryChangeCurrentFolder(((Bookmark)bookmarkList.getSelectedValue()).getLocation());
+            mainFrame.getActivePanel().tryChangeCurrentFolder(((Bookmark)bookmarkList.getSelectedValue()).getLocation());
         }
     }
 

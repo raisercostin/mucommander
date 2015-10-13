@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,10 +30,7 @@ import com.mucommander.file.FileURL;
 import com.mucommander.file.connection.ConnectionHandler;
 import com.mucommander.file.connection.ConnectionHandlerFactory;
 import com.mucommander.file.connection.ConnectionPool;
-import com.mucommander.io.FileTransferException;
-import com.mucommander.io.RandomAccessInputStream;
-import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.io.SinkOutputStream;
+import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPConnectionClosedException;
@@ -137,6 +134,10 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
 
     private org.apache.commons.net.ftp.FTPFile getFTPFile(FileURL fileURL) throws IOException {
+        // Todo: this method is very ineffective as it lists the parent directory to retrieve the information about the
+        // requested file to workaround the fact that FTPClient#listFiles follows directories.
+        // => Use the MLST command if supported by the server (use FEAT command to find out if it is supported).
+        // See http://tools.ietf.org/html/draft-ietf-ftpext-mlst-16
         FileURL parentURL = fileURL.getParent();
         if(Debug.ON) Debug.trace("fileURL="+fileURL+" parent="+parentURL);
 
@@ -155,17 +156,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
                 // List files contained by this file's parent in order to retrieve the FTPFile instance corresponding
                 // to this file
-                files = connHandler.ftpClient.listFiles(parentURL.getPath());
-
-                // Throw an IOException if server replied with an error
-                connHandler.checkServerReply();
-            }
-            catch(IOException e) {
-                // Checks if the IOException corresponds to a socket error and in that case, closes the connection
-                connHandler.checkSocketException(e);
-
-                // Re-throw IOException
-                throw e;
+                files = listFiles(connHandler, parentURL.getPath());
             }
             finally {
                 // Release the lock on the ConnectionHandler
@@ -177,7 +168,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
             if(files==null || files.length==0)
                 return null;
 
-            // Find file from parent folder
+            // Find the file in the parent folder's contents
             int nbFiles = files.length;
             String wantedName = fileURL.getFilename();
             for(int i=0; i<nbFiles; i++) {
@@ -201,6 +192,65 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
 
+    /**
+     * Lists and returns the contents of the given path on the server using the given connection handler.
+     * The directory contents is listed by issuing a CWD followed by a LIST so after this method is called, the current
+     * working directory is left to the specified path.
+     *
+     * @param connHandler the connection handler to use for communicating with the server
+     * @param absPath absolute path to the directory to list
+     * @return the directory's contents. The returned array may be empty but never null. The array may contain null
+     * individual entries as FTPClient#listFiles's Javadoc mentions.
+     * @throws IOException if an error occurred while communicating with the server
+     * @throws AuthException if the user is not allowed to access this directory
+     */
+    private static org.apache.commons.net.ftp.FTPFile[] listFiles(FTPConnectionHandler connHandler, String absPath) throws IOException, AuthException {
+        org.apache.commons.net.ftp.FTPFile files[];
+        try {
+            // Important: the folder is listed by changing the current working directory using the CWD command and then
+            // issuing a LIST to list the current directory, instead of issuing a LIST with the path as an argument.
+            // So we're sending:
+            //
+            //   CWD path
+            //   LIST
+            //
+            // Instead of:
+            //
+            //   LIST path
+            //
+            // The reason for that is that on some servers 'LIST path with spaces' fails whereas 'CWD path with spaces'
+            // succeeds. Most FTP clients seem to be doing this (CWD/LIST instead of LIST), there must be a reason.
+            //
+            // See:
+            // http://www.mucommander.com/forums/viewtopic.php?f=4&t=714
+            // http://issues.apache.org/jira/browse/NET-10
+
+            connHandler.ftpClient.changeWorkingDirectory(absPath);
+            files = connHandler.ftpClient.listFiles();
+
+            // Throw an IOException if server replied with an error
+            connHandler.checkServerReply();
+
+            if(files==null)     // In some rare conditions (bug) this method can return null
+                return new org.apache.commons.net.ftp.FTPFile[0];
+
+            return files;
+        }
+        // This exception is not an IOException and needs to be caught and thrown back as an IOException
+        catch(org.apache.commons.net.ftp.parser.ParserInitializationException e) {
+            if(Debug.ON) Debug.trace("ParserInitializationException caught");
+            throw new IOException();
+        }
+        catch(IOException e) {
+            // Checks if the IOException corresponds to a socket error and in that case, closes the connection
+            connHandler.checkSocketException(e);
+
+            // Throw back the IOException
+            throw e;
+        }
+    }
+
+
     /////////////////////////////////////////////
     // ConnectionHandlerFactory implementation //
     /////////////////////////////////////////////
@@ -219,7 +269,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
     public long getDate() {
-        return file.getTimestamp().getTime().getTime();
+        return file.getTimestamp().getTimeInMillis();
     }
 
     /**
@@ -348,7 +398,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
 
     public boolean setPermission(int access, int permission, boolean enabled) {
-        return setPermissions(setPermissionBit(getPermissions(), (permission << (access*3)), enabled));
+        return setPermissions(ByteUtils.setBit(getPermissions(), (permission << (access*3)), enabled));
     }
 
     public boolean canGetPermission(int access, int permission) {
@@ -361,8 +411,34 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
         return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).chmodCommandSupported;
     }
 
+    public String getOwner() {
+        return file.getUser();
+    }
+
+    public boolean canGetOwner() {
+        return true;
+    }
+
+    public String getGroup() {
+        return file.getGroup();
+    }
+
+    public boolean canGetGroup() {
+        return true;
+    }
 
     public boolean isDirectory() {
+        // org.apache.commons.net.ftp.FTPFile#isDirectory() returns false if the file is a symlink pointing to a
+        // directory, this is a limitation of the Commons-net library.
+        // Todo: fix this by either:
+        // a) find a combination of 'LIST' switches which allows the output to contain both the 'is symlink' and the
+        // 'is the symlink target a directory' information. At a first glance, there doesn't seem to be one: either
+        // symlinks are followed or there aren't.
+        // b) Patch #ls() to issue an extra 'LIST -ldH *' to retrieve all symlinks' information when the directory has
+        // at least one symlink.
+        // c) if this file is a symlink, retrieve the symlink's target using #getFTPFile(FileURL) with '-ldH' switches
+        // and return the value of isDirectory(). This clearly is the least effective solution at it requires issuing
+        // one 'ls' command per symlink.
         return file.isDirectory();
     }
 
@@ -432,40 +508,21 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
 
 
     public AbstractFile[] ls() throws IOException {
+        // Retrieve a ConnectionHandler and lock it
+        FTPConnectionHandler connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
         org.apache.commons.net.ftp.FTPFile files[];
-        FTPConnectionHandler connHandler = null;
         try {
-            // Retrieve a ConnectionHandler and lock it
-            connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
-            try {
-                files = connHandler.ftpClient.listFiles(absPath);
-            }
-            // This exception is not an IOException and needs to be caught and rethrown
-            catch(org.apache.commons.net.ftp.parser.ParserInitializationException e) {
-                if(Debug.ON) Debug.trace("ParserInitializationException caught");
-                throw new IOException();
-            }
-
-            // Throw an IOException if server replied with an error
-            connHandler.checkServerReply();
-        }
-        catch(IOException e) {
-            // Checks if the IOException corresponds to a socket error and in that case, closes the connection
-            connHandler.checkSocketException(e);
-
-            // Re-throw IOException
-            throw e;
+            files = listFiles(connHandler, absPath);
         }
         finally {
             // Release the lock on the ConnectionHandler
-            if(connHandler!=null)
-                connHandler.releaseLock();
+            connHandler.releaseLock();
         }
 
-        if(files==null)
+        if(files==null || files.length==0)
             return new AbstractFile[] {};
 
         AbstractFile children[] = new AbstractFile[files.length];
@@ -623,15 +680,15 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
     public int getPermissionGetMask() {
-        return 511;     // Full get permission support (777 octal)
+        return FULL_PERMISSIONS;     // Full get permission support (777 octal)
     }
 
     public int getPermissionSetMask() {
         // Return true if the server supports the 'site chmod' command, not all servers do.
         // Do not lock the connection handler, not needed.
         return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).chmodCommandSupported
-                ?511    // Full permission support (777 octal)
-                :0;     // No set permission support
+                ?FULL_PERMISSIONS    // Full permission support (777 octal)
+                :0;                  // No set permission support
     }
 
 
@@ -914,7 +971,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
     }
 
 
-    private class FTPOutputStream extends FilterOutputStream {
+    private class FTPOutputStream extends FilteredOutputStream {
 
         private FTPConnectionHandler connHandler;
         private boolean isClosed;
@@ -1140,6 +1197,7 @@ public class FTPFile extends AbstractFile implements ConnectionHandlerFactory {
                 // Note that by default, if 'LIST -l' is used, the decision to list hidden files is left to the
                 // FTP server: some servers will choose to show them, some other will not. This behavior usually is a
                 // configuration setting of the FTP server.
+                // Todo: this should not be a configuration variable but rather a FileURL property
                 ftpClient.setListHiddenFiles(MuConfiguration.getVariable(MuConfiguration.LIST_HIDDEN_FILES, MuConfiguration.DEFAULT_LIST_HIDDEN_FILES));
 
                 if(encoding.equalsIgnoreCase("UTF-8")) {

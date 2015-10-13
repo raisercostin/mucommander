@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,12 @@ public interface ZipConstants {
      * Default compression level for DEFLATED compression
      */
     public static final int DEFAULT_DEFLATER_COMPRESSION = Deflater.DEFAULT_COMPRESSION;
+
+    /**
+     * Default size of the buffer used by Deflater.
+     */
+    // /!\ For some unknown reason, using a larger buffer *hurts* performance.
+    public static final int DEFAULT_DEFLATER_BUFFER_SIZE = 512;
 
     /**
      * Size of write buffers

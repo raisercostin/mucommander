@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.mucommander.shell.ShellHistoryManager;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.icon.SpinningDial;
 import com.mucommander.ui.layout.XBoxPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
@@ -35,7 +36,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.PrintStream;
-
 
 /**
  * Dialog used to execute a user-defined command.
@@ -64,6 +64,8 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
     private JButton       clearButton;
     /** Text area used to display the shell output. */
     private JTextArea     outputTextArea;
+    /** Used to let the user known that the command is still running. */
+    private SpinningDial  dial;
 
 
 
@@ -116,6 +118,7 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
      */
     private YBoxPanel createInputArea() {
         YBoxPanel mainPanel;
+        JPanel    labelPanel;
 
         mainPanel = new YBoxPanel();
 
@@ -131,7 +134,11 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
 
         // Adds a textual description of the shell output area.
         mainPanel.addSpace(10);
-        mainPanel.add(new JLabel(Translator.get("run_dialog.command_output")+":"));
+
+        labelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        labelPanel.add(new JLabel(Translator.get("run_dialog.command_output")+":"));
+        labelPanel.add(new JLabel(dial = new SpinningDial()));
+        mainPanel.add(labelPanel);
 
         return mainPanel;
     }
@@ -154,8 +161,11 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
         buttonsPanel.add(Box.createHorizontalGlue());
 
         // 'Run / stop' and 'Cancel' buttons.
-        buttonsPanel.add(DialogToolkit.createOKCancelPanel(runStopButton = new JButton(Translator.get("run_dialog.run")),
-                                                           cancelButton  = new JButton(Translator.get("cancel")), this));
+        buttonsPanel.add(DialogToolkit.createOKCancelPanel(
+                runStopButton = new JButton(Translator.get("run_dialog.run")),
+                cancelButton  = new JButton(Translator.get("cancel")),
+                getRootPane(),
+                this));
 
         return buttonsPanel;
     }
@@ -326,6 +336,9 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
      * Switches the UI back to 'Run command' state.
      */
     private void switchToRunState() {
+        // Stops the spinning dial.
+        dial.setAnimated(false);
+
         // Change 'Stop' button to 'Run'
         this.runStopButton.setText(Translator.get("run_dialog.run"));
 
@@ -346,6 +359,9 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
      */
     public void runCommand(String command) {
         try {
+            // Starts the spinning dial.
+            dial.setAnimated(true);
+
             // Change 'Run' button to 'Stop'
             this.runStopButton.setText(Translator.get("run_dialog.stop"));
 
@@ -358,15 +374,16 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
             // No new command can be entered while a process is running.
             inputCombo.setEnabled(false);
 
-            // Starts the new process.
             currentProcess = Shell.execute(command, mainFrame.getActiveTable().getCurrentFolder(), this);
             processInput   = new PrintStream(currentProcess.getOutputStream(), true);
 
             // Repaints the dialog.
             repaint();
         }
-        catch(Exception e1) {
-            // Probably should notify the user if the command could not be executed
+        catch(Exception e) {
+            // Notifies the user that an error occured and resets to normal state.
+            addToTextArea(Translator.get("generic_error"));
+            switchToRunState();
         }
     }
 

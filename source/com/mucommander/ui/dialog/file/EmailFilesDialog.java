@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ import com.mucommander.job.SendMailJob;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
-import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.dialog.pref.general.GeneralPreferencesDialog;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.YBoxPanel;
@@ -48,9 +47,8 @@ import java.io.IOException;
  *
  * @author Maxence Bernard
  */
-public class EmailFilesDialog extends FocusDialog implements ActionListener, ItemListener {
-    private MainFrame mainFrame;
-	
+public class EmailFilesDialog extends JobDialog implements ActionListener, ItemListener {
+
     private FileSet flattenedFiles;
 	
     private JTextField toField;
@@ -72,12 +70,11 @@ public class EmailFilesDialog extends FocusDialog implements ActionListener, Ite
 	
 	
     public EmailFilesDialog(MainFrame mainFrame, FileSet files) {
-        super(mainFrame, Translator.get("email_dialog.title"), mainFrame);
-        this.mainFrame = mainFrame;
+        super(mainFrame, Translator.get("email_dialog.title"), files);
 
         // Notifies the user that mail preferences are not set and brings the preferences dialog 
         if(!SendMailJob.mailPreferencesSet()) {
-            JOptionPane.showMessageDialog(mainFrame, Translator.get("email_dialog.prefs_not_set"), Translator.get("email_dialog.prefs_not_set_title"), JOptionPane.INFORMATION_MESSAGE);
+            showErrorDialog(Translator.get("email_dialog.prefs_not_set"), Translator.get("email_dialog.prefs_not_set_title"));
 	
             GeneralPreferencesDialog preferencesDialog = GeneralPreferencesDialog.getDialog();
             preferencesDialog.setActiveTab(GeneralPreferencesDialog.MAIL_TAB);
@@ -138,7 +135,7 @@ public class EmailFilesDialog extends FocusDialog implements ActionListener, Ite
                 for(int i=0; i<nbFiles; i++) {
                     file = (AbstractFile)flattenedFiles.elementAt(i);
                     fileCheckboxes[i] = new JCheckBox(file.getName()
-                                                      +" ("+ SizeFormat.format(file.getSize(), SizeFormat.DIGITS_SHORT| SizeFormat.UNIT_SHORT| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB)+")", true);
+                                                      +" ("+ SizeFormat.format(file.getSize(), SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB)+")", true);
                     fileCheckboxes[i].addItemListener(this);
                     tempPanel2.add(fileCheckboxes[i]);
                 }
@@ -150,14 +147,11 @@ public class EmailFilesDialog extends FocusDialog implements ActionListener, Ite
             // OK / Cancel buttons panel
             okButton = new JButton(Translator.get("email_dialog.send"));
             cancelButton = new JButton(Translator.get("cancel"));
-            contentPane.add(DialogToolkit.createOKCancelPanel(okButton, cancelButton, this), BorderLayout.SOUTH);
+            contentPane.add(DialogToolkit.createOKCancelPanel(okButton, cancelButton, getRootPane(), this), BorderLayout.SOUTH);
 	
             // 'To' field will receive initial focus
             setInitialFocusComponent(toField);		
 			
-            // Selects OK when enter is pressed
-            getRootPane().setDefaultButton(okButton);
-	
             // Packs dialog
             setMinimumSize(MINIMUM_DIALOG_DIMENSION);
             setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
@@ -165,7 +159,7 @@ public class EmailFilesDialog extends FocusDialog implements ActionListener, Ite
             showDialog();
         }
         catch(IOException e) {
-            JOptionPane.showMessageDialog(this, Translator.get("email_dialog.read_error"), Translator.get("email_dialog.error_title"), JOptionPane.ERROR_MESSAGE);	
+            showErrorDialog(Translator.get("email_dialog.read_error"), Translator.get("email_dialog.error_title"));
         }
     }
 

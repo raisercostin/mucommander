@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,11 +42,21 @@ public class ThemeEditorDialog extends PreferencesDialog {
     private Theme     theme;
     private boolean   wasThemeModified;
 
+    /**
+     * Creates a new theme editor dialog.
+     * @param parent parent of the dialog.
+     * @param theme  theme to edit.
+     */
     public ThemeEditorDialog(Dialog parent, Theme theme) {
         super(parent, createTitle(theme));
         initUI(theme);
     }
 
+    /**
+     * Creates a new theme editor dialog.
+     * @param parent parent of the dialog.
+     * @param theme  theme to edit.
+     */
     public ThemeEditorDialog(Frame parent, Theme theme) {
         super(parent, createTitle(theme));
         initUI(theme);
@@ -70,6 +80,10 @@ public class ThemeEditorDialog extends PreferencesDialog {
         setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
     }
 
+    /**
+     * Edits the theme specified at creation time and returns <code>true</code> if it was modified.
+     * @return <code>true</code> if the theme was modified by the user, <code>false</code> otherwise.
+     */
     public boolean editTheme() {
         showDialog();
         return wasThemeModified;
@@ -116,8 +130,11 @@ public class ThemeEditorDialog extends PreferencesDialog {
                 }
             }
             catch(Exception exception) {
-                JOptionPane.showMessageDialog(this, Translator.get("cannot_write_file", ThemeManager.getUserThemeFile().getAbsolutePath()),
-                                              Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+                try {
+                    JOptionPane.showMessageDialog(this, Translator.get("cannot_write_file", ThemeManager.getUserThemeFile().getAbsolutePath()),
+                                                  Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+                }
+                catch(Exception e) {}
             }
         }
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,10 @@
 
 package com.mucommander.command;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FilePermissions;
 import com.mucommander.file.filter.FileFilter;
+import com.mucommander.runtime.JavaVersions;
 
 /**
  * Filter on a file's permissions.
@@ -31,19 +31,33 @@ public class PermissionsFileFilter extends FileFilter implements FilePermissions
     private int     permission;
     private boolean filter;
 
+    /**
+     * Creates a new <code>PermissionsFileFilter</code>.
+     * @param permission permission that will be checked against as defined in {@link FilePermissions}.
+     * @param filter     whether or not the specified permission flag must be set for a file to be accepted.
+     */
     public PermissionsFileFilter(int permission, boolean filter) {
         this.permission = permission;
         this.filter     = filter;
     }
 
     public boolean accept(AbstractFile file) {
-        if((permission == EXECUTE_PERMISSION) && (PlatformManager.getJavaVersion() <= PlatformManager.JAVA_1_5))
+        if(permission==EXECUTE_PERMISSION && JavaVersions.JAVA_1_5.isCurrentOrLower())
             return true;
 
         return filter ? file.getPermission(USER_ACCESS, permission) : !file.getPermission(USER_ACCESS, permission);
     }
 
+    /**
+     * Returns the permission that this filter will check.
+     * @return the permission that this filter will check.
+     */
     public int getPermission() {return permission;}
+
+    /**
+     * Returns <code>true</code> if files must have the filter's permission flag set in order to be accepted.
+     * @return <code>true</code> if files must have the filter's permission flag set in order to be accepted, <code>false</code> otherwise.
+     */
     public boolean getFilter() {return filter;}
 }
 

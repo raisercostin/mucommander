@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ class StatusBarPanel extends ThemeEditorPanel implements PropertyChangeListener 
         Translator.get("theme_editor.free_space.critical")
     };
 
-    private final static int VOLUME_INFO_SIZE_FORMAT    = SizeFormat.DIGITS_SHORT | SizeFormat.UNIT_SHORT | SizeFormat.INCLUDE_SPACE | SizeFormat.ROUND_TO_KB;
+    private final static int VOLUME_INFO_SIZE_FORMAT    = SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_SHORT | SizeFormat.INCLUDE_SPACE | SizeFormat.ROUND_TO_KB;
     private final static long TOTAL_SIZE                = 85899345920l;
     private final static long NORMAL_SIZE               = TOTAL_SIZE / 2;
     private final static long WARNING_SIZE              = TOTAL_SIZE / 10;

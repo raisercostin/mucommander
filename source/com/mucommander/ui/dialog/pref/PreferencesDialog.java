@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import com.mucommander.ui.layout.XBoxPanel;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -34,9 +33,10 @@ import java.util.Vector;
 
 
 /**
+ * Dialog meant to let users edit software preferences.
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class PreferencesDialog extends FocusDialog implements ActionListener, ChangeListener {
+public class PreferencesDialog extends FocusDialog implements ActionListener {
     // - Instance fields --------------------------------------------------------
     // --------------------------------------------------------------------------
     /** Displays the different panels. */
@@ -54,11 +54,21 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
 
     // - Initialisation ---------------------------------------------------------
     // --------------------------------------------------------------------------
+    /**
+     * Creates a new preferences dialog.
+     * @param parent parent of the dialog.
+     * @param title  title of the dialg.
+     */
     public PreferencesDialog(Frame parent, String title) {
         super(parent, title, parent);
 	initUI();
     }
 
+    /**
+     * Creates a new preferences dialog.
+     * @param parent parent of the dialog.
+     * @param title  title of the dialg.
+     */
     public PreferencesDialog(Dialog parent, String title) {
         super(parent, title, parent);
 	initUI();
@@ -79,7 +89,6 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
         // Initialises the tabbed pane.
         prefPanels = new Vector();
         tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-        tabbedPane.addChangeListener(this);
 
         // Adds the tabbed pane.
         contentPane = getContentPane();
@@ -118,6 +127,12 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
         return prefPanel;
     }
 
+    /**
+     * Adds the specified preferences panel to this dialog.
+     * @param prefPanel panel to add.
+     * @param iconName  name of the icon that represents this dialog.
+     * @param scroll    whether this panel should be wrapped in a scroll panel.
+     */
     public void addPreferencesPanel(PreferencesPanel prefPanel, String iconName, boolean scroll) {
         tabbedPane.addTab(prefPanel.getTitle(), IconManager.getIcon(IconManager.PREFERENCES_ICON_SET, iconName), getTabbedPanel(prefPanel, scroll));
         prefPanels.add(prefPanel);
@@ -125,14 +140,25 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
 
     /**
      * Adds a new prefences panel and creates a new tab with an icon.
+     * @param prefPanel panel to add.
+     * @param iconName  name of the icon that represents this dialog.
      */
     public void addPreferencesPanel(PreferencesPanel prefPanel, String iconName) {addPreferencesPanel(prefPanel, iconName, true);}
 
+    /**
+     * Adds the specified preferences panel to this dialog.
+     * @param prefPanel panel to add.
+     * @param scroll    whether this panel should be wrapped in a scroll panel.
+     */
     public void addPreferencesPanel(PreferencesPanel prefPanel, boolean scroll) {
         tabbedPane.addTab(prefPanel.getTitle(), getTabbedPanel(prefPanel, scroll));
         prefPanels.add(prefPanel);
     }
 
+    /**
+     * Adds the specified preferences panel to this dialog.
+     * @param prefPanel panel to add.
+     */
     public void addPreferencesPanel(PreferencesPanel prefPanel) {addPreferencesPanel(prefPanel, true);}
 
     /**
@@ -145,6 +171,14 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
             ((PreferencesPanel)prefPanels.elementAt(i)).commit();
     }
 
+    /**
+     * Notifies all panels that changes are about to be commited.
+     * <p>
+     * This gives preference panels a chance to display warning or errors before changes are
+     * commited.
+     * </p>
+     * @return <code>true</code> if all preference panels are ok with commiting the changes, <code>false</code> otherwise.
+     */
     public boolean checkCommit() {
         // Ask pref panels to commit changes
         int nbPanels = prefPanels.size();
@@ -156,6 +190,7 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
 
     /**
      * Sets the currently active tab.
+     * @param index index of the tab to select.
      */
     public void setActiveTab(int index) {tabbedPane.setSelectedIndex(index);}
 
@@ -163,6 +198,9 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
 
     // - Listener code ----------------------------------------------------------
     // --------------------------------------------------------------------------
+    /**
+     * Reacts to buttons being pushed.
+     */
     public void actionPerformed(ActionEvent e) {
         Object source = e.getSource();
 
@@ -178,10 +216,9 @@ public class PreferencesDialog extends FocusDialog implements ActionListener, Ch
             dispose();
     }
 
-    public void tabSelectionChanged(int newIndex) {}
-
-    public void stateChanged(ChangeEvent e) {
-        if (e.getSource() == tabbedPane)
-            tabSelectionChanged(tabbedPane.getSelectedIndex());
-    }
+    /**
+     * Returns the index of the currently selected configuration panel.
+     * @return the index of the currently selected configuration panel.
+     */
+    public int getSelectedPanelIndex() {return tabbedPane.getSelectedIndex();}
 }

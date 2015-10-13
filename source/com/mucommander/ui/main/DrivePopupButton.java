@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.bonjour.BonjourMenu;
+import com.mucommander.bonjour.BonjourService;
 import com.mucommander.bookmark.Bookmark;
 import com.mucommander.bookmark.BookmarkListener;
 import com.mucommander.bookmark.BookmarkManager;
@@ -30,10 +30,14 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.RootFolders;
+import com.mucommander.runtime.JavaVersions;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.action.OpenLocationAction;
 import com.mucommander.ui.button.PopupButton;
-import com.mucommander.ui.dialog.server.ServerConnectDialog;
+import com.mucommander.ui.dialog.server.*;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.helper.MnemonicHelper;
@@ -69,30 +73,13 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 
 
     static {
-        if(PlatformManager.isWindowsFamily()) {
+        if(OsFamilies.WINDOWS.isCurrent()) {
             fileSystemView = FileSystemView.getFileSystemView();
             extendedNameCache = new Hashtable();
         }
     }
 
 
-    /**
-     * Action that triggers the 'server connection dialog' for a specified protocol.
-     */
-    private class ServerConnectAction extends AbstractAction {
-        private int serverPanelIndex;
-
-        private ServerConnectAction(String label, int serverPanelIndex) {
-            super(label);
-            this.serverPanelIndex = serverPanelIndex;
-        }
-
-        public void actionPerformed(ActionEvent actionEvent) {
-            new ServerConnectDialog(folderPanel.getMainFrame(), serverPanelIndex).showDialog();
-        }
-    }
-
-	
     /**
      * Creates a new drive button which is to be added to the given FolderPanel.
      *
@@ -110,6 +97,13 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 
         // Listen to configuration changes to update the drive if the system file icons policy has changed 
         MuConfiguration.addConfigurationListener(this);
+
+        // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+            setMargin(new Insets(6,8,6,8));
+            putClientProperty("JComponent.sizeVariant", "small");
+            putClientProperty("JButton.buttonType", "textured");
+        }
     }
 
     public Dimension getPreferredSize() {
@@ -165,7 +159,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
             else {
                 // Patch for Windows UNC network paths (weakly characterized by having a host different from 'localhost'):
                 // display 'SMB' which is the underlying protocol
-                if(PlatformManager.isWindowsFamily() && !FileURL.LOCALHOST.equals(currentURL.getHost())) {
+                if(OsFamilies.WINDOWS.isCurrent() && !FileURL.LOCALHOST.equals(currentURL.getHost())) {
                     newLabel = "SMB";
                 }
                 else {
@@ -175,7 +169,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
                     // c) when network drives are present but not mounted (e.g. X:\ mapped onto an SMB share),
                     // getCanonicalPath which is I/O bound will take a looooong time to execute
 
-                    if(PlatformManager.isWindowsFamily())
+                    if(OsFamilies.WINDOWS.isCurrent())
                         currentPath = currentFolder.getAbsolutePath(false).toLowerCase();
                     else
                         currentPath = currentFolder.getCanonicalPath(false).toLowerCase();
@@ -185,7 +179,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
                     String temp;
                     int len;
                     for(int i=0; i<rootFolders.length; i++) {
-                        if(PlatformManager.isWindowsFamily())
+                        if(OsFamilies.WINDOWS.isCurrent())
                             temp = rootFolders[i].getAbsolutePath(false).toLowerCase();
                         else
                             temp = rootFolders[i].getCanonicalPath(false).toLowerCase();
@@ -231,9 +225,9 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     }
 
 
-    ////////////////////////////////////
+    ////////////////////////////////
     // PopupButton implementation //
-    ////////////////////////////////////
+    ////////////////////////////////
 
     public JPopupMenu getPopupMenu() {
         final JPopupMenu popupMenu = new JPopupMenu();
@@ -243,7 +237,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 
         // Add root volumes
         final int nbRoots = rootFolders.length;
-        MainFrame mainFrame = folderPanel.getMainFrame();
+        final MainFrame mainFrame = folderPanel.getMainFrame();
 
         MnemonicHelper mnemonicHelper = new MnemonicHelper();   // Provides mnemonics and ensures uniqueness
         JMenuItem item;
@@ -252,7 +246,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         final Vector itemsV = useExtendedDriveNames?new Vector():null;
 
         for(int i=0; i<nbRoots; i++) {
-            item = popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), rootFolders[i]));
+            item = popupMenu.add(new CustomOpenLocationAction(mainFrame, new Hashtable(), rootFolders[i]));
             setMnemonic(item, mnemonicHelper);
 
             // Set system icon for volumes, only if system icons are available on the current platform
@@ -306,7 +300,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         if(nbBookmarks>0) {
             for(int i=0; i<nbBookmarks; i++) {
                 b = (Bookmark)bookmarks.elementAt(i);
-                item = popupMenu.add(new OpenLocationAction(mainFrame, new Hashtable(), b));
+                item = popupMenu.add(new CustomOpenLocationAction(mainFrame, new Hashtable(), b));
                 setMnemonic(item, mnemonicHelper);
             }
         }
@@ -318,21 +312,21 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         popupMenu.add(new JSeparator());
 
         // Add Bonjour services menu
-        setMnemonic(popupMenu.add(new BonjourMenu(folderPanel.getMainFrame())), mnemonicHelper);
+        setMnemonic(popupMenu.add(new BonjourMenu() {
+            public MuAction getMenuItemAction(BonjourService bs) {
+                return new CustomOpenLocationAction(mainFrame, new Hashtable(), bs);
+            }
+        }) , mnemonicHelper);
         popupMenu.add(new JSeparator());
 
         // Add 'connect to server' shortcuts
-        setMnemonic(popupMenu.add(new ServerConnectAction("SMB...", ServerConnectDialog.SMB_INDEX)), mnemonicHelper);
-        setMnemonic(popupMenu.add(new ServerConnectAction("FTP...", ServerConnectDialog.FTP_INDEX)), mnemonicHelper);
-        setMnemonic(popupMenu.add(new ServerConnectAction("SFTP...", ServerConnectDialog.SFTP_INDEX)), mnemonicHelper);
-        setMnemonic(popupMenu.add(new ServerConnectAction("HTTP...", ServerConnectDialog.HTTP_INDEX)), mnemonicHelper);
-        setMnemonic(popupMenu.add(new ServerConnectAction("NFS...", ServerConnectDialog.NFS_INDEX)), mnemonicHelper);
-
-        // Temporarily make the FileTable which contains this DrivePopupButton the currently active one so that menu actions
-        // are triggered on it. The previously active table will be restored when the popup menu is closed (focus is lost).
-        // This needed because a DrivePopupButton menu can be poped up from the opposite table.
-        // Not doing this would cause the action to be performed from the wrong FileTable.
-        mainFrame.setActiveTable(folderPanel.getFileTable());
+        setMnemonic(popupMenu.add(new ServerConnectAction("SMB...", SMBPanel.class)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("FTP...", FTPPanel.class)), mnemonicHelper);
+        // SFTP support is not compatible with all version of the Java runtime
+        if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
+            setMnemonic(popupMenu.add(new ServerConnectAction("SFTP...", SFTPPanel.class)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("HTTP...", HTTPPanel.class)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("NFS...", NFSPanel.class)), mnemonicHelper);
 
         return popupMenu;
     }
@@ -391,5 +385,55 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Update the button's icon if the system file icons policy has changed
         if (var.equals(MuConfiguration.USE_SYSTEM_FILE_ICONS))
             updateButton();
+    }
+
+
+    ///////////////////
+    // Inner classes //
+    ///////////////////
+
+    /**
+     * This action pops up {@link com.mucommander.ui.dialog.server.ServerConnectDialog} for a specified
+     * protocol.
+     */
+    private class ServerConnectAction extends AbstractAction {
+        private Class serverPanelClass;
+
+        private ServerConnectAction(String label, Class serverPanelClass) {
+            super(label);
+            this.serverPanelClass = serverPanelClass;
+        }
+
+        public void actionPerformed(ActionEvent actionEvent) {
+            new ServerConnectDialog(folderPanel, serverPanelClass).showDialog();
+        }
+    }
+
+
+    /**
+     * This modified {@link OpenLocationAction} changes the current folder on the {@link FolderPanel} that contains
+     * this button, instead of the currently active {@link FolderPanel}.  
+     */
+    private class CustomOpenLocationAction extends OpenLocationAction {
+
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, Bookmark bookmark) {
+            super(mainFrame, properties, bookmark);
+        }
+
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, AbstractFile file) {
+            super(mainFrame, properties, file);
+        }
+
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, BonjourService bs) {
+            super(mainFrame, properties, bs);
+        }
+
+        ////////////////////////
+        // Overridden methods //
+        ////////////////////////
+
+        protected FolderPanel getFolderPanel() {
+            return folderPanel;
+        }
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,12 @@
 
 package com.mucommander.ui.dialog.pref.theme;
 
-import com.mucommander.ui.dialog.pref.PreferencesPanel;
-import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.layout.ProportionalGridPanel;
-import com.mucommander.ui.layout.YBoxPanel;
-import com.mucommander.ui.layout.XBoxPanel;
-import com.mucommander.ui.theme.ThemeData;
-import com.mucommander.ui.chooser.PreviewLabel;
 import com.mucommander.ui.chooser.FontChooser;
+import com.mucommander.ui.chooser.PreviewLabel;
+import com.mucommander.ui.dialog.pref.PreferencesDialog;
+import com.mucommander.ui.layout.ProportionalGridPanel;
+import com.mucommander.ui.theme.ThemeData;
 
 import javax.swing.*;
 import java.awt.*;
@@ -42,7 +39,7 @@ class FilePanel extends ThemeEditorPanel {
      * @param parent   dialog containing the panel
      * @param isActive whether the color values should be taken from the <i>active</i> or <i>inactive</i> state.
      * @param data     theme to edit.
-     * @param chooser  File table font chooser.
+     * @param fontChooser  File table font chooser.
      */
     public FilePanel(PreferencesDialog parent, boolean isActive, ThemeData data, FontChooser fontChooser) {
         super(parent, Translator.get(isActive ? "theme_editor.active_panel" : "theme_editor.inactive_panel"), data);
@@ -67,7 +64,6 @@ class FilePanel extends ThemeEditorPanel {
 
     private void initUI(boolean isActive, FontChooser fontChooser) {
         JPanel           gridPanel;
-        PreviewLabel     label;
         ColorButton      backgroundButton;
         ColorButton      selectedBackgroundButton;
         ColorButton      borderButton;

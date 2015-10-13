@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.notifier.AbstractNotifier;
 import com.mucommander.ui.notifier.NotificationTypes;
-import com.mucommander.ui.text.FilenameLabel;
+import com.mucommander.ui.text.FileLabel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -54,12 +54,14 @@ public class FileCollisionDialog extends QuestionDialog {
     public final static int OVERWRITE_ACTION = 2;
     public final static int OVERWRITE_IF_OLDER_ACTION = 3;
     public final static int RESUME_ACTION = 4;
+    public final static int RENAME_ACTION = 5;
 
     public final static String CANCEL_TEXT = Translator.get("cancel");
     public final static String SKIP_TEXT = Translator.get("skip");
     public final static String OVERWRITE_TEXT = Translator.get("overwrite");
     public final static String OVERWRITE_IF_OLDER_TEXT = Translator.get("overwrite_if_older");
     public final static String RESUME_TEXT = Translator.get("resume");
+    public final static String RENAME_TEXT = Translator.get("rename");
 
     private JCheckBox applyToAllCheckBox;
 
@@ -73,11 +75,12 @@ public class FileCollisionDialog extends QuestionDialog {
      * @param sourceFile the source file that 'conflicts' with the destination file, can be null.
      * @param destFile the destination file which already exists
      * @param multipleFilesMode if true, options that apply to multiple files will be displayed (skip, apply to all)
+     * @param allowRename if true, display an option to rename a file
      */
-    public FileCollisionDialog(Dialog owner, Component locationRelative, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode) {
+    public FileCollisionDialog(Dialog owner, Component locationRelative, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode, boolean allowRename) {
         super(owner, Translator.get("file_collision_dialog.title"), locationRelative);
 		
-        init(owner, collisionType, sourceFile, destFile, multipleFilesMode);
+        init(owner, collisionType, sourceFile, destFile, multipleFilesMode, allowRename);
     }
 
     /**
@@ -89,15 +92,16 @@ public class FileCollisionDialog extends QuestionDialog {
      * @param sourceFile the source file that 'conflicts' with the destination file, can be null.
      * @param destFile the destination file which already exists
      * @param multipleFilesMode if true, options that apply to multiple files will be displayed (skip, apply to all)
+     * @param allowRename if true, display an option to rename a file
      */
-    public FileCollisionDialog(Frame owner, Component locationRelative, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode) {
+    public FileCollisionDialog(Frame owner, Component locationRelative, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode, boolean allowRename) {
         super(owner, Translator.get("file_collision_dialog.title"), locationRelative);
 
-        init(owner, collisionType, sourceFile, destFile, multipleFilesMode);
+        init(owner, collisionType, sourceFile, destFile, multipleFilesMode, allowRename);
     }
 
 
-    private void init(Container owner, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode) {
+    private void init(Container owner, int collisionType, AbstractFile sourceFile, AbstractFile destFile, boolean multipleFilesMode, boolean allowRename) {
 
         // Init choices
 
@@ -128,7 +132,13 @@ public class FileCollisionDialog extends QuestionDialog {
                     choicesTextV.add(RESUME_TEXT);
                     choicesActionsV.add(new Integer(RESUME_ACTION));
                 }
+
+                if (allowRename) {
+                    choicesTextV.add(RENAME_TEXT);
+                    choicesActionsV.add(new Integer(RENAME_ACTION));
+                }
             }
+        
         }
 
         // Convert choice vectors into arrays
@@ -195,13 +205,11 @@ public class FileCollisionDialog extends QuestionDialog {
 
 
     private void addFileDetails(XAlignedComponentPanel panel, AbstractFile file, String nameLabel) {
-        panel.addRow(nameLabel+":", new FilenameLabel(file), 0);
+        panel.addRow(nameLabel+":", new FileLabel(file, false), 0);
 
         AbstractFile parent = file.getParentSilently();
-        String parentLocation = (parent==null?file:parent).getCanonicalPath();
-        JLabel label = new JLabel(parentLocation);
-        label.setToolTipText(parentLocation);
-        panel.addRow(Translator.get("location")+":", label, 0);
+
+        panel.addRow(Translator.get("location")+":", new FileLabel((parent==null?file:parent), true), 0);
 
         panel.addRow(Translator.get("size")+":", new JLabel(SizeFormat.format(file.getSize(), SizeFormat.DIGITS_FULL| SizeFormat.UNIT_LONG| SizeFormat.INCLUDE_SPACE)), 0);
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ import com.mucommander.ui.main.MainFrame;
 import java.io.IOException;
 
 /**
- * This job copies a file or a set of files to a temporary folder, makes the temporary file(s) read-only.
+ * This job copies a file or a set of files to a temporary folder and makes the temporary file(s) read-only.
  * The temporary files are deleted when the JVM terminates.
  *
  * @author Maxence Bernard

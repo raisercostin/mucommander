@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -222,7 +222,6 @@ public abstract class Archiver {
      * one, and if not, fall back to a regular <code>OutputStream</code>. Note that if the file exists, its contents
      * will be overwritten. Write bufferring is used under the hood to improve performance.</p>
      *
-     *
      * @param file the AbstractFile which the returned Archiver will write entries to
      * @param format an archive format
      * @return an Archiver for the specified format and that uses the given {@link AbstractFile} to write entries to ;
@@ -234,6 +233,11 @@ public abstract class Archiver {
 
         if(file.hasRandomAccessOutputStream()) {
             try {
+                // Important: if the file exists, it has to be overwritten as AbstractFile#getRandomAccessOutputStream()
+                // does NOT overwrite the file. This fixes bug #30.
+                if(file.exists())
+                    file.delete();
+                
                 out = new BufferedRandomOutputStream(file.getRandomAccessOutputStream());
             }
             catch(IOException e) {
@@ -369,7 +373,7 @@ public abstract class Archiver {
 
     /**
      * Creates a new entry in the archive with the given path. The specified file is used to determine
-     * whether the entry is a directory or a regular file, and to set the entry's length and date.
+     * whether the entry is a directory or a regular file, and to set the entry's size, permissions and date.
      * 
      * <p>If the entry is a regular file (not a directory), an OutputStream which can be used to write the contents
      * of the entry will be returned, <code>null</code> otherwise. The OutputStream <b>must not</b> be closed once

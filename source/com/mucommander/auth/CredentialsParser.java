@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,17 +20,14 @@ package com.mucommander.auth;
 
 import com.mucommander.Debug;
 import com.mucommander.bookmark.XORCipher;
+import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileURL;
 import com.mucommander.io.BackupInputStream;
-
-import org.xml.sax.helpers.DefaultHandler;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
-import org.xml.sax.Locator;
 import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
 import javax.xml.parsers.SAXParserFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -38,10 +35,11 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 
 /**
- * This class takes care of parsing the credentials XML file and adding parsed {@link MappedCredentials} instances
- * to {@link CredentialsManager}'s persistent credentials list.
+ * This class takes care of parsing the credentials XML file and adding parsed {@link CredentialsMapping} instances
+ * to {@link CredentialsManager}.
  *
  * @author Maxence Bernard
+ * @see CredentialsWriter
  */
 class CredentialsParser extends DefaultHandler implements CredentialsConstants {
 
@@ -66,7 +64,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
     /**
      * Parses the given XML credentials file. Should only be called by CredentialsManager.
      */
-    void parse(File file) throws Exception {
+    void parse(AbstractFile file) throws Exception {
         InputStream in;
 
         in = null;
@@ -132,7 +130,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
             }
 
             // Add credentials to persistent credentials list
-            CredentialsManager.getPersistentCredentials().add(new MappedCredentials(login, password, url, true));
+            CredentialsManager.getPersistentCredentialMappings().add(new CredentialsMapping(new Credentials(login, password), url, true));
         }
         else if(qName.equals(ELEMENT_URL)) {
             try {url = new FileURL(characters.toString().trim());}
@@ -144,5 +142,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
             password = characters.toString().trim();
     }
 
-    public void characters(char[] ch, int offset, int length) {characters.append(ch, offset, length);}
+    public void characters(char[] ch, int offset, int length) {
+        characters.append(ch, offset, length);
+    }
 }

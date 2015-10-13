@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.MimeTypes;
 import com.mucommander.file.util.FileSet;
+import com.mucommander.io.StreamUtils;
 import com.mucommander.io.base64.Base64OutputStream;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -175,7 +176,10 @@ public class SendMailJob extends TransferFileJob {
                 recipients.add(rec.substring(pos1+1, pos2));
             else
                 recipients.add(rec);
-            newRecipientsSb.append(rec+(st.hasMoreTokens()?", ":""));
+
+            newRecipientsSb.append(rec);
+            if(st.hasMoreTokens())
+                newRecipientsSb.append(", ");
         }
 		
         return newRecipientsSb.toString();
@@ -200,15 +204,12 @@ public class SendMailJob extends TransferFileJob {
             fileIn = setCurrentInputStream(file.getInputStream());
             
             // Write file to socket
-            AbstractFile.copyStream(fileIn, out64);
+            StreamUtils.copyStream(fileIn, out64);
 	
             // Writes padding bytes without closing the stream.
             out64.writePadding();
 	
             writeLine("\r\n--" + boundary);
-        }
-        catch(IOException e) {
-            throw e;
         }
         finally {
             if(fileIn!=null)
@@ -275,15 +276,6 @@ public class SendMailJob extends TransferFileJob {
         return true;
     }
 
-
-    public String getStatusString() {
-        if(connectedToMailServer)
-            return Translator.get("email.sending_file", getCurrentFileInfo());
-        else
-            return Translator.get("email.connecting_to_server", mailServer);
-    }
-
-    
     protected boolean hasFolderChanged(AbstractFile folder) {
         // This job does not modify anything
         return false;
@@ -330,5 +322,12 @@ public class SendMailJob extends TransferFileJob {
 
         // Close the connection
         closeConnection();
+    }
+
+    public String getStatusString() {
+        if(connectedToMailServer)
+            return Translator.get("email.sending_file", getCurrentFileInfo());
+        else
+            return Translator.get("email.connecting_to_server", mailServer);
     }
 }

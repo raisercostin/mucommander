@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -201,7 +201,7 @@ public class ResourceLoader {
     /**
      * Returns an {@link AbstractFile} to the root package of the given <code>Class</code>. For example, if the
      * specified <code>Class</code> is <code>java.lang.Object</code>'s, the returned file will be the Java runtime
-     * JAR file, which on most platforms is <code>$JAVA_HOME/lib/jre/rt.jar</code>.<br/>
+     * JAR file, which on most platforms is <code>$JAVA_HOME/lib/jre/rt.jar</code>.<br>
      * The returned file can be used to list or manipulate all resource files contained in a particular classpath's
      * location, including the .class files.
      *

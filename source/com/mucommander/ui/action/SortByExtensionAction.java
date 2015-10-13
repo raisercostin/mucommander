@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,23 +19,19 @@
 package com.mucommander.ui.action;
 
 import com.mucommander.ui.main.MainFrame;
-import com.mucommander.ui.main.table.FileTable;
+import com.mucommander.ui.main.table.Columns;
 
 import java.util.Hashtable;
 
 /**
- * This action sorts the currently active FileTable by extension.
+ * This action sorts the currently active {@link com.mucommander.ui.main.table.FileTable} by extension.
  * If the table is already sorted by extension, the sort order will be reversed.
  *
  * @author Maxence Bernard
  */
-public class SortByExtensionAction extends MuAction {
+public class SortByExtensionAction extends SortByAction {
 
     public SortByExtensionAction(MainFrame mainFrame, Hashtable properties) {
-        super(mainFrame, properties);
-    }
-
-    public void performAction() {
-        mainFrame.getActiveTable().sortBy(FileTable.EXTENSION);
+        super(mainFrame, properties, Columns.EXTENSION);
     }
 }

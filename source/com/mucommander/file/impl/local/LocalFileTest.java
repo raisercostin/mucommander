@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import com.mucommander.file.AbstractFileTestCase;
 import com.mucommander.file.FileFactory;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * An {@link com.mucommander.file.AbstractFileTestCase} implementation for {@link LocalFile}.
@@ -49,20 +50,23 @@ public class LocalFileTest extends AbstractFileTestCase {
      * Asserts that a file can be renamed to a filename variation of the same file.
      *
      * @throws IOException should not normally happen
+     * @throws NoSuchAlgorithmException should not happen
      */
-    public void testMoveToCaseVariation() throws IOException {
+    public void testMoveToCaseVariation() throws IOException, NoSuchAlgorithmException {
         // First test with a regular file
         createFile(tempFile, 1);
         AbstractFile destFile = tempFile.getParent().getDirectChild(tempFile.getName().toUpperCase());
         deleteWhenFinished(destFile);
 
         assertTrue(tempFile.moveTo(destFile));
+        assertFalse(destFile.isSymlink());          // Leave me
 
         // Repeat the test with a directory
         destFile.delete();
         tempFile.mkdir();
 
         assertTrue(tempFile.moveTo(destFile));
+        assertFalse(destFile.isSymlink());          // Leave me
     }
 
     /**
@@ -84,7 +88,19 @@ public class LocalFileTest extends AbstractFileTestCase {
         LocalFile.hasRootDrives();
 
         LocalFile localFile = (LocalFile)tempFile.getAncestor(LocalFile.class);
-        localFile.guessFloppyDrive();
         localFile.guessRemovableDrive();
+    }
+
+    /**
+     * Asserts that {@link com.mucommander.file.impl.local.LocalFile#getVolumeInfo()} returns the same values as
+     * {@link com.mucommander.file.impl.local.LocalFile#getTotalSpace()}
+     * and {@link com.mucommander.file.impl.local.LocalFile#getFreeSpace()}.
+     */
+    public void testVolumeInfo() {
+        long volumeInfo[] = ((LocalFile)tempFile).getVolumeInfo();
+
+        assertNotNull(volumeInfo);
+        assertEquals(volumeInfo[0], tempFile.getTotalSpace());
+        assertEquals(volumeInfo[1], tempFile.getFreeSpace());
     }
 }

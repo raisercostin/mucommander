@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 package com.mucommander.file.filter;
 
+import com.mucommander.util.StringUtils;
+
 /**
  * This {@link FilenameFilter} matches filenames ending with one of several specified extensions.
  * The filter can be made case-sensitive or case-insensitive, this behavior is specified at creation time.
@@ -25,31 +27,28 @@ package com.mucommander.file.filter;
  * <p>The extension(s) may be any string, but when used in the traditional sense of a file extension (e.g. zip extension)
  * the '.' character must be included in the specified extension (e.g. ".zip" must be used, not just "zip").</p>
  * 
- * @author Maxence Bernard
+ * @author Maxence Bernard, Nicolas Rinaudo
  */
 public class ExtensionFilenameFilter extends FilenameFilter {
-
     /** File extensions to match against filenames */
-    private String extensions[];
+    private char[][] extensions;
 
     /**
      * Creates a new <code>ExtensionFilenameFilter</code> that matches filenames ending with the specified extension.
      * By default, new <code>FilenameFilter</code> are case-insensitive.
-     *
      * @param extension the extension to match
      */
-    public ExtensionFilenameFilter(String extension) {
-        this(new String[]{extension});
-    }
+    public ExtensionFilenameFilter(String extension) {this(new String[]{extension});}
 
     /**
      * Creates a new <code>ExtensionFilenameFilter</code> that matches filenames ending with one of the specified
      * extensions. By default, new <code>FilenameFilter</code> are case-insensitive.
-     *
-     * @param extensions the extensions to match
+     * @param ext the extensions to match
      */
-    public ExtensionFilenameFilter(String extensions[]) {
-        this.extensions = extensions;
+    public ExtensionFilenameFilter(String[] ext) {
+        extensions = new char[ext.length][];
+        for(int i = 0; i < ext.length; i++)
+            extensions[i] = ext[i].toCharArray();
     }
 
 
@@ -58,21 +57,26 @@ public class ExtensionFilenameFilter extends FilenameFilter {
     ///////////////////////////////////
 
     public boolean accept(String filename) {
-        boolean isCaseInsensitive = !isCaseSensitive();
-        if(isCaseInsensitive)
-            filename = filename.toLowerCase();
+        int i;
+        int nameLength; // Filename's length.
 
-        int nbExtensions = extensions.length;
-        String extension;
-        for(int i=0; i<nbExtensions; i++) {
-            extension = extensions[i];
-            if(isCaseInsensitive)
-                extension = extension.toLowerCase();
+        nameLength = filename.length();
 
-            if(filename.endsWith(extension))
-                return true;
+        // If case isn't important, a simple String.endsWith is enough.
+        if(isCaseSensitive()) {
+            for(i = 0; i < extensions.length; i++)
+                if(StringUtils.matches(filename, extensions[i], nameLength))
+                    return true;
         }
 
-        return false;
+        // If case is important, we have to be a bit more creative and
+        // use String.regionMatches.
+        else {
+            // Matches the file name to each extension.
+            for(i = 0; i < extensions.length; i++)
+                if(StringUtils.matchesIgnoreCase(filename, extensions[i], nameLength))
+                    return true;
+        }
+        return false; 
     }
 }

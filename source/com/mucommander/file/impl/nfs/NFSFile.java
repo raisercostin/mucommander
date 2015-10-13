@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -224,6 +224,34 @@ public class NFSFile extends AbstractFile {
         return false;
     }
 
+    /**
+     * Always returns <code>null</code>, this information is not available unfortunately.
+     */
+    public String getOwner() {
+        return null;
+    }
+
+    /**
+     * Always returns <code>false</code>, this information is not available unfortunately.
+     */
+    public boolean canGetOwner() {
+        return false;
+    }
+
+    /**
+     * Always returns <code>null</code>, this information is not available unfortunately.
+     */
+    public String getGroup() {
+        return null;
+    }
+
+    /**
+     * Always returns <code>false</code>, this information is not available unfortunately.
+     */
+    public boolean canGetGroup() {
+        return false;
+    }
+
     public boolean isDirectory() {
         return file.isDirectory();
     }
@@ -237,7 +265,7 @@ public class NFSFile extends AbstractFile {
     }
 
     public AbstractFile[] ls() throws IOException {
-        return ls((FilenameFilter)null);
+        return ls(null);
     }
 
     public void mkdir() throws IOException {
@@ -413,7 +441,7 @@ public class NFSFile extends AbstractFile {
     /**
      * NFSRandomAccessInputStream extends RandomAccessInputStream to provide random read access to an NFSFile.
      */
-    public class NFSRandomAccessInputStream extends RandomAccessInputStream {
+    public static class NFSRandomAccessInputStream extends RandomAccessInputStream {
 
         private XRandomAccessFile raf;
 
@@ -452,7 +480,7 @@ public class NFSFile extends AbstractFile {
      * <p><b>Warning:</b> this RandomAccessOutputStream is not fully functional, the {@link #setLength(long)} has a
      * limitation.
      */
-    public class NFSRandomAccessOutputStream extends RandomAccessOutputStream {
+    public static class NFSRandomAccessOutputStream extends RandomAccessOutputStream {
 
         private XRandomAccessFile raf;
 

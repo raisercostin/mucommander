@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,36 +18,27 @@
 
 package com.mucommander.ui.main.table;
 
-import java.util.Enumeration;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Vector;
-import java.util.NoSuchElementException;
-import java.util.Iterator;
-import java.util.WeakHashMap;
-import javax.swing.ListSelectionModel;
-import javax.swing.DefaultListSelectionModel;
-import javax.swing.event.TableColumnModelListener;
-import javax.swing.event.TableColumnModelEvent;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
-import javax.swing.table.TableColumnModel;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
 import javax.swing.table.TableColumn;
-import javax.swing.table.TableCellEditor;
-import java.beans.PropertyChangeListener;
+import javax.swing.table.TableColumnModel;
 import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.*;
 
 /**
  * Used to keep track of a file table's columns position and visibility settings.
- * @author Nicolas Rinaudo
+ * @author Nicolas Rinaudo, Maxence Bernard
  */
-class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeListener {
+public class FileTableColumnModel implements TableColumnModel, PropertyChangeListener {
     // - Class constants -----------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** If {@link #widthCache} is set to this, it needs to be recalulated. */
     private static final int                CACHE_OUT_OF_DATE = -1;
     /** Even though we're not using column selection, the table API forces us to return this instance or will crash. */
     private static final ListSelectionModel SELECTION_MODEL   = new DefaultListSelectionModel();
-
 
 
     // - Instance fields -----------------------------------------------------------------
@@ -57,9 +48,11 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
     /** Cache for the table's total width. */
     private int           widthCache = CACHE_OUT_OF_DATE;
     /** All available columns. */
-    private Vector        columns    = new Vector(5);
-    /** Visibility status of each column. */
-    private boolean[]     visibility = new boolean[5];
+    private Vector        columns    = new Vector(Columns.COLUMN_COUNT);
+    /** Enabled state of each column. */
+    private boolean[]     enabled = new boolean[Columns.COLUMN_COUNT];
+    /** Visibility state of each column. */
+    private boolean[]     visibility = new boolean[Columns.COLUMN_COUNT];
     /** Cache for the number of available columns. */
     private int           countCache;
     /** Whether the column sizes were set already. */
@@ -73,7 +66,6 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
      * Creates a new file table column model.
      */
     public FileTableColumnModel(FileTableConfiguration conf) {
-        FileTableHeaderRenderer headerRenderer; // Buffer for each column's header.
         TableColumn             column;         // Buffer for the current column.
 
         // The name column is always visible, so we know that the column count is always
@@ -81,11 +73,17 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
         countCache = 1;
 
         // Initialises the columns.
-        for(int i = 0; i < visibility.length; i++) {
+        for(int i = 0; i < Columns.COLUMN_COUNT; i++) {
             columns.add(column = new TableColumn(i));
             column.setCellEditor(null);
-            column.setHeaderValue(FileTableModel.COLUMN_LABELS[i]);
-            column.setHeaderRenderer(headerRenderer = new FileTableHeaderRenderer());
+            column.setHeaderValue(Columns.getColumnLabel(i));
+
+            // Mac OS X 10.5 (Leopard) and up uses JTableHeader properties to render sort indicators on table headers.
+            // On other platforms, we use a custom table header renderer.
+            if(!FileTable.usesTableHeaderRenderingProperties()) {
+                column.setHeaderRenderer(new FileTableHeaderRenderer());
+            }
+
             column.addPropertyChangeListener(this);
 
             // Sets the column's initial width.
@@ -93,29 +91,17 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
                 column.setWidth(conf.getWidth(i));
 
             // Initialises the column's visibility and minimum width.
-            if(i == NAME) {
-                headerRenderer.setCurrent(true);
-                visibility[i] = true;
-                column.setMinWidth(MINIMUM_NAME_WIDTH);
+            if(i == Columns.NAME) {
+                enabled[i] = true;
             }
             else {
-                if((visibility[i] = conf.isVisible(i)))
+                if((enabled[i] = conf.isEnabled(i)))
                     countCache++;
-                switch(i) {
-                case EXTENSION:
-                    column.setMinWidth(MINIMUM_EXTENSION_WIDTH);
-                    break;
-                case DATE:
-                    column.setMinWidth(MINIMUM_DATE_WIDTH);
-                    break;
-                case SIZE:
-                    column.setMinWidth(MINIMUM_SIZE_WIDTH);
-                    break;
-                case PERMISSIONS:
-                    column.setMinWidth(MINIMUM_PERMISSIONS_WIDTH);
-                    break;
-                }
             }
+            column.setMinWidth(Columns.getMinimumColumnWidth(i));
+
+            // Init visibility state to enabled state, FileTable will adjust the values for conditional columns later
+            visibility[i] = enabled[i]; 
         }
 
         // Sorts the columns.
@@ -132,11 +118,11 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
         int                    index;
 
         conf = new FileTableConfiguration();
-        for(int i = 0; i < 5; i++) {
+        for(int i = 0; i < Columns.COLUMN_COUNT; i++) {
             column = (TableColumn)columns.get(i);
             index  = column.getModelIndex();
 
-            conf.setVisible(index, visibility[index]);
+            conf.setEnabled(index, enabled[index]);
             conf.setPosition(index, i);
             conf.setWidth(index, column.getWidth());
         }
@@ -146,14 +132,37 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
 
 
 
-    // - Columns visibility --------------------------------------------------------------
+    // - Enabled state -------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
+
     /**
-     * Sets the specified column's visibility status.
+     * Returns <code>true</code> if the specified column is enabled.
+     * @param  id      a column identifier, see {@link Columns} for allowed values.
+     * @return true if the column is enabled, false if disabled.
+     */
+    public synchronized boolean isColumnEnabled(int id) {
+        return enabled[id];
+    }
+
+    /**
+     * Sets the specified column's enabled state.
+     * @param id      a column identifier, see {@link Columns} for allowed values.
+     * @param enabled true to enable the column, false to disable it.
+     */
+    public synchronized void setColumnEnabled(int id, boolean enabled) {
+        this.enabled[id] = enabled;
+    }
+
+
+    // - Visibility state ----------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Sets the specified column's visibility state.
      * @param id      identifier of the column as defined in {@link Columns}.
      * @param visible whether the column should be visible or not.
      */
-    public synchronized void setColumnVisible(int id, boolean visible) {
+    synchronized void setColumnVisible(int id, boolean visible) {
         // Ignores calls that won't actually change anything.
         if(visibility[id] != visible) {
             visibility[id] = visible;
@@ -285,13 +294,13 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
     public int getColumnIndexAtX(int x) {
         int count;
 
-	count = getColumnCount();
-	for(int i = 0; i < count; i++) { 
-	    x = x - getColumn(i).getWidth(); 
-	    if(x < 0)
-		return i;
-        }
-	return -1; 
+        count = getColumnCount();
+        for(int i = 0; i < count; i++) {
+            x = x - getColumn(i).getWidth();
+            if(x < 0)
+            return i;
+            }
+        return -1;
     }
 
     /**
@@ -320,14 +329,14 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
      * Invalidates the width cache if a column's width has changed.
      */
     public void propertyChange(PropertyChangeEvent event) {
-	String name;
+        String name;
 
         name = event.getPropertyName();
-	if(name.equals("width")) {
-            columnSizesSet = true;
-	    widthCache = CACHE_OUT_OF_DATE;
-            // Notifies the table that columns width have changed and that it should repaint itself.
-            triggerColumnMarginChanged(new ChangeEvent(this));
+        if(name.equals("width")) {
+                columnSizesSet = true;
+            widthCache = CACHE_OUT_OF_DATE;
+                // Notifies the table that columns width have changed and that it should repaint itself.
+                triggerColumnMarginChanged(new ChangeEvent(this));
         }
     }
 
@@ -551,7 +560,7 @@ class FileTableColumnModel implements TableColumnModel, Columns, PropertyChangeL
      * </p>
      * @author Nicolas Rinaudo
      */
-    private class ColumnSorter implements Comparator {
+    private static class ColumnSorter implements Comparator {
         // - Instance fields -------------------------------------------------------------
         // -------------------------------------------------------------------------------
         /** Defines the columns order. */

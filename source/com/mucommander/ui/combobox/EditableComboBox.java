@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 
 package com.mucommander.ui.combobox;
+
+import com.mucommander.runtime.JavaVersions;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
@@ -176,9 +178,9 @@ public class EditableComboBox extends SaneComboBox {
                 // Combo popup menu is visible
                 if(isPopupVisible()) {
                     if(keyCode==KeyEvent.VK_ENTER) {
-                        // In Java 1.5 and under, we need to explicitely hide the popup.
-			if(com.mucommander.PlatformManager.getJavaVersion() <= com.mucommander.PlatformManager.JAVA_1_5)
-			    hidePopup();
+                        // Under Java 1.5 or under, we need to explicitely hide the popup.
+                        if(JavaVersions.JAVA_1_5.isCurrentOrLower())
+                            hidePopup();
                         // Note that since the event is not consumed, JComboBox will catch it and fire
                     }
                     else if(keyCode==KeyEvent.VK_ESCAPE) {

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -117,9 +117,23 @@ public class OpenLocationAction extends MuAction {
         this(mainFrame, properties, bonjourService.getURL(), bonjourService.getNameWithProtocol());
     }
 
+    /**
+     * Returns the {@link FolderPanel} on which to change the current folder. This method returns the currently active
+     * panel but can be overridden if another panel should be used.
+     *
+     * @return the currently active panel
+     */
+    protected FolderPanel getFolderPanel() {
+        return mainFrame.getActivePanel();
+    }
+
+
+    /////////////////////////////
+    // MuAction implementation //
+    /////////////////////////////
 
     public void performAction() {
-        FolderPanel folderPanel = mainFrame.getActiveTable().getFolderPanel();
+        FolderPanel folderPanel = getFolderPanel();
         if(url!=null) {
             folderPanel.tryChangeCurrentFolder(url);
         }

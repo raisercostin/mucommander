@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ public class BOM {
         String sigRep = "{";
         for(int i=0; i<sig.length; i++)
             sigRep += (0xFF&sig[i])+(i==sig.length-1?"}":", ");
-        
+
         return super.toString()+", signature="+sigRep+", encoding="+encoding;
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 package com.mucommander.cache;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
+import com.mucommander.runtime.JavaVersions;
 
 
 /**
@@ -115,7 +115,7 @@ public abstract class LRUCache {
      * @return an instance of the best LRUCache implementation for the current Java runtime 
      */
     public static LRUCache createInstance(int capacity) {
-        if(PlatformManager.getJavaVersion()>=PlatformManager.JAVA_1_4)
+        if(JavaVersions.JAVA_1_4.isCurrentOrHigher())
             return new FastLRUCache(capacity);
         else
             return new LegacyLRUCache(capacity);

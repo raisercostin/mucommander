@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,17 @@ package com.mucommander.ui.dialog.pref.theme;
 import com.mucommander.RuntimeConstants;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.chooser.FontChooser;
+import com.mucommander.ui.chooser.PreviewLabel;
+import com.mucommander.ui.combobox.EditableComboBox;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.layout.ProportionalGridPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.theme.ThemeData;
-import com.mucommander.ui.combobox.EditableComboBox;
-import com.mucommander.ui.chooser.PreviewLabel;
 
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeEvent;
 import javax.swing.*;
 import java.awt.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 
 /**
  * @author Nicolas Rinaudo, Maxence Bernard

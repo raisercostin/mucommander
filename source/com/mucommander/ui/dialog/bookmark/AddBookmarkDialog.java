@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,14 +86,11 @@ public class AddBookmarkDialog extends FocusDialog implements ActionListener, Do
 				
         addButton = new JButton(Translator.get("add_bookmark_dialog.add"));
         cancelButton = new JButton(Translator.get("cancel"));
-        contentPane.add(DialogToolkit.createOKCancelPanel(addButton, cancelButton, this), BorderLayout.SOUTH);
+        contentPane.add(DialogToolkit.createOKCancelPanel(addButton, cancelButton, getRootPane(), this), BorderLayout.SOUTH);
 
         // Select text in name field and transfer focus to it for immediate user change
         nameField.selectAll();
         setInitialFocusComponent(nameField);
-
-        // Selects Add when enter is pressed
-        getRootPane().setDefaultButton(addButton);
 
         // Packs dialog
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -218,8 +218,11 @@ public abstract class ConnectionHandler {
 
 
     /**
-     * Returns true if the given Object is a ConnectionHandler with a realm and credentials equal to those of
-     * this ConnectionHandler.
+     * Returns <code>true</code> if the given Object is a ConnectionHandler whose realm and credentials are equal to
+     * those of this ConnectionHandler. The credentials comparison is password-sensitive.
+     *
+     * @param o the Object to compare for equality
+     * @see Credentials#equals(Object, boolean)
      */
     public boolean equals(Object o) {
         if(o==null || !(o instanceof ConnectionHandler))
@@ -232,7 +235,13 @@ public abstract class ConnectionHandler {
 
 
     /**
-     * Returns true if both the given realm and credentials are equal to those of this ConnectionHandler.
+     * Returns <code>true</code> if both the given realm and credentials are equal to those of this ConnectionHandler.
+     * The credentials comparison is password-sensitive.
+     *
+     * @param realm the FileURL to compare against this ConnectionHandler's
+     * @param credentials the Credentials to compare against this ConnectionHandler's
+     * @return true if both the given realm and credentials are equal to those of this ConnectionHandler
+     * @see Credentials#equals(Object, boolean)
      */
     public boolean equals(FileURL realm, Credentials credentials) {
 
@@ -243,8 +252,8 @@ public abstract class ConnectionHandler {
 
         // Note: Credentials.equals() considers null as equal to empty Credentials (see Credentials#isEmpty())
         return (this.credentials==null && credentials==null)
-            || (this.credentials!=null && this.credentials.equals(credentials))
-            || (credentials!=null && credentials.equals(this.credentials));
+            || (this.credentials!=null && this.credentials.equals(credentials, true))
+            || (credentials!=null && credentials.equals(this.credentials, true));
     }
 
 

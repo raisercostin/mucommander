@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,15 +18,7 @@
 
 package com.mucommander.xml;
 
-import java.io.Writer;
-import java.io.File;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
-import java.io.OutputStream;
-import java.io.IOException;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.Iterator;
 
 /**
@@ -109,12 +101,7 @@ public class XmlWriter {
      * @param  stream      where to write XML output to.
      * @throws IOException if an I/O error occurs.
      */
-    public XmlWriter(OutputStream stream) throws IOException {
-        try {init(new OutputStreamWriter(stream, DEFAULT_ENCODING), DEFAULT_ENCODING);}
-        // UTF-8 is guaranteed to be supported by the Java specifications,
-        // we can safely ignore this exception.
-        catch(UnsupportedEncodingException e) {}
-    }
+    public XmlWriter(OutputStream stream) throws IOException {init(new OutputStreamWriter(stream, DEFAULT_ENCODING), DEFAULT_ENCODING);}
 
     /**
      * Creates an <code>XmlWriter</code> that will write to the specified stream using the specified encoding.

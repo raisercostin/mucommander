@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,11 @@ package com.mucommander.command;
 import com.mucommander.Debug;
 import com.mucommander.PlatformManager;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
 import com.mucommander.file.filter.*;
 import com.mucommander.io.BackupInputStream;
 import com.mucommander.io.BackupOutputStream;
+import com.mucommander.runtime.JavaVersions;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -33,6 +35,7 @@ import java.util.Iterator;
 import java.util.Vector;
 
 /**
+ * Manages custom commands and associations.
  * @author Nicolas Rinaudo
  */
 public class CommandManager implements CommandBuilder {
@@ -61,28 +64,28 @@ public class CommandManager implements CommandBuilder {
     // - Association definitions -----------------------------------------------
     // -------------------------------------------------------------------------
     /** All known file associations. */
-    private static       Vector  associations;
+    private static       Vector       associations;
     /** Path to the custom association file, <code>null</code> if the default one should be used. */
-    private static       File    associationFile;
+    private static       AbstractFile associationFile;
     /** Whether the associations were modified since the last time they were saved. */
-    private static       boolean wereAssociationsModified;
+    private static       boolean      wereAssociationsModified;
     /** Default name of the association XML file. */
-    public  static final String  DEFAULT_ASSOCIATION_FILE_NAME = "associations.xml";
+    public  static final String       DEFAULT_ASSOCIATION_FILE_NAME = "associations.xml";
 
 
 
     // - Commands definition ---------------------------------------------------
     // -------------------------------------------------------------------------
     /** All known commands. */
-    private static       Vector  commands;
+    private static       Vector       commands;
     /** Path to the custom commands XML file, <code>null</code> if the default one should be used. */
-    private static       File    commandsFile;
+    private static       AbstractFile commandsFile;
     /** Whether the custom commands have been modified since the last time they were saved. */
-    private static       boolean wereCommandsModified;
+    private static       boolean      wereCommandsModified;
     /** Default name of the custom commands file. */
-    public  static final String  DEFAULT_COMMANDS_FILE_NAME    = "commands.xml";
+    public  static final String       DEFAULT_COMMANDS_FILE_NAME    = "commands.xml";
     /** Default command used when no other command is found for a specific file type. */
-    private static       Command defaultCommand;
+    private static       Command      defaultCommand;
 
 
 
@@ -106,7 +109,23 @@ public class CommandManager implements CommandBuilder {
 
     // - Command handling ------------------------------------------------------
     // -------------------------------------------------------------------------
+    /**
+     * Returns the tokens that compose the command that must be executed to open the specified file.
+     * <p>
+     * This is a convenience method and is stricly equivalent to calling
+     * <code>{@link #getTokensForFile(AbstractFile,boolean) getTokensForFile(}file, true)</code>.
+     * </p>
+     * @param file file for which the opening command's tokens must be returned.
+     * @return the tokens that compose the command that must be executed to open the specified file.
+     */
     public static String[] getTokensForFile(AbstractFile file) {return getTokensForFile(file, true);}
+
+    /**
+     * Returns the tokens that compose the command that must be executed to open the specified file.
+     * @param  file         file for which the opening command's tokens must be returned.
+     * @param  allowDefault whether to use the default command if none was found to match the specified file.
+     * @return              the tokens that compose the command that must be executed to open the specified file, <code>null</code> if not found.
+     */
     public static String[] getTokensForFile(AbstractFile file, boolean allowDefault) {
         Command command;
 
@@ -115,8 +134,23 @@ public class CommandManager implements CommandBuilder {
         return command.getTokens(file);
     }
 
+    /**
+     * Returns the command that must be executed to open the specified file.
+     * <p>
+     * This is a convenience method and is stricly equivalent to calling
+     * <code>{@link #getCommandForFile(AbstractFile,boolean) getCommandForFile(}file, true)</code>.
+     * </p>
+     * @param  file file for which the opening command must be returned.
+     * @return      the command that must be executed to open the specified file.
+     */
     public static Command getCommandForFile(AbstractFile file) {return getCommandForFile(file, true);}
 
+    /**
+     * Returns the command that must be executed to open the specified file.
+     * @param  file         file for which the opening command must be returned.
+     * @param  allowDefault whether to use the default command if none was found to match the specified file.
+     * @return              the command that must be executed to open the specified file, <code>null</code> if not found.
+     */
     public static Command getCommandForFile(AbstractFile file, boolean allowDefault) {
         Iterator           iterator;
         CommandAssociation association;
@@ -219,23 +253,11 @@ public class CommandManager implements CommandBuilder {
         return false;
     }
 
-    private static boolean isCommandAssociated(String alias) {
-        Iterator iterator;
-
-        // Goes through all the command associations looking for command.
-        iterator = associations.iterator();
-        while(iterator.hasNext())
-            if(((CommandAssociation)iterator.next()).getCommand().getAlias().equals(alias))
-                return true;
-
-        return false;
-    }
-
     /**
      * Removes the specified command from the list of registered commands.
      * <p>
      * This method might actually refuse to remove <code>command</code>: if it is associated to any
-     * file name filter, a command cannot be removed without, well, messing the system up quite baddly.<br/>
+     * file name filter, a command cannot be removed without, well, messing the system up quite baddly.<br>
      * If the command is associated to any file name filter, this method will return <code>false</code> and not
      * do anything.
      * </p>
@@ -257,7 +279,7 @@ public class CommandManager implements CommandBuilder {
      * Removes the command found at the specified index of the command list.
      * <p>
      * This method might actually not remove the command: if it is associated to any
-     * file name filter, a command cannot be removed without, well, messing the system up quite baddly.<br/>
+     * file name filter, a command cannot be removed without, well, messing the system up quite baddly.<br>
      * If the command is associated to any file name filter, this method will return <code>false</code> and not
      * do anything.
      * </p>
@@ -287,6 +309,12 @@ public class CommandManager implements CommandBuilder {
      */
     public static Iterator associations() {return associations.iterator();}
 
+    /**
+     * Registers the specified association.
+     * @param  command          command to execute when the association is matched.
+     * @param  filter           file filters that a file must match to be accepted by the association.
+     * @throws CommandException if an error occurs.
+     */
     public static void registerAssociation(String command, ChainedFileFilter filter) throws CommandException {
         Command cmd;
 
@@ -345,7 +373,6 @@ public class CommandManager implements CommandBuilder {
      */
     public static void buildCommands(CommandBuilder builder) throws CommandException {
         Iterator           iterator; // Used to iterate through commands and associations.
-        CommandAssociation current;  // Current command association.
 
         builder.startBuilding();
 
@@ -460,12 +487,46 @@ public class CommandManager implements CommandBuilder {
      * @see    #setAssociationFile(String)
      * @see    #loadAssociations()
      * @see    #writeAssociations()
+     * @throws IOException if there was an error locating the default commands file.
      */
-    public static File getAssociationFile() {
+    public static AbstractFile getAssociationFile() throws IOException {
         if(associationFile == null)
-            return new File(PlatformManager.getPreferencesFolder(), DEFAULT_ASSOCIATION_FILE_NAME);
+            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_ASSOCIATION_FILE_NAME);
         return associationFile;
     }
+
+    /**
+     * Sets the path to the custom associations file.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setAssociationFile(FileFactory.getFile(file))</code>.
+     * </p>
+     * @param  path                  path to the custom associations file.
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     * @see    #getAssociationFile()
+     * @see    #loadAssociations()
+     * @see    #writeAssociations()
+     */
+    public static void setAssociationFile(String path) throws FileNotFoundException {
+        AbstractFile file;
+
+        if((file = FileFactory.getFile(path)) == null)
+            setAssociationFile(new File(path));
+        else
+            setAssociationFile(file);
+    }
+
+    /**
+     * Sets the path to the custom associations file.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setAssociationFile(FileFactory.getFile(file.getAbsolutePath()))</code>.
+     * </p>
+     * @param  file                  path to the custom associations file.
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     * @see    #getAssociationFile()
+     * @see    #loadAssociations()
+     * @see    #writeAssociations()
+     */
+    public static void setAssociationFile(File file) throws FileNotFoundException {setAssociationFile(FileFactory.getFile(file.getAbsolutePath()));}
 
     /**
      * Sets the path to the custom associations file.
@@ -475,15 +536,11 @@ public class CommandManager implements CommandBuilder {
      * @see    #loadAssociations()
      * @see    #writeAssociations()
      */
-    public static void setAssociationFile(String file) throws FileNotFoundException {
-        File tempFile;
+    public static void setAssociationFile(AbstractFile file) throws FileNotFoundException {
+        if(file.isBrowsable())
+            throw new FileNotFoundException("Not a valid file: " + file.getAbsolutePath());
 
-        // If the file exists, it must accessible and readable.
-        tempFile = new File(file);
-        if(!(tempFile.exists() && tempFile.isFile() && tempFile.canRead()))
-            throw new FileNotFoundException("Not a valid file: " + file);
-
-        associationFile = tempFile;
+        associationFile = file;
     }
 
     /**
@@ -492,15 +549,15 @@ public class CommandManager implements CommandBuilder {
      * The command files will be loaded as a <i>backed-up file</i> (see {@link com.mucommander.io.BackupInputStream}).
      * Its format is described {@link AssociationsXmlConstants here}.
      * </p>
-     * @see #writeAssociations()
-     * @see #getAssociationFile()
-     * @see #setAssociationFile(String)
+     * @throws IOException if an IO error occurs.
+     * @see                #writeAssociations()
+     * @see                #getAssociationFile()
+     * @see                #setAssociationFile(String)
      */
     public static void loadAssociations() throws IOException {
-        File        file;
-        InputStream in;
+        AbstractFile file;
+        InputStream  in;
 
-        // Checks whether the associations file exists. If it doesn't, create default associations.
         file = getAssociationFile();
         if(Debug.ON)
             Debug.trace("Loading associations from file: " + file.getAbsolutePath());
@@ -534,7 +591,7 @@ public class CommandManager implements CommandBuilder {
                 }
 
                 // Match executables if necessary and if running under java >= 1.6.
-                if(PlatformManager.runExecutables() && (PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)) {
+                if(PlatformManager.runExecutables() && JavaVersions.JAVA_1_6.isCurrentOrHigher()) {
                     try {
                         filter = new AndFileFilter();
                         filter.addFileFilter(new PermissionsFileFilter(PermissionsFileFilter.EXECUTE_PERMISSION, true));
@@ -564,10 +621,11 @@ public class CommandManager implements CommandBuilder {
      * The association files will be saved as a <i>backed-up file</i> (see {@link com.mucommander.io.BackupOutputStream}).
      * Its format is described {@link AssociationsXmlConstants here}.
      * </p>
-     * @see    #loadAssociations()
-     * @see    #getAssociationFile()
-     * @see    #setAssociationFile(String)
-     * @throws IOException if an I/O error occurs.
+     * @throws IOException      if an I/O error occurs.
+     * @throws CommandException if an error occurs.
+     * @see                     #loadAssociations()
+     * @see                     #getAssociationFile()
+     * @see                     #setAssociationFile(String)
      */
     public static void writeAssociations() throws CommandException, IOException {
         // Do not save the associations if they were not modified.
@@ -612,12 +670,47 @@ public class CommandManager implements CommandBuilder {
      * @see    #setCommandFile(String)
      * @see    #loadCommands()
      * @see    #writeCommands()
+     * @throws IOException if there was some error locating the default commands file.
      */
-    public static File getCommandFile() {
+    public static AbstractFile getCommandFile() throws IOException {
         if(commandsFile == null)
-            return new File(PlatformManager.getPreferencesFolder(), DEFAULT_COMMANDS_FILE_NAME);
+            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_COMMANDS_FILE_NAME);
         return commandsFile;
     }
+
+    /**
+     * Sets the path to the custom commands file.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setCommandFile(FileFactory.getFile(file));</code>.
+     * </p>
+     * @param  path                  path to the custom commands file.
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     * @see    #getCommandFile()
+     * @see    #loadCommands()
+     * @see    #writeCommands()
+     */
+    public static void setCommandFile(String path) throws FileNotFoundException {
+        AbstractFile file;
+
+        if((file = FileFactory.getFile(path)) == null)
+            setCommandFile(new File(path));
+        else
+            setCommandFile(file);
+    }
+        
+
+    /**
+     * Sets the path to the custom commands file.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setCommandFile(FileFactory.getFile(file.getAbsolutePath()));</code>.
+     * </p>
+     * @param  file                  path to the custom commands file.
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     * @see    #getCommandFile()
+     * @see    #loadCommands()
+     * @see    #writeCommands()
+     */
+    public static void setCommandFile(File file) throws FileNotFoundException {setCommandFile(FileFactory.getFile(file.getAbsolutePath()));}
 
     /**
      * Sets the path to the custom commands file.
@@ -627,15 +720,12 @@ public class CommandManager implements CommandBuilder {
      * @see    #loadCommands()
      * @see    #writeCommands()
      */
-    public static void setCommandFile(String file) throws FileNotFoundException {
-        File tempFile;
+    public static void setCommandFile(AbstractFile file) throws FileNotFoundException {
+        // Makes sure file can be used as a command file.
+        if(file.isBrowsable())
+            throw new FileNotFoundException("Not a valid file: " + file.getAbsolutePath());
 
-        // If the file exists, it must accessible and readable.
-        tempFile = new File(file);
-        if(!(tempFile.exists() && tempFile.isFile() && tempFile.canRead()))
-            throw new FileNotFoundException("Not a valid file: " + file);
-
-        commandsFile = tempFile;
+        commandsFile = file;
     }
 
     /**
@@ -649,10 +739,11 @@ public class CommandManager implements CommandBuilder {
      * The command files will be saved as a <i>backed-up file</i> (see {@link com.mucommander.io.BackupOutputStream}).
      * Its format is described {@link CommandsXmlConstants here}.
      * </p>
-     * @see    #loadCommands()
-     * @see    #getCommandFile()
-     * @see    #setCommandFile(String)
-     * @throws IOException if an I/O error occurs.
+     * @throws IOException      if an I/O error occurs.
+     * @throws CommandException if an error occurs.
+     * @see                     #loadCommands()
+     * @see                     #getCommandFile()
+     * @see                     #setCommandFile(String)
      */
     public static void writeCommands() throws IOException, CommandException {
         // Only saves the command if they were modified since the last time they were written.
@@ -683,13 +774,14 @@ public class CommandManager implements CommandBuilder {
      * The command files will be loaded as a <i>backed-up file</i> (see {@link com.mucommander.io.BackupInputStream}).
      * Its format is described {@link CommandsXmlConstants here}.
      * </p>
-     * @see #writeCommands()
-     * @see #getCommandFile()
-     * @see #setCommandFile(String)
+     * @throws IOException if an I/O error occurs.
+     * @see                #writeCommands()
+     * @see                #getCommandFile()
+     * @see                #setCommandFile(String)
      */
     public static void loadCommands() throws IOException {
-        File        file;
-        InputStream in;
+        AbstractFile file;
+        InputStream  in;
 
         file = getCommandFile();
         if(Debug.ON)

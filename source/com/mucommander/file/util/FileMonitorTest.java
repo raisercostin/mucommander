@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,10 +96,8 @@ public class FileMonitorTest extends TestCase implements FileMonitorConstants {
     public void testPermissionsAttribute() throws IOException {
         setUp(PERMISSIONS_ATTRIBUTE);
 
-        if(!file.setPermission(AbstractFile.USER_ACCESS, AbstractFile.WRITE_PERMISSION, !file.getPermission(AbstractFile.USER_ACCESS, AbstractFile.WRITE_PERMISSION)))
-            throw new IOException();
-
-        assertTrue(hasAttributeChanged(PERMISSIONS_ATTRIBUTE));
+        if(file.setPermission(AbstractFile.USER_ACCESS, AbstractFile.WRITE_PERMISSION, !file.getPermission(AbstractFile.USER_ACCESS, AbstractFile.WRITE_PERMISSION)))
+            assertTrue(hasAttributeChanged(PERMISSIONS_ATTRIBUTE));
     }
 
     /**
@@ -219,7 +217,7 @@ public class FileMonitorTest extends TestCase implements FileMonitorConstants {
      * This {@link FileChangeListener} keeps track of the attributes that changed, as reported by
      * {@link #fileChanged(com.mucommander.file.AbstractFile, int)}.
      */
-    private class FileChangeTracker implements FileChangeListener {
+    private static class FileChangeTracker implements FileChangeListener {
 
         /** Bit mask that describes the attributes that have changed */
         private int changedAttributes;

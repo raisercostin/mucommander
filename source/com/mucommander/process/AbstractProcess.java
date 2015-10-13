@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ package com.mucommander.process;
 
 import com.mucommander.Debug;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * muCommander specific version of a process.
@@ -105,7 +107,7 @@ public abstract class AbstractProcess {
      * Returns <code>true</code> if this process only uses one output stream.
      * <p>
      * Some processes will use a single stream for their standard error and standard output streams. Such
-     * processes should return <code>true</code> here to prevent both streams from being monitored.<br/>
+     * processes should return <code>true</code> here to prevent both streams from being monitored.<br>
      * Note that if a process uses merged streams, {@link #getInputStream()} will be monitored.
      * </p>
      * @return <code>true</code> if this process merges his output streams, <code>false</code> otherwise.

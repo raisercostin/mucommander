@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.cache.LRUCache;
-import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.filter.ExtensionFilenameFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.icon.FileIconProvider;
@@ -30,6 +29,7 @@ import com.mucommander.file.icon.impl.SwingFileIconProvider;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.file.util.FileToolkit;
 import com.mucommander.file.util.PathTokenizer;
+import com.mucommander.runtime.OsFamilies;
 import com.mucommander.util.Enumerator;
 
 import java.io.IOException;
@@ -85,7 +85,7 @@ import java.util.*;
  *   <li>{@link com.mucommander.file.impl.trash.OSXTrashProvider OS X} trash.</li>
  *   <li>{@link com.mucommander.file.impl.trash.KDETrashProvider KDE} trash.</li>
  * </ul>
- * Note that <code<FileFactory</code> does not automatically register a trash provider, and application
+ * Note that <code>FileFactory</code> does not automatically register a trash provider, and application
  * writers must do so themselves depending on their own needs.
  * </p>
  *
@@ -109,8 +109,10 @@ public class FileFactory {
     private final static Object trashLock = new Object();
 
     /** Static LRUCache instance that caches frequently accessed AbstractFile instances */
-    private static LRUCache fileCache = LRUCache.createInstance(MuConfiguration.getVariable(MuConfiguration.FILE_CACHE_CAPACITY,
-                                                                                            MuConfiguration.DEFAULT_FILE_CACHE_CAPACITY));
+    private static LRUCache fileCache;
+
+    /** Default capacity of the file cache */
+    public final static int DEFAULT_FILE_CACHE_CAPACITY = 1000;
 
     private static WeakHashMap archiveFileCache = new WeakHashMap();
 
@@ -123,36 +125,38 @@ public class FileFactory {
 
 
     static {
-        ProtocolProvider protocolProvider; // Buffer for protocols that use the same provider.
+        // Initialize the LRUCache that caches frequently accessed AbstractFile instances
+        setFileCacheCapacity(DEFAULT_FILE_CACHE_CAPACITY);
 
         // Register built-in file protocols.
         // Local file protocol is hard-wired for performance reasons, no need to add it.
+        ProtocolProvider protocolProvider;
         registerProtocol(FileProtocols.SMB,       new com.mucommander.file.impl.smb.SMBProtocolProvider());
         registerProtocol(FileProtocols.HTTP,      protocolProvider = new com.mucommander.file.impl.http.HTTPProtocolProvider());
         registerProtocol(FileProtocols.HTTPS,     protocolProvider);
         registerProtocol(FileProtocols.FTP,       new com.mucommander.file.impl.ftp.FTPProtocolProvider());
-        registerProtocol(FileProtocols.SFTP,      new com.mucommander.file.impl.sftp.SFTPProtocolProvider());
         registerProtocol(FileProtocols.NFS,       new com.mucommander.file.impl.nfs.NFSProtocolProvider());
-        registerProtocol(FileProtocols.BOOKMARKS, new com.mucommander.file.impl.bookmark.BookmarkProtocolProvider());
+        registerProtocol(FileProtocols.BOOKMARKS, new com.mucommander.bookmark.file.BookmarkProtocolProvider());
+        // SFTP support is not compatible with all version of the Java runtime
+        if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
+            registerProtocol(FileProtocols.SFTP,      new com.mucommander.file.impl.sftp.SFTPProtocolProvider());
+
 //        registerProtocol(FileProtocols.S3,        new com.mucommander.file.impl.s3.S3Provider());
 
         // Register built-in archive file formats, order for TarArchiveFile and GzipArchiveFile/Bzip2ArchiveFile is important:
         // TarArchiveFile must match 'tar.gz'/'tar.bz2' files before GzipArchiveFile/Bzip2ArchiveFile does.
         registerArchiveFormat(new com.mucommander.file.impl.zip.ZipFormatProvider(),     new ExtensionFilenameFilter(new String[] {".zip", ".jar", ".war", ".wal", ".wmz",
                                                                                                                                    ".xpi", ".ear", ".sar", ".odt", ".ods",
-                                                                                                                                   ".odp", ".odg", ".odf"}));
+                                                                                                                                   ".odp", ".odg", ".odf", ".egg"}));
         registerArchiveFormat(new com.mucommander.file.impl.tar.TarFormatProvider(),     new ExtensionFilenameFilter(new String[] {".tar", ".tar.gz", ".tgz",
                                                                                                                                    ".tar.bz2", ".tbz2"}));
         registerArchiveFormat(new com.mucommander.file.impl.gzip.GzipFormatProvider(),   new ExtensionFilenameFilter(".gz"));
         registerArchiveFormat(new com.mucommander.file.impl.bzip2.Bzip2FormatProvider(), new ExtensionFilenameFilter(".bz2"));
         registerArchiveFormat(new com.mucommander.file.impl.iso.IsoFormatProvider(),     new ExtensionFilenameFilter(new String[] {".iso", ".nrg"}));
-        registerArchiveFormat(new com.mucommander.file.impl.ar.ArFormatProvider(),       new ExtensionFilenameFilter(new String[] {".ar", ".a", ".deb"}));
+        registerArchiveFormat(new com.mucommander.file.impl.ar.ArFormatProvider(),       new ExtensionFilenameFilter(new String[] {".ar", ".a", ".deb", ".udeb"}));
         registerArchiveFormat(new com.mucommander.file.impl.lst.LstFormatProvider(),     new ExtensionFilenameFilter(".lst"));
 
         // Set the default FileIconProvider instance
-//        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X)
-//            defaultFileIconProvider = new CocoaFileIconProvider();
-//        else
         defaultFileIconProvider = new SwingFileIconProvider();
 
         // Create the temp directory folder
@@ -163,7 +167,35 @@ public class FileFactory {
     /**
      * Makes sure no instance of <code>FileFactory</code> is created.
      */
-    private FileFactory() {}
+    private FileFactory() {
+    }
+
+
+    /**
+     * Sets the capacity of the {@link LRUCache} that caches frequently accessed file instances. The more the capacity,
+     * the more frequent the cache is hit but the higher the memory usage. By default, the capacity is
+     * {@link #DEFAULT_FILE_CACHE_CAPACITY}.
+     *
+     * <p>If the specified capacity is different from the current one, a new cache instance will be created, thus clearing
+     * all previously cached files.</p>
+     *
+     * @param capacity the capacity of the LRU cache that caches frequently accessed file instances
+     * @see com.mucommander.cache.LRUCache
+     */
+    public static void setFileCacheCapacity(int capacity) {
+        if(fileCache==null || fileCache.getCapacity()!=capacity)   // Don't recreate an instance if the capacity is the same
+            fileCache = LRUCache.createInstance(DEFAULT_FILE_CACHE_CAPACITY);
+    }
+
+    /**
+     * Returns the capacity of the {@link LRUCache} that caches frequently accessed file instances. By default, the
+     * capacity is {@link #DEFAULT_FILE_CACHE_CAPACITY}.
+     *
+     * @return capacity of the LRU cache that caches frequently accessed file instances
+     */
+    public static int getFileCacheCapacity() {
+        return fileCache.getCapacity();
+    }
 
 
     /**
@@ -183,6 +215,7 @@ public class FileFactory {
 
     /**
      * Returns the object used to create instances of {@link AbstractTrash}.
+     *
      * @return the object used to create instances of {@link AbstractTrash} if any, <code>null</code> otherwise.
      */
     public static TrashProvider getTrashProvider() {
@@ -193,6 +226,7 @@ public class FileFactory {
 
     /**
      * Sets the object that will be used to create instances of {@link AbstractTrash}.
+     *
      * @param  provider object that will be used to create instances of {@link AbstractTrash}.
      * @return          the previous trash provider if any, <code>null</code> otherwise.
      */
@@ -269,18 +303,28 @@ public class FileFactory {
 
     /**
      * Registers a new archive format.
+     *
+     * @param mapping new mapping to register.
      */
     public static void registerArchiveFormat(ArchiveFormatMapping mapping) {
             archiveFormatMappingsV.add(mapping);
             updateArchiveFormatMappingsArray();
     }
 
+    /**
+     * Registers a new archive format.
+     *
+     * @param provider class used to create instances of the new archive format.
+     * @param filter   filter that files must match to be considered of the new format.
+     */
     public static void registerArchiveFormat(ArchiveFormatProvider provider, FilenameFilter filter) {
         registerArchiveFormat(new ArchiveFormatMapping(provider, filter));
     }
 
     /**
      * Removes any archive format that might have been registered to the specified extension.
+     *
+     * @param mapping archive format mapping to unregister.
      */
     public static void unregisterArchiveFileFormat(ArchiveFormatMapping mapping) {
         int index = archiveFormatMappingsV.indexOf(mapping);
@@ -313,8 +357,9 @@ public class FileFactory {
      *
      * @return an iterator on all known archive formats.
      */
-    public static Iterator archiveFormats() {return archiveFormatMappingsV.iterator();}
-
+    public static Iterator archiveFormats() {
+        return archiveFormatMappingsV.iterator();
+    }
 
 
     /**
@@ -323,7 +368,6 @@ public class FileFactory {
      * <p>This method does not throw any IOException but returns <code>null</code> if the file could not be created.</p>
      *
      * @param absPath the absolute path to the file
-     *
      * @return <code>null</code> if the given path is not absolute or incorrect (doesn't correspond to any file) or
      * if something went wrong during file creation.
      */
@@ -342,7 +386,6 @@ public class FileFactory {
      *
      * @param absPath the absolute path to the file
      * @param throwException if set to <code>true</code>, an IOException will be thrown if something went wrong during file creation
-     *
      * @return <code>null</code> if the given path is not absolute or incorrect (doesn't correspond to any file)
      * @throws java.io.IOException  and throwException param was set to <code>true</code>.
      * @throws AuthException if additionnal authentication information is required to create the file
@@ -366,17 +409,18 @@ public class FileFactory {
      *
      * @param absPath the absolute path to the file
      * @param parent the returned file's parent
-     *
+     * @return an instance of <code>AbstractFile</code> for the specified absolute path.
      * @throws java.io.IOException if something went wrong during file or file url creation.
      * @throws AuthException if additionnal authentication information is required to create the file
      */
-    public static AbstractFile getFile(String absPath, AbstractFile parent) throws AuthException, IOException {return getFile(new FileURL(absPath), parent);}
+    public static AbstractFile getFile(String absPath, AbstractFile parent) throws AuthException, IOException {
+        return getFile(new FileURL(absPath), parent);
+    }
 
     /**
      * Returns an instance of AbstractFile for the given FileURL instance.
      *
      * @param fileURL the file URL
-     *
      * @return the created file or null if something went wrong during file creation
      */
     public static AbstractFile getFile(FileURL fileURL) {
@@ -392,7 +436,6 @@ public class FileFactory {
      *
      * @param fileURL the file URL
      * @param throwException if set to <code>true</code>, an IOException will be thrown if something went wrong during file creation
-     *
      * @return the created file
      * @throws java.io.IOException if something went wrong during file creation
      */
@@ -418,12 +461,16 @@ public class FileFactory {
      *
      * @param fileURL the file URL representing the file to be created
      * @param parent the parent AbstractFile to use as the created file's parent, can be <code>null</code>
-     *
+     * @return an instance of {@link AbstractFile} for the given {@link FileURL}.
      * @throws java.io.IOException if something went wrong during file creation.
      */
     public static AbstractFile getFile(FileURL fileURL, AbstractFile parent) throws IOException {
+        String filePath = fileURL.getPath();
+        // For local paths under Windows (e.g. "/C:\temp"), remove the leading '/' character
+        if(OsFamilies.WINDOWS.isCurrent() && FileProtocols.FILE.equals(fileURL.getProtocol()))
+            filePath = FileToolkit.removeLeadingSeparator(filePath, "/");
 
-        PathTokenizer pt = new PathTokenizer(fileURL.getPath(),
+        PathTokenizer pt = new PathTokenizer(filePath,
                 fileURL.getPathSeparator(),
                 false);
 
@@ -550,6 +597,8 @@ public class FileFactory {
     /**
      * Returns a variation of the given filename, appending a pseudo-unique ID to the filename's prefix while keeping
      * the same filename extension.
+     *
+     * @param filename base filename
      */
     private static String getFilenameVariation(String filename) {
         int lastDotPos = filename.lastIndexOf('.');
@@ -598,8 +647,8 @@ public class FileFactory {
     }
 
     /**
-     * Convenience method that creates a temporary file with a default 'desired name'. Yield the same result as calling
-     * {@link #getTemporaryFile(String, boolean)} with <code>null</code>
+     * Creates a temporary file with a default filename. This method is a shorthand for
+     * {@link #getTemporaryFile(String, boolean)} called with a <code>null</code> name.
      *
      * @param deleteOnExit if <code>true</code>, the temporary file will be deleted upon normal termination of the JVM
      * @return the temporary file, may be a LocalFile or an AbstractArchiveFile if the filename's extension corresponds
@@ -612,7 +661,7 @@ public class FileFactory {
     }
 
     /**
-     * Returns the temporary folder, i.e. the folder where the parent folder of temporary files returned by
+     * Returns the temporary folder, i.e. the parent folder of temporary files returned by
      * {@link #getTemporaryFile(String, boolean)}.
      *
      * @return the temporary folder
@@ -626,16 +675,19 @@ public class FileFactory {
      * Returns true if the given filename's extension matches one of the registered archive formats.
      *
      * @param filename the filename to test
+     * @return <code>true</code> if the specified filename is a known archive file name, <code>false</code> otherwise.
      */
-    public static boolean isArchiveFilename(String filename) {return getArchiveFormatProvider(filename) != null;}
+    public static boolean isArchiveFilename(String filename) {
+        return getArchiveFormatProvider(filename) != null;
+    }
 
     /**
      * Tests based on the given file's extension, if the file corresponds to a registered archive format.
      * If it does, an appropriate {@link AbstractArchiveFile} instance is created on top of the provided file
      * and returned. If it doesn't (the file's extension doesn't correspond to a registered archive format or is a
-     * directory), the provided AbstractFile instance is returned.
+     * directory), the provided <code>AbstractFile</code> instance is returned.
      */
-    public static AbstractFile wrapArchive(AbstractFile file) {
+    public static AbstractFile wrapArchive(AbstractFile file) throws IOException {
         String filename = file.getName();
 
         // Looks for an archive FilenameFilter that matches the given filename.
@@ -660,15 +712,12 @@ public class FileFactory {
 
             ArchiveFormatProvider provider;
             if((provider = getArchiveFormatProvider(filename)) != null) {
-                try {
-                    archiveFile = provider.getFile(file);
-                    if(useCache) {
-                        if(Debug.ON) Debug.trace("Adding archive file to cache: "+file.getAbsolutePath());
-                        archiveFileCache.put(file.getAbsolutePath(), archiveFile);
-                    }
-                    return archiveFile;
+                archiveFile = provider.getFile(file);
+                if(useCache) {
+                    if(Debug.ON) Debug.trace("Adding archive file to cache: "+file.getAbsolutePath());
+                    archiveFileCache.put(file.getAbsolutePath(), archiveFile);
                 }
-                catch(Exception e) {}
+                return archiveFile;
             }
         }
 

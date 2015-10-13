@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 package com.mucommander.ui.notifier;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
+import com.mucommander.runtime.JavaVersions;
 import com.mucommander.ui.action.*;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.WindowManager;
@@ -83,7 +83,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     public boolean setEnabled(boolean enabled) {
         if(enabled) {
             // No need to bother if the current Java runtime version is not 1.6 or up, or if SystemTray is not available
-            if(PlatformManager.getJavaVersion()<PlatformManager.JAVA_1_6 || !SystemTray.isSupported())
+            if(JavaVersions.JAVA_1_6.isCurrentLower() || !SystemTray.isSupported())
                 return false;
 
             // If System Tray has already been initialized
@@ -175,5 +175,21 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
         if(Debug.ON) Debug.trace("caught SystemTray ActionEvent");
 
         WindowManager.getCurrentMainFrame().toFront();
+    }
+
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    protected void finalize() throws Throwable {
+        // This ensures that the system tray icon is removed when the application terminates.
+        // Even though this is a bit of a shot in the dark, this may fix a problem reported under Linux where the
+        // tray icon stayed after the application had quit:
+        /// http://www.mucommander.com/forums/viewtopic.php?t=604
+        if(isEnabled())
+            setEnabled(false);
+
+        super.finalize();
     }
 }

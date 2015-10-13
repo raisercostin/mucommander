@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@ package com.mucommander.ui.main.table;
  * Describes a file table's initial configuration.
  * @author Nicolas Rinaudo
  */
-public class FileTableConfiguration implements Columns {
+public class FileTableConfiguration {
     // - Instance fields -----------------------------------------------------------------
     // -----------------------------------------------------------------------------------
-    /** Each column's visibility status. */
-    private boolean[] visibility;
+    /** Each column's enabled state. */
+    private boolean[] enabled;
     /** Initial width of each column. */
     private int[]     width;
     /** Columns initial order. */
@@ -40,31 +40,31 @@ public class FileTableConfiguration implements Columns {
      * Creates a new file table configuration.
      */
     public FileTableConfiguration() {
-        visibility = new boolean[5];
-        width      = new int[5];
-        order      = new int[5];
+        enabled = new boolean[Columns.COLUMN_COUNT];
+        width      = new int[Columns.COLUMN_COUNT];
+        order      = new int[Columns.COLUMN_COUNT];
     }
 
 
 
-    // - Visibility access ---------------------------------------------------------------
+    // - Enabled access ------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /**
-     * Returns <code>true</code> if the specified column is visible.
-     * @param  column column whose visibility status should be returned.
-     * @return        <code>true</code> if the specified column is visible, <code>false</code> otherwise.
+     * Returns <code>true</code> if the specified column is enabled.
+     * @param  column column whose enabled state should be returned.
+     * @return        <code>true</code> if the specified column is enabled, <code>false</code> otherwise.
      */
-    public boolean isVisible(int column) {return visibility[column];}
+    public boolean isEnabled(int column) {return enabled[column];}
 
     /**
-     * Sets the visibility status of the specified column.
+     * Sets the enabled state of the specified column.
      * <p>
-     * Note that the {@link #NAME} column's visibility is ignored, it will always be visible.
+     * Note that the {@link Columns#NAME} column's enabled state is ignored as it will always be enabled.
      * </p>
-     * @param column column whose visibility status should be set.
-     * @param flag   whether the column should be visible.
+     * @param column column whose enabled state should be set.
+     * @param flag   whether the column should be enabled.
      */
-    public void setVisible(int column, boolean flag) {visibility[column] = flag;}
+    public void setEnabled(int column, boolean flag) {enabled[column] = flag;}
 
 
 
@@ -80,7 +80,7 @@ public class FileTableConfiguration implements Columns {
     /**
      * Sets the specified column's width.
      * <p>
-     * Note that the {@link #NAME} column's width will be ignored, as it depends on the frame's
+     * Note that the {@link Columns#NAME} column's width will be ignored, as it depends on the frame's
      * initial dimensions.
      * </p>
      * @param column column whose width should be set.

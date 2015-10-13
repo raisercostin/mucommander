@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,26 @@
 package com.mucommander.bookmark;
 
 /**
+ * Exception thrown when bookmark related errors occur.
  * @author Nicolas Rinaudo
  */
 public class BookmarkException extends Exception {
+    /**
+     * Creates a new exception with the specified message.
+     * @param message exception's message.
+     */
     public BookmarkException(String message) {super(message);}
+
+    /**
+     * Creates a new exception wrapping the specified error.
+     * @param cause root cause of the new exception.
+     */
     public BookmarkException(Throwable cause) {super(cause);}
+
+    /**
+     * Creates a new exception with the specified message and cause.
+     * @param message exception's message.
+     * @param cause   root cause of the new exception.
+     */
     public BookmarkException(String message, Throwable cause) {super(message, cause);}
 }

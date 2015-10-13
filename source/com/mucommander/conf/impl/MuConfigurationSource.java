@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,15 @@
 
 package com.mucommander.conf.impl;
 
-import com.mucommander.RuntimeConstants;
 import com.mucommander.PlatformManager;
+import com.mucommander.RuntimeConstants;
 import com.mucommander.conf.ConfigurationSource;
-import com.mucommander.io.BackupInputStream;
-import com.mucommander.io.BackupOutputStream;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
+import com.mucommander.io.BackupInputStream;
+import com.mucommander.io.BackupOutputStream;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.IOException;
-import java.io.FileNotFoundException;
+import java.io.*;
 
 /**
  * @author Nicolas Rinaudo
@@ -47,7 +43,13 @@ class MuConfigurationSource implements ConfigurationSource {
 
     // - Initialisation -------------------------------------------------------------
     // ------------------------------------------------------------------------------
-    public MuConfigurationSource(String path) {setConfigurationFile(path);}
+    /**
+     * Creates a new <code>MuConfigurationSource</code> on the specified file.
+     * @param path path to the configuration file.
+     * @throws IOException if <code>path</code> is not accessible.
+     */
+    public MuConfigurationSource(String path) throws FileNotFoundException {setConfigurationFile(path);}
+
     public MuConfigurationSource() {}
 
 
@@ -56,19 +58,48 @@ class MuConfigurationSource implements ConfigurationSource {
     // ------------------------------------------------------------------------------
     /**
      * Returns the path to the configuration file.
-     * @return the path to the configuration file.
+     * @return             the path to the configuration file.
+     * @throws IOException if an error occured while locating the default configuration file.
      */
-    public static synchronized AbstractFile getConfigurationFile() {
+    public static synchronized AbstractFile getConfigurationFile() throws IOException {
         if(configurationFile == null)
-            return FileFactory.getFile(new File(PlatformManager.getPreferencesFolder(), DEFAULT_CONFIGURATION_FILE_NAME).getAbsolutePath());
+            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_CONFIGURATION_FILE_NAME);
         return configurationFile;
     }
 
     /**
      * Sets the path to the configuration file.
-     * @param  file path to the file that should be used for configuration storage.
+     * @param  path                  path to the file that should be used for configuration storage.
+     * @throws FileNotFoundException if the specified file is not a valid file.
      */
-    public static synchronized void setConfigurationFile(String file) {configurationFile = FileFactory.getFile(file);}
+    public static synchronized void setConfigurationFile(String path) throws FileNotFoundException {
+        AbstractFile file;
+
+        if((file = FileFactory.getFile(path)) == null)
+            setConfigurationFile(new File(path));
+        else
+            setConfigurationFile(file);
+    }
+
+    /**
+     * Sets the path to the configuration file.
+     * @param  file                  path to the file that should be used for configuration storage.
+     * @throws FileNotFoundException if the specified file is not a valid file.
+     */
+    public static synchronized void setConfigurationFile(File file) throws FileNotFoundException {setConfigurationFile(FileFactory.getFile(file.getAbsolutePath()));}
+
+    /**
+     * Sets the path to the configuration file.
+     * @param  file                  path to the file that should be used for configuration storage.
+     * @throws FileNotFoundException if the specified file is not a valid file.
+     */
+    public static synchronized void setConfigurationFile(AbstractFile file) throws FileNotFoundException {
+        // Makes sure file can be used as a configuration.
+        if(file.isBrowsable())
+            throw new FileNotFoundException("Not a valid file: " + file.getAbsolutePath());
+
+        configurationFile = file;
+    }
 
 
 

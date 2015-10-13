@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,13 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.Debug;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.ArchiveEntryFile;
+import com.mucommander.file.FileProtocols;
+import com.mucommander.runtime.JavaVersions;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.ui.action.ActionKeymap;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.CloseWindowAction;
@@ -34,6 +38,7 @@ import com.mucommander.ui.main.menu.MainMenuBar;
 import com.mucommander.ui.main.table.Columns;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableConfiguration;
+import com.mucommander.ui.main.table.SortInfo;
 
 import javax.swing.*;
 import javax.swing.table.TableColumnModel;
@@ -53,11 +58,11 @@ public class MainFrame extends JFrame implements LocationListener {
 	
     private ProportionalSplitPane splitPane;
 
-    private FolderPanel folderPanel1;
-    private FolderPanel folderPanel2;
+    private FolderPanel leftFolderPanel;
+    private FolderPanel rightFolderPanel;
 	
-    private FileTable table1;
-    private FileTable table2;
+    private FileTable leftTable;
+    private FileTable rightTable;
     
     /** Active table in the MainFrame */
     private FileTable activeTable;
@@ -83,7 +88,7 @@ public class MainFrame extends JFrame implements LocationListener {
     /** Split pane orientation */
     private final static String SPLIT_ORIENTATION = MuConfiguration.SPLIT_ORIENTATION;
 
-    private void init(FolderPanel panel1, FolderPanel panel2) {
+    private void init(FolderPanel leftFolderPanel, FolderPanel rightFolderPanel) {
         // Set frame icon fetched in an image inside the JAR file
         setIconImage(IconManager.getIcon("/icon16.gif").getImage());
 
@@ -100,12 +105,11 @@ public class MainFrame extends JFrame implements LocationListener {
         setContentPane(contentPane);
 
         // Initialises the folder panels and file tables.
-        folderPanel1 = panel1;
-        folderPanel2 = panel2;
-        table1       = folderPanel1.getFileTable();
-        table2       = folderPanel2.getFileTable();
-        activeTable  = table1;
-
+        this.leftFolderPanel = leftFolderPanel;
+        this.rightFolderPanel = rightFolderPanel;
+        leftTable = leftFolderPanel.getFileTable();
+        rightTable = rightFolderPanel.getFileTable();
+        activeTable  = leftTable;
 
         // Create toolbar and show it only if it hasn't been disabled in the preferences
         // Note: Toolbar.setVisible() has to be called no matter if Toolbar is visible or not, in order for it to be properly initialized
@@ -114,8 +118,8 @@ public class MainFrame extends JFrame implements LocationListener {
         contentPane.add(toolbar, BorderLayout.NORTH);
 
         // Lister to location change events to display the current folder in the window's title
-        folderPanel1.getLocationManager().addLocationListener(this);
-        folderPanel2.getLocationManager().addLocationListener(this);
+        leftFolderPanel.getLocationManager().addLocationListener(this);
+        rightFolderPanel.getLocationManager().addLocationListener(this);
 
         // Create menu bar (has to be created after toolbar)
         MainMenuBar menuBar = new MainMenuBar(this);
@@ -129,8 +133,8 @@ public class MainFrame extends JFrame implements LocationListener {
             MuConfiguration.getVariable(SPLIT_ORIENTATION, MuConfiguration.DEFAULT_SPLIT_ORIENTATION).equals(MuConfiguration.VERTICAL_SPLIT_ORIENTATION) ?
                                               JSplitPane.HORIZONTAL_SPLIT:JSplitPane.VERTICAL_SPLIT,
                                               false,
-                                              folderPanel1,
-                                              folderPanel2) {
+                MainFrame.this.leftFolderPanel,
+                MainFrame.this.rightFolderPanel) {
                 // We don't want any extra space around split pane
                 public Insets getInsets() {
                     return new Insets(0, 0, 0, 0);
@@ -182,82 +186,104 @@ public class MainFrame extends JFrame implements LocationListener {
         setFocusTraversalPolicy(new CustomFocusTraversalPolicy());
     }
 
-    private MainFrame() {}
+    private MainFrame() {
+    }
 
     private FileTableConfiguration getFileTableConfiguration(boolean isLeft) {
         FileTableConfiguration conf;
 
         conf = new FileTableConfiguration();
 
-        // Sets the table's initial column visibility.
-        conf.setVisible(Columns.EXTENSION,   MuConfiguration.getVariable(isLeft ? MuConfiguration.SHOW_LEFT_EXTENSION : MuConfiguration.SHOW_RIGHT_EXTENSION,
-                                                                         MuConfiguration.DEFAULT_SHOW_EXTENSION));
-        conf.setVisible(Columns.DATE,        MuConfiguration.getVariable(isLeft ? MuConfiguration.SHOW_LEFT_DATE : MuConfiguration.SHOW_RIGHT_DATE,
-                                                                         MuConfiguration.DEFAULT_SHOW_DATE));
-        conf.setVisible(Columns.SIZE,        MuConfiguration.getVariable(isLeft ? MuConfiguration.SHOW_LEFT_SIZE : MuConfiguration.SHOW_RIGHT_SIZE,
-                                                                         MuConfiguration.DEFAULT_SHOW_SIZE));
-        conf.setVisible(Columns.PERMISSIONS, MuConfiguration.getVariable(isLeft ? MuConfiguration.SHOW_LEFT_PERMISSIONS : MuConfiguration.SHOW_RIGHT_PERMISSIONS,
-                                                                         MuConfiguration.DEFAULT_SHOW_PERMISSIONS));
+        // Loop on columns
+        for(int c=0; c<Columns.COLUMN_COUNT; c++) {
+            if(c!=Columns.NAME) {       // Skip the special name column (always visible, width automatically calculated)
+                // Sets the column's initial visibility.
+                conf.setEnabled(c,
+                    MuConfiguration.getVariable(
+                            MuConfiguration.getShowColumnVariable(c, isLeft),
+                            MuConfiguration.getShowColumnDefault(c)
+                    )
+                );
 
-        // Sets the table's initial column width.
-        conf.setWidth(Columns.EXTENSION,   MuConfiguration.getIntegerVariable(isLeft ? MuConfiguration.LEFT_EXTENSION_WIDTH : MuConfiguration.RIGHT_EXTENSION_WIDTH));
-        conf.setWidth(Columns.DATE,        MuConfiguration.getIntegerVariable(isLeft ? MuConfiguration.LEFT_DATE_WIDTH : MuConfiguration.RIGHT_DATE_WIDTH));
-        conf.setWidth(Columns.SIZE,        MuConfiguration.getIntegerVariable(isLeft ? MuConfiguration.LEFT_SIZE_WIDTH : MuConfiguration.RIGHT_SIZE_WIDTH));
-        conf.setWidth(Columns.PERMISSIONS, MuConfiguration.getIntegerVariable(isLeft ? MuConfiguration.LEFT_PERMISSIONS_WIDTH : MuConfiguration.RIGHT_PERMISSIONS_WIDTH));
+                // Sets the column's initial width.
+                conf.setWidth(c, MuConfiguration.getIntegerVariable(MuConfiguration.getColumnWidthVariable(c, isLeft)));
+            }
 
-        // Sets the table's initial column order.
-        conf.setPosition(Columns.EXTENSION,   MuConfiguration.getVariable(isLeft ? MuConfiguration.LEFT_EXTENSION_POSITION : MuConfiguration.RIGHT_EXTENSION_POSITION,
-                                                                      Columns.EXTENSION));
-        conf.setPosition(Columns.NAME,        MuConfiguration.getVariable(isLeft ? MuConfiguration.LEFT_NAME_POSITION : MuConfiguration.RIGHT_NAME_POSITION,
-                                                                      Columns.NAME));
-        conf.setPosition(Columns.DATE,        MuConfiguration.getVariable(isLeft ? MuConfiguration.LEFT_DATE_POSITION : MuConfiguration.RIGHT_DATE_POSITION,
-                                                                      Columns.DATE));
-        conf.setPosition(Columns.SIZE,        MuConfiguration.getVariable(isLeft ? MuConfiguration.LEFT_SIZE_POSITION : MuConfiguration.RIGHT_SIZE_POSITION,
-                                                                      Columns.SIZE));
-        conf.setPosition(Columns.PERMISSIONS, MuConfiguration.getVariable(isLeft ? MuConfiguration.LEFT_PERMISSIONS_POSITION : MuConfiguration.RIGHT_PERMISSIONS_POSITION,
-                                                                      Columns.PERMISSIONS));
+            // Sets the column's initial order
+            conf.setPosition(c,
+                    MuConfiguration.getVariable(
+                            MuConfiguration.getColumnPositionVariable(c, isLeft),
+                            c
+                    )
+            );
+        }
 
         return conf;
     }
 
     /**
-     * Creates a new main frame, set to the given initial folders.
+     * Creates a new main frame set to the given initial folders.
+     *
+     * @param leftInitialFolder the initial folder to display in the left panel
+     * @param rightInitialFolder the initial folder to display in the right panel
      */
-    public MainFrame(AbstractFile initialFolder1, AbstractFile initialFolder2) {
-        init(new FolderPanel(this, initialFolder1, getFileTableConfiguration(true)), new FolderPanel(this, initialFolder2, getFileTableConfiguration(false)));
-        table1.sortBy(getConfigurationSortBy(MuConfiguration.getVariable(MuConfiguration.LEFT_SORT_BY, MuConfiguration.DEFAULT_SORT_BY)),
+    public MainFrame(AbstractFile leftInitialFolder, AbstractFile rightInitialFolder) {
+        init(new FolderPanel(this, leftInitialFolder, getFileTableConfiguration(true)), new FolderPanel(this, rightInitialFolder, getFileTableConfiguration(false)));
+
+        leftTable.sortBy(columnNameToIndex(MuConfiguration.getVariable(MuConfiguration.LEFT_SORT_BY, MuConfiguration.DEFAULT_SORT_BY)),
                       !MuConfiguration.getVariable(MuConfiguration.LEFT_SORT_ORDER, MuConfiguration.DEFAULT_SORT_ORDER).equals(MuConfiguration.SORT_ORDER_DESCENDING));
-        table2.sortBy(getConfigurationSortBy(MuConfiguration.getVariable(MuConfiguration.RIGHT_SORT_BY, MuConfiguration.DEFAULT_SORT_BY)),
+        rightTable.sortBy(columnNameToIndex(MuConfiguration.getVariable(MuConfiguration.RIGHT_SORT_BY, MuConfiguration.DEFAULT_SORT_BY)),
                       !MuConfiguration.getVariable(MuConfiguration.RIGHT_SORT_ORDER, MuConfiguration.DEFAULT_SORT_ORDER).equals(MuConfiguration.SORT_ORDER_DESCENDING));
     }
+
+    /**
+     * Returns the index of the column designated by the given name.
+     *
+     * @param column the name of a column, see {@link com.mucommander.ui.main.table.Columns#getColumnName(int)} for possible values
+     * @return the index of the column, see {@link com.mucommander.ui.main.table.Columns} for possible values
+     */
+    private static int columnNameToIndex(String column) {
+        for(int c=0; c<Columns.COLUMN_COUNT; c++)
+            if(Columns.getColumnName(c).equals(column))
+                return c;
+
+        return columnNameToIndex(MuConfiguration.DEFAULT_SORT_BY);
+    }
+
 
     MainFrame cloneMainFrame() {
         MainFrame mainFrame;
 
         mainFrame = new MainFrame();
-        mainFrame.init(new FolderPanel(mainFrame, folderPanel1.getCurrentFolder(), table1.getConfiguration()),
-                       new FolderPanel(mainFrame, folderPanel2.getCurrentFolder(), table2.getConfiguration()));
-        mainFrame.table1.sortBy(table1.getSortByCriteria(), table1.isSortAscending());
-        mainFrame.table2.sortBy(table2.getSortByCriteria(), table2.isSortAscending());
+        mainFrame.init(new FolderPanel(mainFrame, leftFolderPanel.getCurrentFolder(), leftTable.getConfiguration()),
+                       new FolderPanel(mainFrame, rightFolderPanel.getCurrentFolder(), rightTable.getConfiguration()));
+        mainFrame.leftTable.sortBy(leftTable.getSortInfo());
+        mainFrame.rightTable.sortBy(rightTable.getSortInfo());
         return mainFrame;
     }
 
     /**
-     * Registers the given ActivePanelListener to receive events when current table changes.
+     * Registers the given ActivePanelListener to receive events when the active table changes.
+     *
+     * @param activePanelListener the ActivePanelListener to add
      */
     public void addActivePanelListener(ActivePanelListener activePanelListener) {
         activePanelListeners.put(activePanelListener, null);
     }
 
     /**
-     * Unregisters the given ActivePanelListener so that it will no longer receive events when current table changes.
+     * Unregisters the given ActivePanelListener so that it no longer receives events when the active table changes.
+     *
+     * @param activePanelListener the ActivePanelListener to remove
      */
     public void removeActivePanelListener(ActivePanelListener activePanelListener) {
         activePanelListeners.remove(activePanelListener);
     }
 
     /**
-     * Fires table change events on registered ActivePanelListener instances.
+     * Fires table change events on all registered ActivePanelListener instances.
+     *
+     * @param folderPanel the new active panel
      */
     private void fireActivePanelChanged(FolderPanel folderPanel) {
         Iterator iterator = activePanelListeners.keySet().iterator();
@@ -267,15 +293,19 @@ public class MainFrame extends JFrame implements LocationListener {
 
 
     /**
-     * Returns true if 'no events mode' is enabled.
+     * Returns <code>true</code> if 'no events mode' is currently enabled.
+     *
+     * @return <code>true</code> if 'no events mode' is currently enabled
      */
     public boolean getNoEventsMode() {
         return this.noEventsMode;
     }
 	
     /**
-     * Enables/disables 'no events mode' which prevents mouse and keyboard events from being received
-     * by the application (main frame and its subcomponents and menus).
+     * Enables/disables the 'no events mode' which prevents mouse and keyboard events from being received
+     * by the application (MainFrame, its subcomponents and the menu bar).
+     *
+     * @param enabled <code>true</code> to enable 'no events mode', <code>false</code> to disable it
      */
     public void setNoEventsMode(boolean enabled) {
         // Piece of code used in 0.8 beta1 and removed after because it's way too slow, kept here for the record 
@@ -292,6 +322,9 @@ public class MainFrame extends JFrame implements LocationListener {
 
     /**
      * Returns the toolbar where shortcut buttons (go back, go forward, ...) are.
+     * Note that a non-null instance of ToolBar is returned even if it is currently hidden.
+     *
+     * @return the toolbar component
      */
     public ToolBar getToolBar() {
         return toolbar;
@@ -299,8 +332,11 @@ public class MainFrame extends JFrame implements LocationListener {
 
 
     /**
-     * Returns the command bar, i.e. the panel that contains
-     * F3, F6... F10 buttons.
+     * Returns the command bar, i.e. the component that contains shortcuts to certains actions such as View, Edit, Copy,
+     * Move, etc...
+     * Note that a non-null instance of CommandBar is returned even if it is currently hidden.
+     *
+     * @return the command bar component
      */
     public CommandBar getCommandBar() {
         return commandBar;
@@ -308,7 +344,9 @@ public class MainFrame extends JFrame implements LocationListener {
 
 
     /**
-     * Returns the status bar where information about selected files and volume are displayed.
+     * Returns the status bar, where information about selected files and volume are displayed.
+     *
+     * @return the status bar
      */
     public StatusBar getStatusBar() {
         return this.statusBar;
@@ -316,24 +354,36 @@ public class MainFrame extends JFrame implements LocationListener {
 
 
     /**
-     * Returns the active FileTable in this MainFrame.
+     * Returns the currently active table.
      *
-     * The returned active table doesn't necessarily have focus, the focus can be in some other component
-     * of the active {@link FolderPanel}, or nowhere in the MainFrame if the window is not in the foreground.
+     * <p>The returned table doesn't necessarily have focus, the focus can be in some other component
+     * of the active {@link FolderPanel}, or nowhere in the MainFrame if it is currently not in the foreground.</p>
      *
-     * <p>Use {@link FileTable#hasFocus()} to test if the table currently has focus.
+     * <p>Use {@link FileTable#hasFocus()} to test if the table currently has focus.</p>
      *
+     * @return the currently active table
      * @see FileTable#isActiveTable()
      */
     public FileTable getActiveTable() {
         return activeTable;
     }
 
-    public FileTable getLeftTable() {return table1;}
-    public FileTable getRightTable() {return table2;}
+    /**
+     * Returns the currently active panel.
+     *
+     * <p>The returned panel doesn't necessarily have focus, for example if the MainFrame is currently not in the
+     * foreground.</p>
+     *
+     * @return the currently active panel
+     */
+    public FolderPanel getActivePanel() {
+        return activeTable.getFolderPanel();
+    }
 
     /**
-     * Sets currently active FileTable (called by FolderPanel).
+     * Sets the currently active FileTable. This method is to be called by FolderPanel only.
+     *
+     * @param table the currently active FileTable
      */
     void setActiveTable(FileTable table) {
         boolean activeTableChanged = activeTable !=table;
@@ -351,29 +401,46 @@ public class MainFrame extends JFrame implements LocationListener {
 
 	
     /**
-     * Returns the complement to getActiveTable().
+     * Returns the inactive table, i.e. the complement of {@link #getActiveTable()}.
+     *
+     * @return the inactive table
      */
     public FileTable getInactiveTable() {
-        return activeTable ==table1?table2:table1;
+        return activeTable == leftTable ? rightTable : leftTable;
     }
     
     /**
-     * Returns left FolderPanel.
+     * Returns the inactive panel, i.e. the complement of {@link #getActivePanel()}.
+     *
+     * @return the inactive panel
      */
-    public FolderPanel getFolderPanel1() {
-        return folderPanel1;
+    public FolderPanel getInactivePanel() {
+        return getInactiveTable().getFolderPanel();
     }
 
     /**
-     * Returns right FolderPanel.
+     * Returns the FolderPanel instance corresponding to the left panel.
+     *
+     * @return the FolderPanel instance corresponding to the left panel
      */
-    public FolderPanel getFolderPanel2() {
-        return folderPanel2;
+    public FolderPanel getLeftPanel() {
+        return leftFolderPanel;
+    }
+
+    /**
+     * Returns the FolderPanel instance corresponding to the right panel.
+     *
+     * @return the FolderPanel instance corresponding to the right panel
+     */
+    public FolderPanel getRightPanel() {
+        return rightFolderPanel;
     }
 
 
     /**
-     * Returns the {@link ProportionalSplitPane} component that manages how the two {@link FolderPanel} are split.   
+     * Returns the ProportionalSplitPane component that splits the two panels.
+     *
+     * @return the ProportionalSplitPane component that splits the two panels
      */
     public ProportionalSplitPane getSplitPane() {
         return splitPane;
@@ -394,8 +461,10 @@ public class MainFrame extends JFrame implements LocationListener {
     }
 
     /**
-     * Returns how folder panels are currently split: if true is passed, the folder panels are split vertically (default),
-     * horizontally otherwise.
+     * Returns how folder panels are currently split: if <code>true</code> is returned, panels are split vertically
+     * (default), horizontally otherwise.
+     *
+     * @return <code>true</code> if folder panels are split vertically
      */
     public boolean getSplitPaneOrientation() {
         // Note: the vertical/horizontal terminology used in muCommander is just the opposite of the one used
@@ -414,37 +483,39 @@ public class MainFrame extends JFrame implements LocationListener {
     }
 
     /**
-     * Swaps the two FolderPanel instances: after a call to this method, folderPanel1 will be folderPanels2 and vice-versa.
+     * Swaps the two FolderPanel instances: after a call to this method, the left FolderPanel will be the right one and
+     * vice-versa.
      */
     public void swapFolders() {
-        splitPane.remove(folderPanel1);
-        splitPane.remove(folderPanel2);
+        splitPane.remove(leftFolderPanel);
+        splitPane.remove(rightFolderPanel);
 
         // Swaps the folder panels.
-        FolderPanel tempPanel = folderPanel1;
-        folderPanel1 = folderPanel2;
-        folderPanel2 = tempPanel;
+        FolderPanel tempPanel = leftFolderPanel;
+        leftFolderPanel = rightFolderPanel;
+        rightFolderPanel = tempPanel;
 
         // Resets the tables.
-        FileTable tempTable = table1;
-        table1 = table2;
-        table2 = tempTable;
+        FileTable tempTable = leftTable;
+        leftTable = rightTable;
+        rightTable = tempTable;
 
-        // Makes sure the table models are properly applied.
-        TableColumnModel model = table1.getColumnModel();
-        table1.setColumnModel(table2.getColumnModel());
-        table2.setColumnModel(model);
+        // Preserve the sort order and columns visibility.
+        TableColumnModel model = leftTable.getColumnModel();
+        leftTable.setColumnModel(rightTable.getColumnModel());
+        rightTable.setColumnModel(model);
 
-        // Makes sure the sort order is respected.
-        boolean ascending;
-        int     criteria;
-        criteria  = table1.getSortByCriteria();
-        ascending = table1.isSortAscending();
-        table1.sortBy(table2.getSortByCriteria(), table2.isSortAscending());
-        table2.sortBy(criteria, ascending);
+        SortInfo sortInfo = (SortInfo)leftTable.getSortInfo().clone();
 
-        splitPane.setLeftComponent(folderPanel1);
-        splitPane.setRightComponent(folderPanel2);
+        leftTable.sortBy(rightTable.getSortInfo());
+        leftTable.updateColumnsVisibility();
+
+        rightTable.sortBy(sortInfo);
+        rightTable.updateColumnsVisibility();
+
+        // Do the swap and update the split pane
+        splitPane.setLeftComponent(leftFolderPanel);
+        splitPane.setRightComponent(rightFolderPanel);
 
         splitPane.doLayout();
 
@@ -459,31 +530,42 @@ public class MainFrame extends JFrame implements LocationListener {
      * Makes both folders the same, choosing the one which is currently active. 
      */
     public void setSameFolder() {
-        (activeTable ==table1?table2:table1).getFolderPanel().tryChangeCurrentFolder(activeTable.getCurrentFolder());
+        (activeTable == leftTable ? rightTable : leftTable).getFolderPanel().tryChangeCurrentFolder(activeTable.getCurrentFolder());
     }
 
 
     /**
-     * Returns <code>true</code> if this MainFrame is active in the foreground.
+     * Returns <code>true</code> if this MainFrame is currently active in the foreground.
+     *
+     * @return <code>true</code> if this MainFrame is currently active in the foreground
      */
-    public boolean isForegroundActive() {return foregroundActive;}
+    public boolean isForegroundActive() {
+        return foregroundActive;
+    }
 
     /**
-     * Sets whether this MainFrame is active in the foreground. Method to be called solely by WindowManager.
+     * Sets whether this MainFrame is currently active in the foreground. This method is to be called by WindowManager
+     * only.
+     *
+     * @param foregroundActive true if this MainFrame is currently active in the foreground
      */
-    void setForegroundActive(boolean foregroundActive) {this.foregroundActive = foregroundActive;}
+    void setForegroundActive(boolean foregroundActive) {
+        this.foregroundActive = foregroundActive;
+    }
 
     /**
      * Forces a refrehs of the frame's folder panel.
      */
     public void tryRefreshCurrentFolders() {
-        folderPanel1.tryRefreshCurrentFolder();
-        folderPanel2.tryRefreshCurrentFolder();
+        leftFolderPanel.tryRefreshCurrentFolder();
+        rightFolderPanel.tryRefreshCurrentFolder();
     }
 
 
     /**
      * Returns <code>true</code> if this MainFrame is active, or is an ancestor of a Window that is currently active.
+     *
+     * @return <code>true</code> if this MainFrame is active, or is an ancestor of a Window that is currently active
      */
     public boolean isAncestorOfActiveWindow() {
         if(isActive())
@@ -506,11 +588,35 @@ public class MainFrame extends JFrame implements LocationListener {
      */
     public void updateWindowTitle() {
         // Update window title
-        String title = activeTable.getCurrentFolder().getAbsolutePath()+" - muCommander";
+        String title = activeTable.getCurrentFolder().getAbsolutePath();
         Vector mainFrames = WindowManager.getMainFrames();
         if(mainFrames.size()>1)
             title += " ["+(mainFrames.indexOf(this)+1)+"]";
         setTitle(title);
+
+        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+            // Displays the document icon in the window title bar, works only for local files
+            AbstractFile currentFolder = activeTable.getCurrentFolder();
+            Object javaIoFile;
+            if(currentFolder.getURL().getProtocol().equals(FileProtocols.FILE)) {
+                // If the current folder is an archive entry, display the archive file, this is the closest we can get
+                // with a java.io.File
+                if(currentFolder.hasAncestor(ArchiveEntryFile.class))
+                    javaIoFile = currentFolder.getParentArchive().getUnderlyingFileObject();
+                else
+                    javaIoFile = currentFolder.getUnderlyingFileObject();
+            }
+            else {
+                // If the current folder is not a local file, use the special /Network directory which is sort of
+                // 'Network Neighborhood'.
+                javaIoFile = new java.io.File("/Network");
+            }
+
+            // Note that for some strange reason (looks like a bug), setting the property to null won't remove
+            // the previous icon.
+            getRootPane().putClientProperty("Window.documentFile", javaIoFile);
+        }
     }
     
 
@@ -536,35 +642,6 @@ public class MainFrame extends JFrame implements LocationListener {
     ///////////////////////
     // Overriden methods //
     ///////////////////////
-    private static String getConfigurationSortBy(int column) {
-        switch(column) {
-        case Columns.EXTENSION:
-            return MuConfiguration.EXTENSION_COLUMN;
-        case Columns.NAME:
-            return MuConfiguration.NAME_COLUMN;
-        case Columns.SIZE:
-            return MuConfiguration.SIZE_COLUMN;
-        case Columns.DATE:
-            return MuConfiguration.DATE_COLUMN;
-        case Columns.PERMISSIONS:
-            return MuConfiguration.PERMISSIONS_COLUMN;
-        }
-        return MuConfiguration.DEFAULT_SORT_BY;
-    }
-
-    private static int getConfigurationSortBy(String column) {
-        if(column.equals(MuConfiguration.EXTENSION_COLUMN))
-            return Columns.EXTENSION;
-        if(column.equals(MuConfiguration.NAME_COLUMN))
-            return Columns.NAME;
-        if(column.equals(MuConfiguration.SIZE_COLUMN))
-            return Columns.SIZE;
-        if(column.equals(MuConfiguration.PERMISSIONS_COLUMN))
-            return Columns.PERMISSIONS;
-        if(column.equals(MuConfiguration.DATE_COLUMN))
-            return Columns.DATE;
-        return getConfigurationSortBy(MuConfiguration.DEFAULT_SORT_BY);
-    }
 
     /**
      * Overrides <code>java.awt.Window#dispose</code> to save last MainFrame's attributes in the preferences
@@ -572,12 +649,12 @@ public class MainFrame extends JFrame implements LocationListener {
      */
     public void dispose() {
         // Save last MainFrame's attributes (last folders, window position) in the preferences.
-//        if(WindowManager.getMainFrames().size()==1) {
+
         // Save last folders
         MuConfiguration.setVariable(MuConfiguration.LAST_LEFT_FOLDER, 
-                                         getFolderPanel1().getFolderHistory().getLastRecallableFolder());
+                                         getLeftPanel().getFolderHistory().getLastRecallableFolder());
         MuConfiguration.setVariable(MuConfiguration.LAST_RIGHT_FOLDER, 
-                                         getFolderPanel2().getFolderHistory().getLastRecallableFolder());
+                                         getRightPanel().getFolderHistory().getLastRecallableFolder());
 
         // Save window position, size and screen resolution
         Rectangle bounds = getBounds();
@@ -590,38 +667,37 @@ public class MainFrame extends JFrame implements LocationListener {
         MuConfiguration.setVariable(MuConfiguration.SCREEN_HEIGHT, screenSize.height);
 
         // Saves left and right table positions.
-        MuConfiguration.setVariable(MuConfiguration.SHOW_LEFT_EXTENSION,        table1.isColumnVisible(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_LEFT_SIZE,             table1.isColumnVisible(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_LEFT_DATE,             table1.isColumnVisible(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_LEFT_PERMISSIONS,      table1.isColumnVisible(Columns.PERMISSIONS));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_EXTENSION_POSITION,    table1.getColumnPosition(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_DATE_POSITION,         table1.getColumnPosition(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_SIZE_POSITION,         table1.getColumnPosition(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_NAME_POSITION,         table1.getColumnPosition(Columns.NAME));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_PERMISSIONS_POSITION,  table1.getColumnPosition(Columns.PERMISSIONS));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_RIGHT_EXTENSION,       table2.isColumnVisible(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_RIGHT_SIZE,            table2.isColumnVisible(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_RIGHT_DATE,            table2.isColumnVisible(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.SHOW_RIGHT_PERMISSIONS,     table2.isColumnVisible(Columns.PERMISSIONS));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_EXTENSION_POSITION,   table2.getColumnPosition(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_DATE_POSITION,        table2.getColumnPosition(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_SIZE_POSITION,        table2.getColumnPosition(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_NAME_POSITION,        table2.getColumnPosition(Columns.NAME));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_PERMISSIONS_POSITION, table2.getColumnPosition(Columns.PERMISSIONS));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_EXTENSION_WIDTH,       table1.getColumnWidth(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_DATE_WIDTH,            table1.getColumnWidth(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_SIZE_WIDTH,            table1.getColumnWidth(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_PERMISSIONS_WIDTH,     table1.getColumnWidth(Columns.PERMISSIONS));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_EXTENSION_WIDTH,      table2.getColumnWidth(Columns.EXTENSION));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_DATE_WIDTH,           table2.getColumnWidth(Columns.DATE));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_SIZE_WIDTH,           table2.getColumnWidth(Columns.SIZE));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_PERMISSIONS_WIDTH,    table2.getColumnWidth(Columns.PERMISSIONS));
+        for(boolean isLeft=true; ; isLeft=false) {
+            FileTable table = isLeft? leftTable : rightTable;
+            // Loop on columns
+            for(int c=0; c<Columns.COLUMN_COUNT; c++) {
+                if(c!=Columns.NAME) {       // Skip the special name column (always enabled, width automatically calculated)
+                    MuConfiguration.setVariable(
+                        MuConfiguration.getShowColumnVariable(c, isLeft),
+                        table.isColumnEnabled(c)
+                    );
+
+                    MuConfiguration.setVariable(
+                        MuConfiguration.getColumnWidthVariable(c, isLeft),
+                        table.getColumnWidth(c)
+                    );
+                }
+
+                MuConfiguration.setVariable(
+                    MuConfiguration.getColumnPositionVariable(c, isLeft),
+                    table.getColumnPosition(c)
+                );
+            }
+
+            if(!isLeft)
+                break;
+        }
 
         // Saves left and right table sort order.
-        MuConfiguration.setVariable(MuConfiguration.LEFT_SORT_BY, getConfigurationSortBy(table1.getSortByCriteria()));
-        MuConfiguration.setVariable(MuConfiguration.LEFT_SORT_ORDER, table1.isSortAscending() ? MuConfiguration.SORT_ORDER_ASCENDING : MuConfiguration.SORT_ORDER_DESCENDING);
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_SORT_BY, getConfigurationSortBy(table2.getSortByCriteria()));
-        MuConfiguration.setVariable(MuConfiguration.RIGHT_SORT_ORDER, table2.isSortAscending() ? MuConfiguration.SORT_ORDER_ASCENDING : MuConfiguration.SORT_ORDER_DESCENDING);
+        MuConfiguration.setVariable(MuConfiguration.LEFT_SORT_BY, Columns.getColumnName(leftTable.getSortInfo().getCriterion()));
+        MuConfiguration.setVariable(MuConfiguration.LEFT_SORT_ORDER, leftTable.getSortInfo().getAscendingOrder() ? MuConfiguration.SORT_ORDER_ASCENDING : MuConfiguration.SORT_ORDER_DESCENDING);
+        MuConfiguration.setVariable(MuConfiguration.RIGHT_SORT_BY, Columns.getColumnName(rightTable.getSortInfo().getCriterion()));
+        MuConfiguration.setVariable(MuConfiguration.RIGHT_SORT_ORDER, rightTable.getSortInfo().getAscendingOrder() ? MuConfiguration.SORT_ORDER_ASCENDING : MuConfiguration.SORT_ORDER_DESCENDING);
 
         // Save split pane orientation
         saveSplitPaneOrientation();
@@ -654,42 +730,40 @@ public class MainFrame extends JFrame implements LocationListener {
     protected class CustomFocusTraversalPolicy extends FocusTraversalPolicy {
 
         public Component getComponentAfter(Container container, Component component) {
-            if(component==folderPanel1.getLocationComboBox().getTextField() || component==folderPanel1.getLocationComboBox())
-                return table1;
-            else if(component==table1)
-                return table2;
-            if(component==folderPanel2.getLocationComboBox().getTextField() || component==folderPanel2.getLocationComboBox())
-                return table2;
+            if(component== leftFolderPanel.getLocationComboBox().getTextField() || component== leftFolderPanel.getLocationComboBox())
+                return leftTable;
+            else if(component== leftTable)
+                return rightTable;
+            if(component== rightFolderPanel.getLocationComboBox().getTextField() || component== rightFolderPanel.getLocationComboBox())
+                return rightTable;
             else    // component==table2
-                return table1;
+                return leftTable;
         }
 
         public Component getComponentBefore(Container container, Component component) {
-    if(Debug.ON) Debug.trace("container="+container.getClass().getName()+" component="+component.getClass().getName());
             // Completly symetrical with getComponentAfter
             return getComponentAfter(container, component);
        }
 
         public Component getFirstComponent(Container container) {
-    if(Debug.ON) Debug.trace("container="+container.getClass().getName());
-            return table1;
+            return leftTable;
         }
 
         public Component getLastComponent(Container container) {
-    if(Debug.ON) Debug.trace("container="+container.getClass().getName());
-            return table2;
+            return rightTable;
         }
 
         public Component getDefaultComponent(Container container) {
-    if(Debug.ON) Debug.trace("container="+container.getClass().getName());
             return getActiveTable();
         }
     }
 
-    public boolean isAutoSizeColumnsEnabled() {return table1.isAutoSizeColumnsEnabled();}
+    public boolean isAutoSizeColumnsEnabled() {
+        return leftTable.isAutoSizeColumnsEnabled();
+    }
 
     public void setAutoSizeColumnsEnabled(boolean b) {
-        table1.setAutoSizeColumnsEnabled(b);
-        table2.setAutoSizeColumnsEnabled(b);
+        leftTable.setAutoSizeColumnsEnabled(b);
+        rightTable.setAutoSizeColumnsEnabled(b);
     }
 }

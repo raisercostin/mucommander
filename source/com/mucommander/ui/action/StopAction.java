@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,12 +39,12 @@ public class StopAction extends MuAction implements LocationListener {
         setEnabled(false);
 
         // Listen to location change events
-        mainFrame.getFolderPanel1().getLocationManager().addLocationListener(this);
-        mainFrame.getFolderPanel2().getLocationManager().addLocationListener(this);
+        mainFrame.getLeftPanel().getLocationManager().addLocationListener(this);
+        mainFrame.getRightPanel().getLocationManager().addLocationListener(this);
     }
 
     public void performAction() {
-        FolderPanel folderPanel = mainFrame.getActiveTable().getFolderPanel();
+        FolderPanel folderPanel = mainFrame.getActivePanel();
         FolderPanel.ChangeFolderThread changeFolderThread = folderPanel.getChangeFolderThread();
 
         if(changeFolderThread!=null)

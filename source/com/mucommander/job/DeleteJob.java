@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -215,14 +215,6 @@ public class DeleteJob extends FileJob {
         } while(true);
     }
 
-
-    public String getStatusString() {
-        if(isOptimizingArchive)
-            return Translator.get("optimizing_archive", archiveToOptimize.getName());
-
-        return Translator.get("delete.deleting_file", getCurrentFileInfo());
-    }
-
     // This job modifies baseFolder and subfolders
     protected boolean hasFolderChanged(AbstractFile folder) {
         return baseSourceFolder.isParentOf(folder);
@@ -267,5 +259,12 @@ public class DeleteJob extends FileJob {
 
             isOptimizingArchive = true;
         }
+    }
+
+    public String getStatusString() {
+        if(isOptimizingArchive)
+            return Translator.get("optimizing_archive", archiveToOptimize.getName());
+
+        return Translator.get("delete.deleting_file", getCurrentFileInfo());
     }
 }

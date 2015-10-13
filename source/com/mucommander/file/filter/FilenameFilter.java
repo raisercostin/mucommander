@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ import java.util.Vector;
  * <p>Several convenience methods are provided to operate this filter on a set of filenames, and filter out filenames
  * that do not match this filter.</p>
  *
- * <p>A <code>FilenameFilter</code> can be passed to {@link AbstractFile#ls(FilenameFilter)}, in order to filter out
+ * <p>A <code>FilenameFilter</code> can be passed to {@link AbstractFile#ls(FilenameFilter)} to filter out some of the
  * files contained by a folder without creating the associated <code>AbstractFile</code> instances.</p>
  */
 public abstract class FilenameFilter extends FileFilter {

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,12 @@
 
 package com.mucommander.command;
 
-import org.xml.sax.helpers.DefaultHandler;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
-import org.xml.sax.Locator;
 import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
 import javax.xml.parsers.SAXParserFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import java.io.InputStream;
-import java.util.Hashtable;
 
 /**
  * Class used to parse custom commands XML files.
@@ -101,7 +98,6 @@ public class CommandReader extends DefaultHandler implements CommandsXmlConstant
             String  command;
             int     type;
             String  display;
-            Command buffer;
 
             // Makes sure the required attributes are there.
             if(((alias = attributes.getValue(ATTRIBUTE_ALIAS)) == null) || ((command = attributes.getValue(ATTRIBUTE_VALUE)) == null))
@@ -111,7 +107,7 @@ public class CommandReader extends DefaultHandler implements CommandsXmlConstant
 
 
             // Creates the command and passes it to the builder.
-            try {builder.addCommand(buffer = new Command(alias, command, type, display));}
+            try {builder.addCommand(new Command(alias, command, type, display));}
             catch(CommandException e) {throw new SAXException(e);}
         }
     }

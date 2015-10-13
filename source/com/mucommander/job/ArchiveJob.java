@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.mucommander.job;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.archiver.Archiver;
 import com.mucommander.file.util.FileSet;
+import com.mucommander.io.StreamUtils;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -57,7 +58,7 @@ public class ArchiveJob extends TransferFileJob {
     /** Lock to avoid Archiver.close() to be called while data is being written */
     private final Object ioLock = new Object();
 
-    /** OutputStream of the file Current file  */
+    /** OutputStream of the current file  */
     private OutputStream out;
 
     
@@ -108,7 +109,7 @@ public class ArchiveJob extends TransferFileJob {
                     // written to the archive OutputStream, this would cause ZipOutputStream to deadlock.
                     synchronized(ioLock) {
                         // Create a new file entry in archive and copy the current file
-                        AbstractFile.copyStream(in, archiver.createEntry(entryRelativePath, file));
+                        StreamUtils.copyStream(in, archiver.createEntry(entryRelativePath, file));
                         in.close();
                     }
                     return true;
@@ -117,12 +118,12 @@ public class ArchiveJob extends TransferFileJob {
             // Catch Exception rather than IOException as ZipOutputStream has been seen throwing NullPointerException
             catch(Exception e) {
                 // If job was interrupted by the user at the time when the exception occurred,
-                // it most likely means that the exception by user cancellation.
+                // it most likely means that the exception was caused by user cancellation.
                 // In this case, the exception should not be interpreted as an error.
                 if(getState()==INTERRUPTED)
                     return false;
 
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught: "+e);
+                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught IOException: "+e);
                 
                 int ret = showErrorDialog(Translator.get("pack_dialog.error_title"), Translator.get("error_while_transferring", file.getAbsolutePath()));
                 // Retry loops
@@ -136,10 +137,6 @@ public class ArchiveJob extends TransferFileJob {
                 return false;
             }
         } while(true);
-    }
-
-    public String getStatusString() {
-        return Translator.get("pack_dialog.packing_file", getCurrentFileInfo());
     }
 
     protected boolean hasFolderChanged(AbstractFile folder) {
@@ -163,13 +160,13 @@ public class ArchiveJob extends TransferFileJob {
         if(collision!=FileCollisionChecker.NO_COLLOSION) {
             // File already exists in destination, ask the user what to do (cancel, overwrite,...) but
             // do not offer the multiple files mode options such as 'skip' and 'apply to all'.
-            int choice = waitForUserResponse(new FileCollisionDialog(progressDialog, mainFrame, collision, null, destFile, false));
+            int choice = waitForUserResponse(new FileCollisionDialog(progressDialog, mainFrame, collision, null, destFile, false, false));
 
             // Overwrite file
             if (choice== FileCollisionDialog.OVERWRITE_ACTION) {
                 // Do nothing, simply continue and file will be overwritten
             }
-            // Cancel or dialog close (return)
+            // 'Cancel' or close dialog interrupts the job
             else {
                 interrupt();
                 return;
@@ -179,13 +176,6 @@ public class ArchiveJob extends TransferFileJob {
         // Loop for retry
         do {
             try {
-//                // Tries to open destination file and create the Archiver.
-//                // Use a BufferedOutputStream to buffer small files and improve performance.
-//                out = new BufferedOutputStream(destFile.getOutputStream(false), AbstractFile.IO_BUFFER_SIZE);
-//                this.archiver = Archiver.getArchiver(out, archiveFormat);
-//                this.archiver.setComment(archiveComment);
-//                break;
-
                 // Tries to get an Archiver instance.
                 this.archiver = Archiver.getArchiver(destFile, archiveFormat);
                 this.archiver.setComment(archiveComment);
@@ -195,7 +185,7 @@ public class ArchiveJob extends TransferFileJob {
 
             }
             catch(Exception e) {
-                int choice = showErrorDialog(Translator.get("warning"),
+                int choice = showErrorDialog(Translator.get("pack_dialog.error_title"),
                                              Translator.get("cannot_write_file", destFile.getName()),
                                              new String[] {CANCEL_TEXT, RETRY_TEXT},
                                              new int[]  {CANCEL_ACTION, RETRY_ACTION}
@@ -204,12 +194,13 @@ public class ArchiveJob extends TransferFileJob {
                 // Retry loops
                 if(choice == RETRY_ACTION)
                     continue;
-                // Cancel or close dialog returns false
+
+                // 'Cancel' or close dialog interrupts the job
+                interrupt();
                 return;
             }
         } while(true);
     }
-
 
     /**
      * Overriden method to close the archiver.
@@ -240,5 +231,9 @@ public class ArchiveJob extends TransferFileJob {
                 catch(IOException e) {}
             }
         }
+    }
+
+    public String getStatusString() {
+        return Translator.get("pack_dialog.packing_file", getCurrentFileInfo());
     }
 }

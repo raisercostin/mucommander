@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -194,6 +194,8 @@ public abstract class FileJob implements Runnable {
      * Sets the given file to be selected in the active table after this job has finished.
      * The file will only be selected if it exists in the active table's folder and if this job hasn't
      * been cancelled. The selection will occur after the tables have been refreshed (if they are refreshed).
+     *
+     * @param file the file to be selected in the active table after this job has finished
      */
     public void selectFileWhenFinished(AbstractFile file) {
         this.fileToSelect = file;
@@ -210,8 +212,8 @@ public abstract class FileJob implements Runnable {
 
         // Pause auto-refresh during file job as it potentially modifies the current folders contents
         // and would potentially cause folder panel to auto-refresh
-        mainFrame.getFolderPanel1().getFolderChangeMonitor().setPaused(true);
-        mainFrame.getFolderPanel2().getFolderChangeMonitor().setPaused(true);
+        mainFrame.getLeftPanel().getFolderChangeMonitor().setPaused(true);
+        mainFrame.getRightPanel().getFolderChangeMonitor().setPaused(true);
 
         setState(RUNNING);
         startDate = System.currentTimeMillis();
@@ -223,6 +225,8 @@ public abstract class FileJob implements Runnable {
 
     /**
      * Returns the current state of this FileJob. See constant fields for possible return values.
+     *
+     * @return the current state of this FileJob. See constant fields for possible return values.
      */
     public int getState() {
         return jobState;
@@ -268,21 +272,27 @@ public abstract class FileJob implements Runnable {
 
     /**
      * Returns the timestamp in milliseconds when this job started.
+     *
+     * @return the timestamp in milliseconds when this job started
      */
     public long getStartDate() {
         return startDate;
     }
 
     /**
-     * Returns the timestamp in milliseconds when this job ended, 0 if this job hasn't finished yet.
+     * Returns the timestamp in milliseconds when this job ended, <code>0</code> if this job hasn't finished yet.
+     *
+     * @return the timestamp in milliseconds when this job ended
      */
     public long getEndDate() {
         return endDate;
     }
 
     /**
-     * Returns the timestamp in milliseconds when this job was last paused.
-     * If this job has not been paused yet, 0 is returned.
+     * Returns the timestamp in milliseconds when this job was last paused, <code>0</code> if this job has not been
+     * paused yet.
+     *
+     * @return the timestamp in milliseconds when this job was last paused
      */
     public long getPauseStartDate() {
         return pauseStartDate;
@@ -290,9 +300,11 @@ public abstract class FileJob implements Runnable {
 
     
     /**
-     * Number of milliseconds during which this job has been paused (been waiting for some user response).
-     * If this job has been paused multiple times, the total is returned.
-     * If this job has not been paused yet, 0 is returned.
+     * Returns the number of milliseconds during which this job has been paused (been waiting for some user response).
+     * If this job has been paused several times, the total is returned. If this job has not been paused yet,
+     * <code>0</code> is returned.
+     *
+     * @return the number of milliseconds during which this job has been paused
      */
     public long getPausedTime() {
         return pausedTime;
@@ -300,7 +312,9 @@ public abstract class FileJob implements Runnable {
 
 
     /**
-     * Returns the number of milliseconds this job effectively spent processing files, exclusing any paused time.
+     * Returns the number of milliseconds this job effectively spent processing files, exclusing any pause time.
+     *
+     * @return the number of milliseconds this job effectively spent processing files, exclusing any pause time
      */
     public long getEffectiveJobTime() {
         // If job hasn't start yet, return 0
@@ -379,7 +393,7 @@ public abstract class FileJob implements Runnable {
 
 
     /**
-     * Changes current file. This method should be called by subclasses whenever the job
+     * Changes the current file. This method should be called by subclasses whenever the job
      * starts processing a new file other than a top-level file, i.e. one that was passed
      * as an argument to {@link #processFile(AbstractFile, Object) processFile()}.
      * ({#nextFile(AbstractFile) nextFile()} is automatically called for files in base folder).
@@ -429,7 +443,9 @@ public abstract class FileJob implements Runnable {
 //
 
     /**
-     * Returns some info about the file currently being processed, for example : "test.zip" (14KB)
+     * Returns a basic description of the file currently being processed, for example : "test.zip" (14KB)
+     *
+     * @return a basic description of the file currently being processed
      */
     protected String getCurrentFileInfo() {
         return currentFileInfo;
@@ -501,54 +517,6 @@ public abstract class FileJob implements Runnable {
     }
 	
 	
-    /**
-     * Actual job is performed in a separate thread.
-     */
-    public void run() {
-        FileTable activeTable = mainFrame.getActiveTable();
-        AbstractFile currentFile;
-
-        // Notify that this job has started
-        jobStarted();
-
-//this.nbFilesDiscovered += nbFiles;
-
-        // Loop on all source files, checking that job has not been interrupted
-        for(int i=0; i<nbFiles; i++) {
-            currentFile = files.fileAt(i);
-	
-            // Change current file and advance file index
-            currentFileIndex = i;
-            nextFile(currentFile);
-			
-            // Process current file
-            boolean success = processFile(currentFile, null);
-
-            // Stop if job was interrupted
-            if(getState()==INTERRUPTED)
-                break;
-
-            // Unmark file in active table if 'auto unmark' is enabled
-            // and file was processed successfully
-            if(autoUnmark && success) {
-                activeTable.setFileMarked(currentFile, false);
-            }
-
-            // If last file was reached without any user interruption, all files have been processed with or
-            // without errors, switch to FINISHED state and notify listeners
-            if(i==nbFiles-1) {
-                currentFileIndex++;
-                stop();
-                jobCompleted();
-                setState(FINISHED);
-            }
-        }
-
-        // Refresh tables's current folders, based on the job's refresh policy.
-        refreshTables();
-    }
-
-
     /**
      * Displays an error dialog with the specified title and message,
      * offers to skip the file, retry or cancel and waits for user choice.
@@ -633,13 +601,15 @@ public abstract class FileJob implements Runnable {
         }
 
         // Resume current folders auto-refresh
-        mainFrame.getFolderPanel1().getFolderChangeMonitor().setPaused(false);
-        mainFrame.getFolderPanel2().getFolderChangeMonitor().setPaused(false);
+        mainFrame.getLeftPanel().getFolderChangeMonitor().setPaused(false);
+        mainFrame.getRightPanel().getFolderChangeMonitor().setPaused(false);
     }
 	
 
     /**
-     * Returns the percentage of job completion, as a float comprised between 0 and 1.
+     * Returns this job's percentage of completion, as a float comprised between 0 and 1.
+     *
+     * @return this job's percentage of completion, as a float comprised between 0 and 1
      */
     public float getTotalPercentDone() {
         return getCurrentFileIndex()/(float)getNbFiles();
@@ -648,6 +618,8 @@ public abstract class FileJob implements Runnable {
 
     /**
      * Returns the index of the file currently being processed, {@link #getNbFiles()} if all files have been processed.
+     *
+     * @return the index of the file currently being processed, {@link #getNbFiles()} if all files have been processed
      */
     public int getCurrentFileIndex() {
         return currentFileIndex==-1?0:currentFileIndex;
@@ -655,9 +627,74 @@ public abstract class FileJob implements Runnable {
 
     /**
      * Returns the number of file that this job contains.
+     *
+     * @return the number of file that this job contains
      */
     public int getNbFiles() {
         return nbFiles;
+    }
+
+    /**
+     * Returns a String describing what the job is currently doing. This default implementation returns
+     * <i>Processing CURRENT_FILE</i> where CURRENT_FILE is the name of the file currently being processed.
+     * This method should be overridden to provide a more accurate description.
+     *
+     * @return a String describing what the job is currently doing
+     */
+    public String getStatusString() {
+        return Translator.get("progress_dialog.processing_file", getCurrentFileInfo());
+    }
+
+
+    /////////////////////////////
+    // Runnable implementation //
+    /////////////////////////////
+
+    /**
+     * This method is public as a side-effect of this class implementing <code>Runnable</code>.
+     */
+    public final void run() {
+        FileTable activeTable = mainFrame.getActiveTable();
+        AbstractFile currentFile;
+
+        // Notify that this job has started
+        jobStarted();
+
+//this.nbFilesDiscovered += nbFiles;
+
+        // Loop on all source files, checking that job has not been interrupted
+        for(int i=0; i<nbFiles; i++) {
+            currentFile = files.fileAt(i);
+
+            // Change current file and advance file index
+            currentFileIndex = i;
+            nextFile(currentFile);
+
+            // Process current file
+            boolean success = processFile(currentFile, null);
+
+            // Stop if job was interrupted
+            if(getState()==INTERRUPTED)
+                break;
+
+            // Unmark file in active table if 'auto unmark' is enabled
+            // and file was processed successfully
+            if(autoUnmark && success) {
+                activeTable.setFileMarked(currentFile, false);
+            }
+
+            // If last file was reached without any user interruption, all files have been processed with or
+            // without errors, switch to FINISHED state and notify listeners
+            if(i==nbFiles-1) {
+                currentFileIndex++;
+                stop();
+                jobCompleted();
+                setState(FINISHED);
+            }
+        }
+
+        // Refresh tables's current folders, based on the job's refresh policy.
+        refreshTables();
     }
 
 
@@ -666,8 +703,12 @@ public abstract class FileJob implements Runnable {
     //////////////////////
 
     /**
-     * This method should return <code>true</code> if the given folder has or may have been modified. This method is
-     * used to determine if current table folders should be refreshed after this job.
+     * Returns <code>true</code> if the given folder has or may have been modified by this job.
+     * This method is called after this job has finished processing files, to determine if the current MainFrame's
+     * file tables need to be refreshed to reveal the modified contents.
+     *
+     * @param folder the folder to test 
+     * @return true if the given folder has or may have been modified by this job
      */
     protected abstract boolean hasFolderChanged(AbstractFile folder);
 	
@@ -682,10 +723,4 @@ public abstract class FileJob implements Runnable {
      */
     protected abstract boolean processFile(AbstractFile file, Object recurseParams);
 
-	
-    /**
-     * Returns a String describing the file what is currently being done.
-     */
-    public abstract String getStatusString();
-	
 }

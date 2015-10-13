@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,8 @@ package com.mucommander.file;
 
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
-import com.mucommander.io.ByteCounter;
-import com.mucommander.io.CounterOutputStream;
-import com.mucommander.io.RandomAccessInputStream;
-import com.mucommander.io.RandomAccessOutputStream;
+import com.mucommander.io.*;
+import com.mucommander.util.StringUtils;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.io.IOException;
@@ -79,9 +77,9 @@ public class ArchiveEntryFile extends AbstractFile {
 	
 	
     /**
-     * Returns the ArchiveEntry instance that contains information about the archive entry (name, size, date, ...).
+     * Returns the ArchiveEntry instance that contains information about the archive entry (path, size, date, ...).
      *
-     * @return the ArchiveEntry instance that contains information about the archive entry (name, size, date, ...)
+     * @return the ArchiveEntry instance that contains information about the archive entry (path, size, date, ...)
      */
     public ArchiveEntry getEntry() {
         return entry;
@@ -97,6 +95,41 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
 
+    /**
+     * Returns the relative path of this entry, with respect to the archive file. The path separator of the returned
+     * path is the one returned by {@link #getSeparator()}. As a relative path, the returned path does not start
+     * with a separator character.
+     *
+     * @return the relative path of this entry, with respect to the archive file.
+     */
+    public String getRelativeEntryPath() {
+        String path = entry.getPath();
+
+        // Replace all occurrences of the entry's separator by the archive file's separator, only if the separator is
+        // not "/" (i.e. the entry path separator).
+        String separator = getSeparator();
+        if(!separator.equals("/"))
+            path = StringUtils.replaceCompat(path, "/", separator);
+
+        return path;
+    }
+
+    /**
+     * Updates this entry's attributes in the archive and returns <code>true</code> if the update went OK.
+     *
+     * @return <code>true</code> if the attributes were successfully updated in the archive.  
+     */
+    private boolean updateEntryAttributes() {
+        try {
+            ((AbstractRWArchiveFile)archiveFile).updateEntry(entry);
+            return true;
+        }
+        catch(IOException e) {
+            return false;
+        }
+    }
+
+
     /////////////////////////////////
     // AbstractFile implementation //
     /////////////////////////////////
@@ -106,17 +139,27 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     /**
-     * Always returns <code>false</code>: date of entries cannot be modified.
+     * Returns <code>true</code> only if the archive file that contains this entry is writable.
      */
     public boolean canChangeDate() {
-        return false;
+        return archiveFile.isWritableArchive();
     }
 
     /**
-     * Always returns <code>false</code>: date of entries cannot be modified.
+     * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
      */
     public boolean changeDate(long lastModified) {
-        return false;
+        if(!(exists && archiveFile.isWritableArchive()))
+            return false;
+
+        long oldDate = entry.getDate();
+        entry.setDate(lastModified);
+
+        boolean success = updateEntryAttributes();
+        if(!success)        // restore old date if attributes could not be updated
+            entry.setDate(oldDate);
+
+        return success;
     }
 
     public long getSize() {
@@ -161,10 +204,10 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     /**
-     * Always returns <code>false</code>: permissions of entries cannot be changed.
+     * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
      */
     public boolean setPermission(int access, int permission, boolean enabled) {
-        return false;
+        return setPermissions(ByteUtils.setBit(getPermissions(), (permission << (access*3)), enabled));
     }
 
     public boolean canGetPermission(int access, int permission) {
@@ -173,10 +216,27 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     /**
-     * Always returns <code>false</code>: permissions of entries cannot be changed.
+     * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
      */
     public boolean canSetPermission(int access, int permission) {
-        return false;
+        // Todo: some writable archive implementations may not have full 'set' permissions support, or even no notion of permissions
+        return archiveFile.isWritableArchive();
+    }
+
+    public String getOwner() {
+        return entry.getOwner();
+    }
+
+    public boolean canGetOwner() {
+        return entry.getOwner()!=null;
+    }
+
+    public String getGroup() {
+        return entry.getGroup();
+    }
+
+    public boolean canGetGroup() {
+        return entry.getGroup()!=null;
     }
 
     /**
@@ -370,13 +430,44 @@ public class ArchiveEntryFile extends AbstractFile {
     // Overridden methods //
     ////////////////////////
 
+    /**
+     * This method is overridden to return the separator of the {@link #getArchiveFile() archive file} that contains
+     * this entry.
+     *
+     * @return the separator of the archive file that contains this entry
+     */
+    public String getSeparator() {
+        return archiveFile.getSeparator();
+    }
+
+    /**
+     * This method is overridden to use the archive file's canonical path as the base path of this entry file.
+     */
+    public String getCanonicalPath() {
+        // Use the archive file's canonical path and append it with the entry's relative path
+        return archiveFile.getCanonicalPath(true)+getRelativeEntryPath();
+    }
+
     public int getPermissions() {
         // Return entry's permissions mask
         return entry.getPermissions();
     }
-    
-    public String getSeparator() {
-        return archiveFile.getSeparator();
+
+    /**
+     * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
+     */
+    public boolean setPermissions(int permissions) {
+        if(!(exists && archiveFile.isWritableArchive()))
+            return false;
+
+        int oldPermissions = entry.getPermissions();
+        entry.setPermissions(permissions);
+
+        boolean success = updateEntryAttributes();
+        if(!success)        // restore old permissions if attributes could not be updated
+            entry.setPermissions(oldPermissions);
+
+        return success;
     }
 
     public int getMoveToHint(AbstractFile destFile) {

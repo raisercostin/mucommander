@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ import java.util.Vector;
 public class BonjourDirectory implements ServiceListener {
 
     /** Singleton instance held to prevent garbage collection and also used for synchronization */
-    private static BonjourDirectory instance = new BonjourDirectory();
+    private final static BonjourDirectory instance = new BonjourDirectory();
     /** Does all the hard work */
     private static JmDNS jmDNS;
     /** List of discovered and currently active Bonjour services */
@@ -73,6 +73,7 @@ public class BonjourDirectory implements ServiceListener {
      * will be lost and {@link #getServices()} will return an empty array. If currently inactive and true is specified,
      * services discovery will be immediately started but it may take a while (a few seconds at least) to
      * collect services.
+     * @param enabled whether Bonjour services discovery should be enabled.
      */
     public static void setActive(boolean enabled) {
         if(enabled && jmDNS==null) {
@@ -98,7 +99,8 @@ public class BonjourDirectory implements ServiceListener {
     }
 
     /**
-     * Returns true if Bonjour services discovery is currently running.
+     * Returns <code>true</code> if Bonjour services discovery is currently running.
+     * @return <code>true</code> if Bonjour services discovery is currently running, <code>false</code> otherwise.
      */
     public static boolean isActive() {
         return jmDNS!=null;
@@ -108,6 +110,7 @@ public class BonjourDirectory implements ServiceListener {
     /**
      * Returns all currently available Bonjour services. The returned array may be empty but never null.
      * If BonjourDirectory is not currently active ({@link #isActive()}, an empty array will be returned.
+     * @return all currently available Bonjour services
      */
     public static BonjourService[] getServices() {
         BonjourService servicesArray[] = new BonjourService[services.size()];
@@ -117,9 +120,11 @@ public class BonjourDirectory implements ServiceListener {
 
 
     /**
-     * Wraps a Bonjour service into a {@link BonjourService} object and returns it.
-     * Returns null if the service type doesn't correspond to any of the supported protocols, or if the service URL is 
-     * malformed.
+     * Wraps a Bonjour service into a {@link BonjourService} object and returns it. Returns <code>null</code> if
+     * the service type doesn't correspond to any of the supported protocols, or if the service URL is malformed.
+     *
+     * @param serviceInfo the ServiceInfo to wrap into a BonjourService
+     * @return a BonjourService instance corresponding to the given ServiceInfo
      */
     private static BonjourService createBonjourService(ServiceInfo serviceInfo) {
         try {
@@ -128,11 +133,12 @@ public class BonjourDirectory implements ServiceListener {
             // Looks for the file protocol corresponding to the service type
             for(int i=0; i<nbServices; i++) {
                 if(KNOWN_SERVICE_TYPES[i][0].equals(type)) {
-                    return new BonjourService(serviceInfo.getName(), new FileURL(serviceInfo.getURL(KNOWN_SERVICE_TYPES[i][1])));
+                    return new BonjourService(serviceInfo.getName(), new FileURL(serviceInfo.getURL(KNOWN_SERVICE_TYPES[i][1])), serviceInfo.getQualifiedName());
                 }
             }
         }
         catch(MalformedURLException e) {
+            // Null will be returned
         }
 
         return null;
@@ -207,6 +213,7 @@ public class BonjourDirectory implements ServiceListener {
             BonjourService bs = createBonjourService(serviceInfo);
             // Synchronized to properly handle duplicate calls
             synchronized(instance) {
+                // Note: BonjourService#equals() uses the service's fully qualified name as the discriminator.
                 if(bs!=null && services.contains(bs)) {
                     if(Debug.ON) Debug.trace("BonjourService "+bs+" removed");
                     services.remove(bs);

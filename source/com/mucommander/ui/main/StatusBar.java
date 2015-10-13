@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +20,14 @@ package com.mucommander.ui.main;
 
 import com.mucommander.PlatformManager;
 import com.mucommander.cache.LRUCache;
+import com.mucommander.conf.ConfigurationEvent;
+import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.runtime.JavaVersions;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
@@ -33,7 +36,7 @@ import com.mucommander.ui.event.ActivePanelListener;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.event.TableSelectionListener;
-import com.mucommander.ui.icon.IconManager;
+import com.mucommander.ui.icon.SpinningDial;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableModel;
 import com.mucommander.ui.theme.*;
@@ -72,6 +75,9 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
     /** Label that displays info about current selected file(s) */
     private JLabel selectedFilesLabel;
+
+    /** Icon used while loading is in progress. */
+    private SpinningDial dial;
 	
     /** Label that displays info about current volume (free/total space) */
     private VolumeSpaceLabel volumeSpaceLabel;
@@ -93,11 +99,51 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
      * Each cache item maps a path to a volume info string */
     private static LRUCache volumeInfoCache = LRUCache.createInstance(VOLUME_INFO_CACHE_CAPACITY);
 	
-    /** SizeFormat's format used to display volume info in status bar */
-    private final static int VOLUME_INFO_SIZE_FORMAT = SizeFormat.DIGITS_SHORT| SizeFormat.UNIT_SHORT| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB;
-
     /** Icon that is displayed when folder is changing */
     public final static String WAITING_ICON = "waiting.png";
+
+    /** SizeFormat's format used to display volume info in status bar */
+    private final static int VOLUME_INFO_SIZE_FORMAT = SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB;
+
+    /** Listens to configuration changes and updates static fields accordingly */
+    public final static ConfigurationListener CONFIGURATION_ADAPTER;
+
+    /** SizeFormat format used to create the selected file(s) size string */
+    private static int selectedFileSizeFormat;
+
+
+    static {
+        // Initialize the size column format based on the configuration
+        setSelectedFileSizeFormat(MuConfiguration.getVariable(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE,
+                                                  MuConfiguration.DEFAULT_DISPLAY_COMPACT_FILE_SIZE));
+
+        // Listens to configuration changes and updates static fields accordingly.
+        // Note: a reference to the listener must be kept to prevent it from being garbage-collected.
+        CONFIGURATION_ADAPTER = new ConfigurationListener() {
+            public synchronized void configurationChanged(ConfigurationEvent event) {
+                String var = event.getVariable();
+
+                if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE))
+                    setSelectedFileSizeFormat(event.getBooleanValue());
+            }
+        };
+        MuConfiguration.addConfigurationListener(CONFIGURATION_ADAPTER);
+    }
+
+
+    /**
+     * Sets the SizeFormat format used to create the selected file(s) size string.
+     *
+     * @param compactSize true to use a compact size format, false for full size in bytes
+     */
+    private static void setSelectedFileSizeFormat(boolean compactSize) {
+        if(compactSize)
+            selectedFileSizeFormat = SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_SHORT | SizeFormat.ROUND_TO_KB;
+        else
+            selectedFileSizeFormat = SizeFormat.DIGITS_FULL | SizeFormat.UNIT_LONG;
+
+        selectedFileSizeFormat |= SizeFormat.INCLUDE_SPACE;
+    }
 
 
     /**
@@ -110,6 +156,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         this.mainFrame = mainFrame;
 		
         selectedFilesLabel = new JLabel("");
+        dial               = new SpinningDial();
         add(selectedFilesLabel);
 
         add(Box.createHorizontalGlue());
@@ -133,16 +180,16 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         setVisible(MuConfiguration.getVariable(MuConfiguration.STATUS_BAR_VISIBLE, MuConfiguration.DEFAULT_STATUS_BAR_VISIBLE));
         
         // Catch location events to update status bar info when folder is changed
-        FolderPanel folderPanel1 = mainFrame.getFolderPanel1();
-        folderPanel1.getLocationManager().addLocationListener(this);
+        FolderPanel leftPanel = mainFrame.getLeftPanel();
+        leftPanel.getLocationManager().addLocationListener(this);
 
-        FolderPanel folderPanel2 = mainFrame.getFolderPanel2();
-        folderPanel2.getLocationManager().addLocationListener(this);
+        FolderPanel rightPanel = mainFrame.getRightPanel();
+        rightPanel.getLocationManager().addLocationListener(this);
 
         // Catch table selection change events to update the selected files info when the selected files have changed on
         // one of the file tables
-        folderPanel1.getFileTable().addTableSelectionListener(this);
-        folderPanel2.getFileTable().addTableSelectionListener(this);
+        leftPanel.getFileTable().addTableSelectionListener(this);
+        rightPanel.getFileTable().addTableSelectionListener(this);
 
         // Catch active panel change events to update status bar info when current table has changed
         mainFrame.addActivePanelListener(this);
@@ -207,8 +254,6 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         else
             nbSelectedFiles = nbMarkedFiles;
 
-        boolean compactFileSize = MuConfiguration.getVariable(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE,
-                                                                   MuConfiguration.DEFAULT_DISPLAY_COMPACT_FILE_SIZE);
         String filesInfo;
 		
         if(fileCount==0) {
@@ -220,7 +265,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             filesInfo = Translator.get("status_bar.selected_files", ""+nbSelectedFiles, ""+fileCount);
 			
             if(nbMarkedFiles>0)
-                filesInfo += " - "+ SizeFormat.format(markedTotalSize, (compactFileSize? SizeFormat.DIGITS_SHORT: SizeFormat.DIGITS_FULL)|(compactFileSize? SizeFormat.UNIT_SHORT: SizeFormat.UNIT_LONG)| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB);
+                filesInfo += " - "+ SizeFormat.format(markedTotalSize, selectedFileSizeFormat);
 	
             if(selectedFile!=null)
                 filesInfo += " - "+selectedFile.getName();
@@ -261,7 +306,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
                     // Folder is a local file and Java version is 1.5 or lower: call getVolumeInfo() instead of 
                     // separate calls to getFreeSpace() and getTotalSpace() as it is twice as fast.
-                    if(currentFolder instanceof LocalFile && PlatformManager.getJavaVersion()<=PlatformManager.JAVA_1_5) {
+                    if(currentFolder instanceof LocalFile && JavaVersions.JAVA_1_5.isCurrentOrLower()) {
                         long volumeInfo[] = ((LocalFile)currentFolder).getVolumeInfo();
                         volumeTotal = volumeInfo[0];
                         volumeFree = volumeInfo[1];
@@ -452,7 +497,9 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
     public void locationChanging(LocationEvent e) {
         // Show a message in the status bar saying that folder is being changed
-        setStatusInfo(Translator.get("status_bar.connecting_to_folder"), IconManager.getIcon(IconManager.STATUS_BAR_ICON_SET, WAITING_ICON), true);
+//        setStatusInfo(Translator.get("status_bar.connecting_to_folder"), IconManager.getIcon(IconManager.STATUS_BAR_ICON_SET, WAITING_ICON), true);
+        setStatusInfo(Translator.get("status_bar.connecting_to_folder"), dial, true);
+        dial.setAnimated(true);
     }
 	
     public void locationCancelled(LocationEvent e) {
@@ -531,6 +578,11 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             repaint();
         }
     }
+
+
+    ///////////////////
+    // Inner classes //
+    ///////////////////
 
     /**
      * This label displays the amount of free and/or total space on a volume.
@@ -647,7 +699,10 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                 backgroundColor = event.getColor();
                 break;
             case Theme.STATUS_BAR_BORDER_COLOR:
-                ((MutableLineBorder)getBorder()).setLineColor(event.getColor());
+                // Some (rather evil) look and feels will change borders outside of muCommander's control,
+                // this check is necessary to ensure no exception is thrown.
+                if(getBorder() instanceof MutableLineBorder)
+                    ((MutableLineBorder)getBorder()).setLineColor(event.getColor());
                 break;
             case Theme.STATUS_BAR_OK_COLOR:
                 okColor = event.getColor();

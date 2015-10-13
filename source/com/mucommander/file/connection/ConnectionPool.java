@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -214,7 +214,7 @@ public class ConnectionPool implements Runnable {
      * Closes a specified ConnectionHandler's connection in a separate thread and removes the ConnectionHandler from
      * the list of registered ConnectionHandler instances.
      */
-    private class CloseConnectionThread extends Thread {
+    private static class CloseConnectionThread extends Thread {
 
         private ConnectionHandler connHandler;
 
@@ -236,7 +236,7 @@ public class ConnectionPool implements Runnable {
      * Keeps alive a specified ConnectionHandler's connection in a separate thread. If the connection is not currently
      * active, {@link com.mucommander.file.connection.ConnectionHandler#keepAlive()} will not be called.
      */
-    private class KeepAliveConnectionThread extends Thread {
+    private static class KeepAliveConnectionThread extends Thread {
 
         private final ConnectionHandler connHandler;
 

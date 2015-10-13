@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ public abstract class ChainedFileFilter extends FileFilter {
      *
      * @param filter the FileFilter to add
      */
-    public synchronized void addFileFilter(FileFilter filter) {
+    public void addFileFilter(FileFilter filter) {
         filters.add(filter);
     }
 
@@ -59,7 +59,7 @@ public abstract class ChainedFileFilter extends FileFilter {
      *
      * @param filter the FileFilter to remove
      */
-    public synchronized void removeFileFilter(FileFilter filter) {
+    public void removeFileFilter(FileFilter filter) {
         filters.remove(filter);
     }
 
@@ -68,7 +68,16 @@ public abstract class ChainedFileFilter extends FileFilter {
      *
      * @return an <code>Iterator</code> that traverses all the registered filters. 
      */
-    public synchronized Iterator getFileFilterIterator() {
+    public Iterator getFileFilterIterator() {
         return filters.iterator();
+    }
+
+    /**
+     * Returns <code>true</code> if this chained filter doesn't contain any file filter.
+     *
+     * @return <code>true</code> if this chained filter doesn't contain any file filter.
+     */
+    public boolean isEmpty() {
+        return filters.isEmpty();
     }
 }

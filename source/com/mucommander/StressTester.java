@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,24 +31,29 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Random;
 
-
+/**
+ * Used to start muCommander in stress-test mode.
+ * @author Maxence Bernard
+ */
 public class StressTester implements Runnable, ActionListener {
-
-    private static Thread stressThread;
+    private boolean run;
 
     public StressTester() {
-        (stressThread = new Thread(this)).start();
+        run = true;
     }
 
-    public static void stop() {
-        stressThread = null;
+    /**
+     * Stops the current stress test.
+     */
+    public void stop() {
+        run = false;
     }
 
     public void run() {
         Random random = new Random();
         MainFrame mainFrame = WindowManager.getCurrentMainFrame();
 
-        while(stressThread!=null) {
+        while(run) {
             if(random.nextInt(2)==0)
                 ActionManager.performAction(com.mucommander.ui.action.SwitchActiveTableAction.class, mainFrame);    
 
@@ -80,7 +85,7 @@ public class StressTester implements Runnable, ActionListener {
             }
 
             if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Sleeping for a bit...");
-            try { stressThread.sleep(100+random.nextInt(200)); }
+            try {Thread.currentThread().sleep(100+random.nextInt(200)); }
             catch(InterruptedException e) { if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught InterruptedException "+e);}
         }
     }
@@ -89,12 +94,17 @@ public class StressTester implements Runnable, ActionListener {
         stop();
     }
 
+    /**
+     * Method used to start the stress tester.
+     * @param args command line arguments.
+     */
     public static void main(String args[]) {
         Launcher.main(args);
 
         StressTester instance = new StressTester();
         JDialog stopDialog = new JDialog();
         JButton stopButton = new JButton("Stop");
+        new Thread(instance).start();
         stopButton.addActionListener(instance);
         stopDialog.getContentPane().add(stopButton);
         stopDialog.setSize(new Dimension(80, 60));

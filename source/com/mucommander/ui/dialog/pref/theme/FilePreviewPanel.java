@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +19,21 @@
 package com.mucommander.ui.dialog.pref.theme;
 
 import com.mucommander.text.Translator;
-import com.mucommander.ui.theme.*;
-import com.mucommander.ui.main.table.CellLabel;
-import com.mucommander.ui.chooser.PreviewLabel;
 import com.mucommander.ui.border.MutableLineBorder;
+import com.mucommander.ui.chooser.PreviewLabel;
 import com.mucommander.ui.icon.CustomFileIconProvider;
 import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.ui.icon.IconManager;
+import com.mucommander.ui.main.table.CellLabel;
+import com.mucommander.ui.theme.Theme;
+import com.mucommander.ui.theme.ThemeData;
 
 import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
-import java.beans.PropertyChangeListener;
+import java.awt.*;
 import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 
 /**
  * @author Nicolas Rinaudo
@@ -92,8 +93,12 @@ class FilePreviewPanel extends JScrollPane implements PropertyChangeListener {
     public void propertyChange(PropertyChangeEvent event) {
         if(event.getPropertyName().equals(PreviewLabel.BACKGROUND_COLOR_PROPERTY_NAME))
             getViewport().setBackground(data.getColor(isActive ? Theme.FILE_TABLE_BACKGROUND_COLOR : Theme.FILE_TABLE_INACTIVE_BACKGROUND_COLOR));
-        else if(event.getPropertyName().equals(PreviewLabel.BORDER_COLOR_PROPERTY_NAME))
-            ((MutableLineBorder)getBorder()).setLineColor(data.getColor(isActive ? Theme.FILE_TABLE_BORDER_COLOR : Theme.FILE_TABLE_INACTIVE_BORDER_COLOR));
+        else if(event.getPropertyName().equals(PreviewLabel.BORDER_COLOR_PROPERTY_NAME)) {
+            // Some (rather evil) look and feels will change borders outside of muCommander's control,
+            // this check is necessary to ensure no exception is thrown.
+            if(getBorder() instanceof MutableLineBorder)
+                ((MutableLineBorder)getBorder()).setLineColor(data.getColor(isActive ? Theme.FILE_TABLE_BORDER_COLOR : Theme.FILE_TABLE_INACTIVE_BORDER_COLOR));
+        }
         else if(!event.getPropertyName().equals(PreviewLabel.FOREGROUND_COLOR_PROPERTY_NAME))
             return;
         repaint();

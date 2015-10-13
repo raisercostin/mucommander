@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,20 @@
 
 package com.mucommander.io;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
  * <code>RandomAccessInputStream</code> is an <code>InputStream</code> with random access.
+ *
+ * The following <code>java.io.InputStream</code> methods are overridden to provide an improved implementation:
+ * <ul>
+ *   <li>{@link #mark(int)}</li>
+ *   <li>{@link #reset()}</li>
+ *   <li>{@link #markSupported()}</li>
+ *   <li>{@link #skip(long)}</li>
+ *   <li>{@link #available()}</li>
+ * </ul>
  *
  * <b>Important:</b> <code>BufferedInputStream</code> or any wrapper <code>InputStream</code> class that uses a read buffer
  * CANNOT be used with a <code>RandomAccessInputStream</code> if the {@link #seek(long)} method is to be used. Doing so
@@ -44,6 +52,35 @@ public abstract class RandomAccessInputStream extends InputStream implements Ran
     }
 
 
+    /**
+     * Reads <code>b.length</code> bytes from this file into the byte array, starting at the current file pointer.
+     * This method reads repeatedly from the file until the requested number of bytes are read. This method blocks until
+     * the requested number of bytes are read, the end of the stream is detected, or an exception is thrown.
+     *
+     * @param b the buffer into which the data is read.
+     * @throws java.io.EOFException if this file reaches the end before reading all the bytes.
+     * @throws IOException if an I/O error occurs.
+     */
+    public void readFully(byte b[]) throws IOException {
+        StreamUtils.readFully(this, b, 0, b.length);
+    }
+
+    /**
+     * Reads exactly <code>len</code> bytes from this file into the byte array, starting at the current file pointer.
+     * This method reads repeatedly from the file until the requested number of bytes are read. This method blocks until
+     * the requested number of bytes are read, the end of the stream is detected, or an exception is thrown.
+     *
+     * @param b the buffer into which the data is read.
+     * @param off the start offset of the data.
+     * @param len the number of bytes to read.
+     * @throws java.io.EOFException  if this file reaches the end before reading all the bytes.
+     * @throws IOException if an I/O error occurs.
+     */
+    public void readFully(byte b[], int off, int len) throws IOException {
+        StreamUtils.readFully(this, b, off, len);
+    }
+
+
     ////////////////////////
     // Overridden methods //
     ////////////////////////
@@ -54,22 +91,34 @@ public abstract class RandomAccessInputStream extends InputStream implements Ran
      * plus the number of bytes to skip doesn't exceed the length of this stream as returned by {@link #getLength()}.
      * If it does, all the remaining bytes will be skipped so that the offset of this stream will be positionned to
      * {@link #getLength()}.
+     * Returns <code>-1</code> if the offset is already positionned to the end of the stream when this method is called.
      *
      * @param n number of bytes to skip
-     * @return the number of bytes that have effectively been skipped
+     * @return the number of bytes that have effectively been skipped, -1 if the offset is already positionned to the
+     * end of the stream when this method is called
      * @throws IOException if something went wrong
      */
     public long skip(long n) throws IOException {
+        if(n<=0)
+            return 0;
+
         long offset = getOffset();
-
         long length = getLength();
-        if(offset+n >= length) {
-            seek(length-1);
-            return length - offset - 1;
-        }
 
-        seek(offset+n);
-        return n;
+        // Return -1 if the offset is already at the end of the stream
+        if(offset>=length)
+            return -1;
+
+        // Makes sure not to go beyond the end of the stream
+        long newOffset = offset + n;
+        if (newOffset > length)
+            newOffset = length;
+
+        // Seek to the new offset
+        seek(newOffset);
+
+        // Return the actual number of bytes skipped
+        return (int) (newOffset - offset);
     }
 
     /**
@@ -111,51 +160,7 @@ public abstract class RandomAccessInputStream extends InputStream implements Ran
         return true;
     }
 
-    /**
-     * Reads <code>b.length</code> bytes from this file into the byte
-     * array, starting at the current file pointer. This method reads
-     * repeatedly from the file until the requested number of bytes are
-     * read. This method blocks until the requested number of bytes are
-     * read, the end of the stream is detected, or an exception is thrown.
-     *
-     * @param      b   the buffer into which the data is read.
-     * @exception java.io.EOFException  if this file reaches the end before reading
-     *               all the bytes.
-     * @exception  IOException   if an I/O error occurs.
-     */
-    public void readFully(byte b[]) throws IOException {
-        readFully(b, 0, b.length);
-    }
 
-    /**
-     * Reads exactly <code>len</code> bytes from this file into the byte
-     * array, starting at the current file pointer. This method reads
-     * repeatedly from the file until the requested number of bytes are
-     * read. This method blocks until the requested number of bytes are
-     * read, the end of the stream is detected, or an exception is thrown.
-     *
-     * @param      b     the buffer into which the data is read.
-     * @param      off   the start offset of the data.
-     * @param      len   the number of bytes to read.
-     * @exception java.io.EOFException  if this file reaches the end before reading
-     *               all the bytes.
-     * @exception  IOException   if an I/O error occurs.
-     */
-    public void readFully(byte b[], int off, int len) throws IOException {
-        if(len==0)
-            return;
-
-        int n = 0;
-        do {
-            int count = read(b, off + n, len - n);
-            if (count < 0)
-                throw new EOFException();
-            n += count;
-        }
-        while (n < len);
-    }
-
-    
     //////////////////////
     // Abstract methods //
     //////////////////////
@@ -172,4 +177,12 @@ public abstract class RandomAccessInputStream extends InputStream implements Ran
      * @throws IOException if an I/O error occurs
      */
     public abstract int read(byte b[], int off, int len) throws IOException;
+
+    /**
+     * Closes this stream and releases any system resources associated with the stream.
+     * A closed stream cannot perform input operations and cannot be reopened.
+     *
+     * @throws IOException if an I/O error occurs.
+     */
+    public abstract void close() throws IOException;
 }

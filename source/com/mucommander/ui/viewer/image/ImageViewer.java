@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,6 @@ import java.io.InputStream;
  * @author Maxence Bernard
  */
 class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
-	
     private Image image;
     private Image scaledImage;
     private Color backgroundColor;
@@ -54,21 +53,10 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
     private JMenuItem zoomInItem;
     private JMenuItem zoomOutItem;
 	
-	
     public ImageViewer() {
         backgroundColor = ThemeManager.getCurrentColor(Theme.EDITOR_BACKGROUND_COLOR);
         ThemeManager.addCurrentThemeListener(this);
     }	
-
-
-    public static boolean canViewFile(AbstractFile file) {
-        String name = file.getName();
-        String nameLowerCase = name.toLowerCase();
-        return nameLowerCase.endsWith(".png")
-            ||nameLowerCase.endsWith(".gif")
-            ||nameLowerCase.endsWith(".jpg")
-            ||nameLowerCase.endsWith(".jpeg");
-    }
 
     private synchronized void loadImage(AbstractFile file) throws IOException {
         frame.setCursor(new Cursor(Cursor.WAIT_CURSOR));
@@ -176,15 +164,16 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
 
         ViewerFrame frame = getFrame();
         if(frame!=null) {
-            MnemonicHelper menuItemMnemonicHelper = new MnemonicHelper();
+            MnemonicHelper menuMnemonicHelper = new MnemonicHelper();
 
             // Create Go menu
-            JMenu controlsMenu = frame.addMenu(Translator.get("image_viewer.controls_menu"));
+            JMenu controlsMenu = MenuToolkit.addMenu(Translator.get("image_viewer.controls_menu"), menuMnemonicHelper, null);
             //		nextImageItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.next_image"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), this);
             //		prevImageItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.previous_image"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), this);
             //		controlsMenu.add(new JSeparator());
-            zoomInItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_in"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), this);
-            zoomOutItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_out"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), this);
+            zoomInItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_in"), menuMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), this);
+            zoomOutItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_out"), menuMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), this);
+            frame.getJMenuBar().add(controlsMenu);
         }
 
         loadImage(file);

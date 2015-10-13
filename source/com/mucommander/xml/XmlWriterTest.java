@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,19 +18,14 @@
 
 package com.mucommander.xml;
 
-import javax.xml.parsers.DocumentBuilder; 
-import javax.xml.parsers.DocumentBuilderFactory;  
-import javax.xml.parsers.FactoryConfigurationError;  
-import javax.xml.parsers.ParserConfigurationException;
-import org.xml.sax.SAXException;  
-import org.xml.sax.SAXParseException;
+import junit.framework.TestCase;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.DOMException;
-import junit.framework.TestCase;
-import java.io.ByteArrayOutputStream;
+
+import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -50,12 +45,10 @@ public class XmlWriterTest extends TestCase {
      * Reads the content of the specified byte array in a DOM Document.
      * @param  bytes       content of the XML document.
      * @return             the content of the specified byte array in a DOM Document.
-     * @throws IOException if any error occurs.
+     * @throws Exception if any error occurs.
      */
-    private Document getDocument(byte[] bytes) throws IOException {
-        try {return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new ByteArrayInputStream(bytes));}
-        catch(ParserConfigurationException e) {throw new IOException(e);}
-        catch(SAXException e) {throw new IOException(e);}
+    private Document getDocument(byte[] bytes) throws Exception {
+        return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new ByteArrayInputStream(bytes));
     }
 
 
@@ -64,8 +57,9 @@ public class XmlWriterTest extends TestCase {
     // -------------------------------------------------------------------
     /**
      * Makes sure that XML entities are escaped properly.
+     * @throws IOException if an error occurs.
      */
-    public void testXmlEntities() throws IOException {
+    public void testXmlEntities() throws Exception {
         XmlWriter             writer;
         XmlAttributes         attributes;
         ByteArrayOutputStream out;

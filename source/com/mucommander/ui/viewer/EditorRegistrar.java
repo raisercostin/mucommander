@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,14 +20,18 @@
 package com.mucommander.ui.viewer;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileProtocols;
+import com.mucommander.runtime.JavaVersions;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
+import com.mucommander.text.Translator;
+import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
 
 import java.awt.*;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.util.Vector;
 import java.util.Iterator;
+import java.util.Vector;
 
 /**
  * EditorRegistrar maintains a list of registered file editors and provides methods to dynamically register file editors
@@ -40,13 +44,17 @@ public class EditorRegistrar {
     /** List of registered file editors */ 
     private final static Vector editorFactories = new Vector();
 
-    /** Default editor. */
-    private final static EditorFactory DEFAULT_EDITOR = new com.mucommander.ui.viewer.text.TextFactory();
+    static {
+        registerFileEditor(new com.mucommander.ui.viewer.text.TextFactory());
+    }
 
     /**
      * Registers a FileEditor.
+     * @param factory file editor factory to register.
      */
-    public static void registerFileEditor(EditorFactory factory) {editorFactories.add(factory);}
+    public static void registerFileEditor(EditorFactory factory) {
+        editorFactories.add(factory);
+    }
 
     /**
      * Creates and returns an EditorFrame to start viewing the given file. The EditorFrame will be monitored
@@ -59,6 +67,13 @@ public class EditorRegistrar {
      */
     public static EditorFrame createEditorFrame(MainFrame mainFrame, AbstractFile file, Image icon) {
         EditorFrame frame = new EditorFrame(mainFrame, file, icon);
+
+        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+            // Displays the document icon in the window title bar, works only for local files
+            if(file.getURL().getProtocol().equals(FileProtocols.FILE))
+                frame.getRootPane().putClientProperty("Window.documentFile", file.getUnderlyingFileObject());
+        }
 
         // WindowManager will listen to window closed events to trigger shutdown sequence
         // if it is the last window visible
@@ -73,18 +88,35 @@ public class EditorRegistrar {
      *
      * @param file the file that will be displayed by the returned FileEditor
      * @return the created FileEditor
-     * @throws Exception if an editor couldn't be instanciated or the given file couldn't be read.
+     * @throws UserCancelledException if the user has been asked to confirm the operation and cancelled
      */
-    public static FileEditor createFileEditor(AbstractFile file) throws Exception {
+    public static FileEditor createFileEditor(AbstractFile file) throws UserCancelledException {
         Iterator      iterator;
         EditorFactory factory;
 
         iterator = editorFactories.iterator();
         while(iterator.hasNext()) {
             factory = (EditorFactory)iterator.next();
-            if(factory.canEditFile(file))
+
+            try {
+                if(factory.canEditFile(file))
+                    return factory.createFileEditor();
+            }
+            catch(WarnUserException e) {
+                QuestionDialog dialog = new QuestionDialog((Frame)null, Translator.get("warning"), Translator.get(e.getMessage()), null,
+                                                           new String[] {Translator.get("file_editor.open_anyway"), Translator.get("cancel")},
+                                                           new int[]  {0, 1},
+                                                           0);
+
+                int ret = dialog.getActionValue();
+                if(ret==1 || ret==-1)   // User cancelled the operation
+                    throw new UserCancelledException();
+
+                // User confirmed the operation
                 return factory.createFileEditor();
+            }
         }
-        return DEFAULT_EDITOR.createFileEditor();
+
+        return null;
     }
 }

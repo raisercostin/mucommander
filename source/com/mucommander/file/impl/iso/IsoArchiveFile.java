@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractROArchiveFile;
 import com.mucommander.file.ArchiveEntry;
 import com.mucommander.io.RandomAccessInputStream;
+import com.mucommander.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -127,7 +128,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
 
         while (len > 0) {
             rais.seek(sector(extent - sector_offset, cooked));
-            rais.read(buffer);
+            StreamUtils.readFully(rais, buffer);
             len -= buffer.length;
             extent++;
             i = 0;
@@ -236,12 +237,12 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
     private static int S_IFREG = 0100000;
     private static int S_IFDIR = 0040000;
 
-    private class stat {
+    private static class stat {
         int st_size;
         int st_mode;
     }
 
-    private class todo {
+    private static class todo {
         private todo next;
         private String name;
         private int extent;
@@ -249,7 +250,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
     }
 
     // WIP rewrite it cleanly for cooked
-    private class isoInputStream extends InputStream {
+    private static class isoInputStream extends InputStream {
         private RandomAccessInputStream rais;
         private int pos;
         private long size;
@@ -294,7 +295,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
                     ret = rais.read(b, cur, 2048);
                     if (ret != -1)
                         pos += ret;
-                    rais.skip(280 + 24);
+                    StreamUtils.skipFully(rais, 280 + 24);
                     cur += 2048;
                 }
                 ret = rais.read(b, cur, half);
@@ -315,7 +316,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
         }
     }
 
-    private class isoDr {
+    private static class isoDr {
         public byte[] length = new byte[ISODCL(1, 1)];
         public byte[] ext_attr_length = new byte[ISODCL(2, 2)];
         public byte[] extent = new byte[ISODCL(3, 10)];
@@ -345,7 +346,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
         }
     }
 
-    private class isoPvd {
+    private static class isoPvd {
         public byte[] type = new byte[ISODCL(1, 1)];
         public byte[] id = new byte[ISODCL(2, 6)];
         public byte[] version = new byte[ISODCL(7, 7)];
@@ -390,11 +391,11 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
                 effective_date, file_structure_version, unused4, application_data,
                 unused5};
 
-        boolean cooked;
+        //        boolean cooked;
 
         public isoPvd(RandomAccessInputStream rais, int start, boolean cooked) throws Exception {
             byte[] pvd = new byte[2048];
-            this.cooked = cooked;
+            //            this.cooked = cooked;
             rais.seek(sector(start, cooked));
             rais.read(pvd);
             load(pvd);

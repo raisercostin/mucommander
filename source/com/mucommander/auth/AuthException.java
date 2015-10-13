@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ public class AuthException extends IOException {
 
     /**
      * Returns the URL of the file for which authentication failed.
+     * @return the URL of the file for which authentication failed.
      */
     public FileURL getFileURL() {
         return fileURL;
@@ -70,6 +71,7 @@ public class AuthException extends IOException {
 	
     /**
      * Returns a message describing the exception.
+     * @return a message describing the exception.
      */
     public String getMessage() {
         return msg;

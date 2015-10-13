@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,14 @@ import com.mucommander.bookmark.XORCipher;
 
 
 /**
- * This class is a container for a login and password pair, used to authenticate a location on a remote filesystem.
+ * This class is a container for a login and password pair, used to authenticate a location on a filesystem.
  *
  * @see com.mucommander.file.FileURL
+ * @see com.mucommander.auth.CredentialsMapping
+ * @see com.mucommander.auth.CredentialsManager
  * @author Maxence Bernard
  */
-public class Credentials {
+public final class Credentials {
 
     private String login;
     private String password;
@@ -53,21 +55,27 @@ public class Credentials {
     }
 
     /**
-     * Returns the login part. Returned login may be an empty string but never null.
+     * Returns the login part. The returned login may be an empty string but never <code>null</code>.
+     *
+     * @return the login part.
      */
     public String getLogin() {
         return login;
     }
 	
     /**
-     * Returns the password part. Returned password may be an empty string but never null.
+     * Returns the password part. The returned password may be an empty string but never <code>null</code>.
+     *
+     * @return the password part.
      */
     public String getPassword() {
         return password;
     }
 
     /**
-     * Returns the password as a masked string, each of the characters replaced by '*' characters. 
+     * Returns the password as a masked string, each of the characters replaced by '*' characters.
+     *
+     * @return the password as a masked string.
      */
     public String getMaskedPassword() {
         int passwordLength = password.length();
@@ -80,6 +88,8 @@ public class Credentials {
 
     /**
      * Returns the password as a weakly encrypted string.
+     *
+     * @return the password as a weakly encrypted string.
      */
     public String getEncryptedPassword() {
         return XORCipher.encryptXORBase64(password);
@@ -87,37 +97,66 @@ public class Credentials {
 
 
     /**
-     * Returns true if these credentials are empty, that is both the login and password are empty strings.
+     * Returns <code>true</code> if these credentials are empty.
+     * <p>
+     * Credentials are said to be empty if both login and password are empty strings.
+     * </p>
+     *
+     * @return <code>true</code> if these credentials are empty, <code>false</code> otherwise.
      */
     public boolean isEmpty() {
         return "".equals(login) && "".equals(password);
     }
 
 
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
     /**
-     * Returns true if the login of the provided credentials (as returned by {@link #getLogin()} equals to one in
-     * this Credentials instance, false otherwise. Two Credentials instances with the same login but a different
-     * password will thus be equal. If null is passed, true will be returned if these Credentials are empty, as returned
-     * by {@link #isEmpty()}.
+     * This method is equivalent to calling {@link #equals(Object, boolean)} with <code>false</code>:
+     * two Credentials instances with the same login but a different password are considered equal.
+     *
+     * @param o the Object to test for equality
+     * @return true if this and the specified instance are equal
+     * @see #equals(Object, boolean)
      */
     public boolean equals(Object o) {
+        return equals(o, false);
+    }
+
+    /**
+     * Returns <code>true</code> if these Credentials and the specified instance are equal. For credentials to be equal,
+     * their login (as returned by {@link #getLogin()} must be equal. If the password-sensitive parameter is enabled,
+     * their passwords (as returned by {@link #getPassword()} must also match.
+     *
+     * <p>
+     * Empty Credentials and <code>null</code> are considered equal: if a <code>null</code> instance is specified,
+     * <code>true</code> is returned if these Credentials are {@link #isEmpty() empty}).
+     * </p>
+     *
+     * @param o the Object to test for equality
+     * @param passwordSensitive true if passwords need to be equal for credentials instanes to match
+     * @return true if this and the specified instance are equal
+     */
+    public boolean equals(Object o, boolean passwordSensitive) {
         // Empty Credentials and null are equivalent
         if(o==null)
             return isEmpty();
 
-        if(!(o instanceof Credentials))
+        if(!(o instanceof Credentials)) // Note: this class is declared final so we don't need to worry about subclasses
             return false;
 
         Credentials credentials = (Credentials)o;
 
-        // Do not test password, only login so that if password changes Credentials are replaced by CredentialsManager
-        // and not duplicated
-        return credentials.login.equals(this.login);
+        return credentials.login.equals(this.login)
+            && (!passwordSensitive || credentials.password.equals(this.password));
     }
-
 
     /**
      * Returns a cloned instance of these Credentials.
+     *
+     * @return a cloned instance of these Credentials
      */
     public Object clone() {
         try {
@@ -129,7 +168,6 @@ public class Credentials {
         }
     }
 
-	
     public String toString() {
         return login;
     }

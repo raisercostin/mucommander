@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ import com.mucommander.process.ProcessRunner;
 import java.io.IOException;
 
 /**
+ * Used to execute shell commands.
  * @author Maxence Bernard, Nicolas Rinaudo
  */
 public class Shell implements ConfigurationListener {

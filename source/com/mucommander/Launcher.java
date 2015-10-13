@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 package com.mucommander;
 
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.extension.ExtensionManager;
+import com.mucommander.runtime.OsFamilies;
 import com.mucommander.shell.ShellHistoryManager;
 import com.mucommander.ui.dialog.startup.CheckVersionDialog;
 import com.mucommander.ui.dialog.startup.InitialSetupDialog;
@@ -38,6 +40,7 @@ import java.lang.reflect.Constructor;
  * @author Maxence Bernard, Nicolas Rinaudo
  */
 public class Launcher {
+
     // - Class fields -----------------------------------------------------------
     // --------------------------------------------------------------------------
     private static SplashScreen splashScreen;
@@ -79,7 +82,10 @@ public class Launcher {
         System.out.println(" -c FILE, --configuration FILE     Load configuration from FILE");
 
         // Allows users to tweak how command bar configuration is loaded / saved.
-        System.out.println(" -C FILE, --commandbar FILE        Load command bar from FILE");
+        System.out.println(" -C FILE, --commandbar FILE        Load command bar from FILE.");
+
+        // Allows users to change the extensions folder.
+        System.out.println(" -e FOLDER, --extensions FOLDER    Load extensions from FOLDER.");
 
         // Allows users to tweak how custom commands are loaded / saved.
         System.out.println(" -f FILE, --commands FILE          Load custom commands from FILE.");
@@ -210,6 +216,7 @@ public class Launcher {
     // --------------------------------------------------------------------------
     /**
      * Main method used to startup muCommander.
+     * @param args command line arguments.
      */
     public static void main(String args[]) {
         int i; // Index in the command line arguments.
@@ -218,8 +225,6 @@ public class Launcher {
         fatalWarnings = false;
         verbose       = true;
         useSplash     = true;
-
-
 
         // - Command line parsing -------------------------------------
         // ------------------------------------------------------------
@@ -324,8 +329,16 @@ public class Launcher {
             else if((args[i].equals("-p") || args[i].equals("--preferences"))) {
                 if(i >= args.length - 1)
                     printError("Missing FOLDER parameter to " + args[i], null, true);
-                try {PlatformManager.setPreferencesFolder(new java.io.File(args[++i]));}
+                try {PlatformManager.setPreferencesFolder(args[++i]);}
                 catch(Exception e) {printError("Could not set preferences folder", e, fatalWarnings);}
+            }
+
+            // Extensions folder.
+            else if((args[i].equals("-e") || args[i].equals("--extensions"))) {
+                if(i >= args.length - 1)
+                    printError("Missing FOLDER parameter to " + args[i], null, true);
+                try {ExtensionManager.setExtensionsFolder(args[++i]);}
+                catch(Exception e) {printError("Could not set extensions folder", e, fatalWarnings);}
             }
 
             // Ignore warnings.
@@ -349,11 +362,13 @@ public class Launcher {
                 break;
         }
 
+
+
         // - MAC OS init ----------------------------------------------
         // ------------------------------------------------------------
         // If muCommander is running under Mac OS X (how lucky!), add some
         // glue for the main menu bar and other OS X specifics.
-        if(PlatformManager.getOsFamily()==PlatformManager.MAC_OS_X) {
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
             // Configuration needs to be loaded before any sort of GUI creation
             // is performed - if we're to use the metal look, we need to know about
             // it right about now.
@@ -370,10 +385,12 @@ public class Launcher {
             catch(Exception e) {if(Debug.ON) Debug.trace("Exception thrown while initializing Mac OS X integration");}
         }
 
-
-
         // - muCommander boot -----------------------------------------
         // ------------------------------------------------------------
+        // Adds all extensions to the classpath.
+        try {ExtensionManager.addExtensionsToClasspath();}
+        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to add extensions to the classpath");}
+
         // Shows the splash screen.
         if(useSplash)
             splashScreen = new SplashScreen(RuntimeConstants.VERSION, "Loading preferences...");
@@ -384,7 +401,7 @@ public class Launcher {
         System.setProperty("java.net.useSystemProxies", "true");
 
         // If we're not running under OS_X, preferences haven't been loaded yet.
-        if(PlatformManager.getOsFamily() != PlatformManager.MAC_OS_X) {
+        if(!OsFamilies.MAC_OS_X.isCurrent()) {
             try {MuConfiguration.read();}
             catch(Exception e) {printFileError("Could not load configuration", e, fatalWarnings);}
         }
@@ -393,7 +410,7 @@ public class Launcher {
 
         // Traps VM shutdown
         Runtime.getRuntime().addShutdownHook(new ShutdownHook());
-		
+
         // Loads dictionary
         printStartupMessage("Loading dictionary...");
         try {com.mucommander.text.Translator.loadDictionaryFile();}
@@ -439,14 +456,12 @@ public class Launcher {
 
         // Loads the ToolBar's description file
         printStartupMessage("Loading toolbar description...");
-        try {
-            ToolBar.loadDescriptionFile();}
+        try {ToolBar.loadDescriptionFile();}
         catch(Exception e) {printFileError("Could not load toolbar description", e, fatalWarnings);}
 
         // Loads the CommandBar's description file
         printStartupMessage("Loading command bar description...");
-        try {
-            CommandBar.loadDescriptionFile();}
+        try {CommandBar.loadDescriptionFile();}
         catch(Exception e) {printFileError("Could not load commandbar description", e, fatalWarnings);}
 
         // Loads the themes.

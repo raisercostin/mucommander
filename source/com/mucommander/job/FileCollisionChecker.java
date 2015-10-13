@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,16 +41,16 @@ import com.mucommander.file.AbstractFile;
 public class FileCollisionChecker {
 
     /** No collision detected */
-    public static int NO_COLLOSION = 0;
+    public static final int NO_COLLOSION = 0;
 
     /** The destination file already exists and is not a directory */
-    public static int DESTINATION_FILE_ALREADY_EXISTS = 1;
+    public static final int DESTINATION_FILE_ALREADY_EXISTS = 1;
 
     /** Source and destination files are the same */
-    public static int SAME_SOURCE_AND_DESTINATION = 2;
+    public static final int SAME_SOURCE_AND_DESTINATION = 2;
 
     /** Source and destination are both folders and destination is a subfolder of source */
-    public static int SOURCE_PARENT_OF_DESTINATION = 3;
+    public static final int SOURCE_PARENT_OF_DESTINATION = 3;
 
     /**
      *

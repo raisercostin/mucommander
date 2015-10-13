@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@ package com.mucommander.ui.action;
 import com.mucommander.Debug;
 import com.mucommander.PlatformManager;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.ResourceLoader;
 import com.mucommander.io.BackupInputStream;
+import com.mucommander.io.StreamUtils;
 import com.mucommander.ui.main.MainFrame;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -59,7 +61,7 @@ public class ActionKeymap extends DefaultHandler {
     public final static String ACTION_KEYMAP_RESOURCE_PATH = "/" + DEFAULT_ACTION_KEYMAP_FILE_NAME;
 
     /** Action keymap file used when calling {@link #loadActionKeyMap()} */
-    private static File actionKeyMapFile;
+    private static AbstractFile actionKeyMapFile;
 
     /* Variables used for XML parsing */
 
@@ -78,21 +80,53 @@ public class ActionKeymap extends DefaultHandler {
     /**
      * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
      * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
-     *
-     * @param filePath path to the action keymap file
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setActionKeyMapFile(FileFactory.getFile(file))</code>.
+     * </p>
+     * @param  path                  path to the action keymap file
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
      */
-    public static void setActionKeyMapFile(String filePath) throws FileNotFoundException {
-        File tempFile;
+    public static void setActionKeyMapFile(String path) throws FileNotFoundException {
+        AbstractFile file;
 
-        tempFile = new File(filePath);
-        if(!(tempFile.exists() && tempFile.isFile() && tempFile.canRead()))
-            throw new FileNotFoundException("Not a valid file: " + filePath);
-        actionKeyMapFile = tempFile;
+        if((file = FileFactory.getFile(path)) == null)
+            setActionKeyMapFile(new File(path));
+        else
+            setActionKeyMapFile(file);
     }
 
-    public static File getActionKeyMapFile() {
+    /**
+     * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
+     * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
+     * <p>
+     * This is a convenience method and is strictly equivalent to calling <code>setActionKeyMapFile(FileFactory.getFile(file.getAbsolutePath()))</code>.
+     * </p>
+     * @param  file                  path to the action keymap file
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     */
+    public static void setActionKeyMapFile(File file) throws FileNotFoundException {setActionKeyMapFile(FileFactory.getFile(file.getAbsolutePath()));}
+
+    /**
+     * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
+     * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
+     * @param  file                  path to the action keymap file
+     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     */
+    public static void setActionKeyMapFile(AbstractFile file) throws FileNotFoundException {
+        if(file.isBrowsable())
+            throw new FileNotFoundException("Not a valid file: " + file.getAbsolutePath());
+
+        actionKeyMapFile = file;
+    }
+
+    /**
+     * Returns the path to the action keymap file.
+     * @return             the path to the action keymap file.
+     * @throws IOException if an error occured while locating the default action keymap file.
+     */
+    public static AbstractFile getActionKeyMapFile() throws IOException {
         if(actionKeyMapFile == null)
-            return new File(PlatformManager.getPreferencesFolder(), DEFAULT_ACTION_KEYMAP_FILE_NAME);
+            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_ACTION_KEYMAP_FILE_NAME);
         return actionKeyMapFile;
     }
 
@@ -129,33 +163,33 @@ public class ActionKeymap extends DefaultHandler {
 
 
     public static void registerActions(MainFrame mainFrame) {
-        JComponent table1 = mainFrame.getFolderPanel1().getFileTable();
-        JComponent table2 = mainFrame.getFolderPanel2().getFileTable();
+        JComponent leftTable = mainFrame.getLeftPanel().getFileTable();
+        JComponent rightTable = mainFrame.getRightPanel().getFileTable();
 
         Enumeration actionClasses = primaryActionKeymap.keys();
         while(actionClasses.hasMoreElements()) {
             MuAction action = ActionManager.getActionInstance((Class)actionClasses.nextElement(), mainFrame);
-            ActionKeymap.registerActionAccelerators(action, table1, JComponent.WHEN_FOCUSED);
-            ActionKeymap.registerActionAccelerators(action, table2, JComponent.WHEN_FOCUSED);
+            ActionKeymap.registerActionAccelerators(action, leftTable, JComponent.WHEN_FOCUSED);
+            ActionKeymap.registerActionAccelerators(action, rightTable, JComponent.WHEN_FOCUSED);
         }
 
         actionClasses = alternateActionKeymap.keys();
         while(actionClasses.hasMoreElements()) {
             MuAction action = ActionManager.getActionInstance((Class)actionClasses.nextElement(), mainFrame);
-            ActionKeymap.registerActionAccelerators(action, table1, JComponent.WHEN_FOCUSED);
-            ActionKeymap.registerActionAccelerators(action, table2, JComponent.WHEN_FOCUSED);
+            ActionKeymap.registerActionAccelerators(action, leftTable, JComponent.WHEN_FOCUSED);
+            ActionKeymap.registerActionAccelerators(action, rightTable, JComponent.WHEN_FOCUSED);
         }
     }
 
 
     public static void registerAction(MainFrame mainFrame, MuAction action) {
-        registerActionAccelerators(action, mainFrame.getFolderPanel1().getFileTable(), JComponent.WHEN_FOCUSED);
-        registerActionAccelerators(action, mainFrame.getFolderPanel2().getFileTable(), JComponent.WHEN_FOCUSED);
+        registerActionAccelerators(action, mainFrame.getLeftPanel().getFileTable(), JComponent.WHEN_FOCUSED);
+        registerActionAccelerators(action, mainFrame.getRightPanel().getFileTable(), JComponent.WHEN_FOCUSED);
     }
 
     public static void unregisterAction(MainFrame mainFrame, MuAction action) {
-        unregisterActionAccelerators(action, mainFrame.getFolderPanel1().getFileTable(), JComponent.WHEN_FOCUSED);
-        unregisterActionAccelerators(action, mainFrame.getFolderPanel2().getFileTable(), JComponent.WHEN_FOCUSED);
+        unregisterActionAccelerators(action, mainFrame.getLeftPanel().getFileTable(), JComponent.WHEN_FOCUSED);
+        unregisterActionAccelerators(action, mainFrame.getRightPanel().getFileTable(), JComponent.WHEN_FOCUSED);
     }
 
 
@@ -250,7 +284,7 @@ public class ActionKeymap extends DefaultHandler {
      */
     private ActionKeymap() throws Exception {
         try {
-            File file;
+            AbstractFile file;
 
             // If the user hasn't yet defined an action keymap, copies the default one.
             file = getActionKeyMapFile();
@@ -262,9 +296,9 @@ public class ActionKeymap extends DefaultHandler {
 
                 try {
                     in = ResourceLoader.getResourceAsStream(ACTION_KEYMAP_RESOURCE_PATH);
-                    out = new FileOutputStream(file);
+                    out = file.getOutputStream(false);
 
-                    AbstractFile.copyStream(in, out);
+                    StreamUtils.copyStream(in, out);
                 }
                 catch(IOException e) {
                     if(Debug.ON) Debug.trace("Error: unable to copy "+ACTION_KEYMAP_RESOURCE_PATH+" resource to "+actionKeyMapFile+": "+e);

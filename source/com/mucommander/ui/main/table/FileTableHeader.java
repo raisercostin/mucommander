@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ import java.awt.event.MouseListener;
 /**
  * @author Maxence Bernard
  */
-public class FileTableHeader extends JTableHeader implements Columns, MouseListener {
+public class FileTableHeader extends JTableHeader implements MouseListener {
 
     private FileTable table;
 
@@ -41,14 +41,21 @@ public class FileTableHeader extends JTableHeader implements Columns, MouseListe
         addMouseListener(this);
     }
 
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    public boolean getReorderingAllowed() {
+        return true;
+    }
+
     
     //////////////////////////////////
     // MouseListener implementation //
     //////////////////////////////////
 
     public void mouseClicked(MouseEvent e) {
-        int modifiers = e.getModifiers();
-
         int colNum = table.convertColumnIndexToModel(getColumnModel().getColumnIndexAtX(e.getX()));
 
         table.requestFocus();
@@ -56,7 +63,7 @@ public class FileTableHeader extends JTableHeader implements Columns, MouseListe
         // One of the table headers was left-clicked, sort the table by the clicked column's criterion
         if(PlatformManager.isLeftMouseButton(e)) {
             // If the table was already sorted by this criteria, reverse order
-            if (table.getSortByCriteria()==colNum)
+            if (table.getSortInfo().getCriterion()==colNum)
                 table.reverseSortOrder();
             else
                 table.sortBy(colNum);
@@ -65,17 +72,23 @@ public class FileTableHeader extends JTableHeader implements Columns, MouseListe
         else if(PlatformManager.isRightMouseButton(e)) {
             Class hideActionClass;
             switch(colNum) {
-                case EXTENSION:
+                case Columns.EXTENSION:
                     hideActionClass = ToggleExtensionColumnAction.class;
                     break;
-                case SIZE:
+                case Columns.SIZE:
                     hideActionClass = ToggleSizeColumnAction.class;
                     break;
-                case DATE:
+                case Columns.DATE:
                     hideActionClass = ToggleDateColumnAction.class;
                     break;
-                case PERMISSIONS:
+                case Columns.PERMISSIONS:
                     hideActionClass = TogglePermissionsColumnAction.class;
+                    break;
+                case Columns.OWNER:
+                    hideActionClass = ToggleOwnerColumnAction.class;
+                    break;
+                case Columns.GROUP:
+                    hideActionClass = ToggleGroupColumnAction.class;
                     break;
                 default:        // Name column cannot be hidden
                     return;
@@ -101,6 +114,4 @@ public class FileTableHeader extends JTableHeader implements Columns, MouseListe
 
     public void mouseExited(MouseEvent e) {
     }
-
-    public boolean getReorderingAllowed() {return true;}
 }

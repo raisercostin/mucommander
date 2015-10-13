@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ package com.mucommander.io;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Saves file in as crash-safe a manner as possible.
@@ -44,6 +46,7 @@ import java.io.*;
  *     as the backup and original file should always have the same size. If they don't, then the backup
  *     file should be used rather than the original one.
  *   </li>
+ * </ul>
  * </p>
  * <p>
  * Files that have been saved by this class should be read with {@link com.mucommander.io.BackupInputStream}
@@ -57,9 +60,11 @@ import java.io.*;
  * @see    com.mucommander.io.BackupInputStream
  * @author Nicolas Rinaudo
  */
-public class BackupOutputStream extends FilterOutputStream implements BackupConstants {
+public class BackupOutputStream extends OutputStream implements BackupConstants {
     // - Instance fields --------------------------------------------------------
     // --------------------------------------------------------------------------
+    /** The underlying OutputStream */
+    private OutputStream out;
     /** Path of the original file. */
     private AbstractFile     target;
     /** Path to the backup file. */
@@ -99,7 +104,7 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      * @exception IOException thrown if any IO error occurs.
      */
     private BackupOutputStream(AbstractFile file, AbstractFile save) throws IOException {
-        super(save.getOutputStream(false));
+        out = save.getOutputStream(false);
         target = file;
         backup = save;
     }
@@ -121,9 +126,9 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      */
     public void flush() throws IOException {
         if(error)
-            super.flush();
+            out.flush();
         else {
-            try {super.flush();}
+            try {out.flush();}
             catch(IOException e) {
                 error = true;
                 throw e;
@@ -145,9 +150,9 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      */
     public void write(byte[] b) throws IOException {
         if(error)
-            super.write(b);
+            out.write(b);
         else {
-            try {super.write(b);}
+            try {out.write(b);}
             catch(IOException e) {
                 error = true;
                 throw e;
@@ -171,9 +176,9 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      */
     public void write(byte[] b, int off, int len) throws IOException {
         if(error)
-            super.write(b, off, len);
+            out.write(b, off, len);
         else {
-            try {super.write(b, off, len);}
+            try {out.write(b, off, len);}
             catch(IOException e) {
                 error = true;
                 throw e;
@@ -195,9 +200,9 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      */
     public void write(int b) throws IOException {
         if(error)
-            super.write(b);
+            out.write(b);
         else {
-            try {super.write(b);}
+            try {out.write(b);}
             catch(IOException e) {
                 error = true;
                 throw e;
@@ -243,8 +248,8 @@ public class BackupOutputStream extends FilterOutputStream implements BackupCons
      */
     public void close(boolean backup) throws IOException {
         // Closes the underlying output stream.
-        super.flush();
-        super.close();
+        out.flush();
+        out.close();
 
         if(backup)
             backup();

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,7 +66,9 @@ class TarArchiver extends Archiver {
 
         // Set the entry's date and permissions
         entry.setModTime(file.getDate());
-        entry.setMode(file.getPermissions());
+        entry.setMode(AbstractFile.padPermissions(file, isDirectory
+                    ?AbstractFile.DEFAULT_DIRECTORY_PERMISSIONS
+                    :AbstractFile.DEFAULT_FILE_PERMISSIONS));
 
         if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("creating entry, name="+entry.getName()+" isDirectory="+entry.isDirectory()+" size="+entry.getSize()+" modTime="+entry.getModTime());
 		

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,20 +103,7 @@ public class PreviewLabel extends JLabel implements PropertyChangeListener, Clon
         putClientProperty(BACKGROUND_COLOR_PROPERTY_NAME, color);
     }
 
-    public Object clone() {
-        PreviewLabel previewLabel = new PreviewLabel();
-
-        previewLabel.setText(getText());
-        previewLabel.setForeground(getForeground());
-        previewLabel.setBackground(getBackground());
-        previewLabel.setOverlayUnderText(overlayUnderText);
-        previewLabel.setFont(getFont());
-
-        previewLabel.putClientProperty(OVERLAY_COLOR_PROPERTY_NAME, getClientProperty(OVERLAY_COLOR_PROPERTY_NAME));
-        previewLabel.putClientProperty(BORDER_COLOR_PROPERTY_NAME, getClientProperty(BORDER_COLOR_PROPERTY_NAME));
-
-        return previewLabel;
-    }
+    public Object clone() throws CloneNotSupportedException {return super.clone();}
 
     /**
      * Paints the preview label.

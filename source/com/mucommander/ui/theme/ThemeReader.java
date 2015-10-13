@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,17 +19,13 @@
 package com.mucommander.ui.theme;
 
 import com.mucommander.Debug;
-
-import org.xml.sax.helpers.DefaultHandler;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
-import org.xml.sax.Locator;
 import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
 import javax.xml.parsers.SAXParserFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.io.InputStream;
-import java.util.Hashtable;
 import java.util.StringTokenizer;
 
 /**
@@ -556,101 +552,56 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
         }
 
         // XML root element.
-        if(qName.equals(ELEMENT_ROOT)) {
-            if(state != STATE_ROOT)
-                if(Debug.ON) traceIllegalClosing(qName);
+        if(qName.equals(ELEMENT_ROOT))
             state = STATE_UNKNOWN;
-        }
 
         // File table declaration.
-        else if(qName.equals(ELEMENT_TABLE)) {
-            if(state != STATE_TABLE)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_TABLE))
             state = STATE_ROOT;
-        }
 
-        else if(qName.equals(ELEMENT_ALTERNATE)) {
-            if(state != STATE_TABLE_ALTERNATE)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_ALTERNATE))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_UNMATCHED)) {
-            if(state != STATE_TABLE_UNMATCHED)
-                traceIllegalDeclaration(qName);
+        else if(qName.equals(ELEMENT_UNMATCHED))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_HIDDEN)) {
-            if(state != STATE_HIDDEN)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_HIDDEN))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_FOLDER)) {
-            if(state != STATE_FOLDER)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_FOLDER))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_ARCHIVE)) {
-            if(state != STATE_ARCHIVE)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_ARCHIVE))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_SYMLINK)) {
-            if(state != STATE_SYMLINK)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_SYMLINK))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_MARKED)) {
-            if(state != STATE_MARKED)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_MARKED))
             state = STATE_TABLE;
-        }
 
-        else if(qName.equals(ELEMENT_FILE)) {
-            if(state != STATE_FILE)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_FILE))
             state = STATE_TABLE;
-        }
 
         // Shell declaration.
-        else if(qName.equals(ELEMENT_SHELL)) {
-            if(state != STATE_SHELL)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_SHELL))
             state = STATE_ROOT;
-        }
 
         // Shell history declaration.
-        else if(qName.equals(ELEMENT_SHELL_HISTORY)) {
-            if(state != STATE_SHELL_HISTORY)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_SHELL_HISTORY))
             state = STATE_ROOT;
-        }
 
         // Editor declaration.
-        else if(qName.equals(ELEMENT_EDITOR)) {
-            if(state != STATE_EDITOR)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_EDITOR))
             state = STATE_ROOT;
-        }
 
         // Location bar declaration.
-        else if(qName.equals(ELEMENT_LOCATION_BAR)) {
-            if(state != STATE_LOCATION_BAR)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_LOCATION_BAR))
             state = STATE_ROOT;
-        }
 
         // Volume label declaration
-        else if(qName.equals(ELEMENT_STATUS_BAR)) {
-            if(state != STATE_STATUS_BAR)
-                if(Debug.ON) traceIllegalClosing(qName);
+        else if(qName.equals(ELEMENT_STATUS_BAR))
             state = STATE_ROOT;
-        }
 
         // Normal element declaration.
         else if(qName.equals(ELEMENT_NORMAL)) {
@@ -676,8 +627,6 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
                 state = STATE_LOCATION_BAR;
             else if(state == STATE_TABLE_NORMAL)
                 state = STATE_TABLE;
-            else
-                if(Debug.ON) traceIllegalClosing(qName);
         }
 
         // Selected element declaration.
@@ -704,8 +653,6 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
                 state = STATE_LOCATION_BAR;
             else if(state == STATE_TABLE_SELECTED)
                 state = STATE_TABLE;
-            else
-                if(Debug.ON) traceIllegalClosing(qName);
         }
     }
 
@@ -743,42 +690,41 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
         String          buffer; // Buffer for attribute values.
         int             size;   // Font size.
         int             style;  // Font style.
-	StringTokenizer parser; // Used to parse the font family.
-	Font            font;   // Generated font.
+        StringTokenizer parser; // Used to parse the font family.
 
         // Computes the font style.
         style = 0;
-        if(((buffer = (String)attributes.getValue(ATTRIBUTE_BOLD)) != null) && buffer.equals(VALUE_TRUE))
+        if(((buffer = attributes.getValue(ATTRIBUTE_BOLD)) != null) && buffer.equals(VALUE_TRUE))
             style |= Font.BOLD;
-        if(((buffer = (String)attributes.getValue(ATTRIBUTE_ITALIC)) != null) && buffer.equals(VALUE_TRUE))
+        if(((buffer = attributes.getValue(ATTRIBUTE_ITALIC)) != null) && buffer.equals(VALUE_TRUE))
             style |= Font.ITALIC;
 
         // Computes the font size.
-        if((buffer = (String)attributes.getValue(ATTRIBUTE_SIZE)) == null) {
+        if((buffer = attributes.getValue(ATTRIBUTE_SIZE)) == null) {
             if(Debug.ON) Debug.trace("Missing font size attribute in theme, ignoring.");
             return null;
-	}
-	size = Integer.parseInt(buffer);
+	    }
+        size = Integer.parseInt(buffer);
 
-        // Computes the font family.
-        if((buffer = (String)attributes.getValue(ATTRIBUTE_FAMILY)) == null) {
-            if(Debug.ON) Debug.trace("Missing font family attribute in theme, ignoring.");
+            // Computes the font family.
+            if((buffer = attributes.getValue(ATTRIBUTE_FAMILY)) == null) {
+                if(Debug.ON) Debug.trace("Missing font family attribute in theme, ignoring.");
+                return null;
+        }
+
+        // Looks through the list of declared fonts to find one that is installed on the system.
+        parser = new StringTokenizer(buffer, ",");
+        while(parser.hasMoreTokens()) {
+            buffer = parser.nextToken().trim();
+
+            // Font was found, use it.
+            if(isFontAvailable(buffer))
+            return new Font(buffer, style, size);
+        }
+
+            // No font was found, instructs the ThemeManager to use the system default.
+        if(Debug.ON) Debug.trace("Requested font families are not installed on the system, using default.");
             return null;
-	}
-
-	// Looks through the list of declared fonts to find one that is installed on the system.
-	parser = new StringTokenizer(buffer, ",");
-	while(parser.hasMoreTokens()) {
-	    buffer = parser.nextToken().trim();
-
-	    // Font was found, use it.
-	    if(isFontAvailable(buffer))
-		return new Font(buffer, style, size);
-	}
-
-        // No font was found, instructs the ThemeManager to use the system default.
-	if(Debug.ON) Debug.trace("Requested font families are not installed on the system, using default.");
-        return null;
     }
 
     /**
@@ -791,14 +737,14 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
         int    color;
 
         // Retrieves the color attribute's value.
-        if((buffer = (String)attributes.getValue(ATTRIBUTE_COLOR)) == null) {
+        if((buffer = attributes.getValue(ATTRIBUTE_COLOR)) == null) {
             if(Debug.ON) Debug.trace("Missing color attribute in theme, ignoring.");
             return null;
         }
         color = Integer.parseInt(buffer, 16);
 
         // Retrieves the transparency attribute's value..
-        if((buffer = (String)attributes.getValue(ATTRIBUTE_ALPHA)) == null)
+        if((buffer = attributes.getValue(ATTRIBUTE_ALPHA)) == null)
             return new Color(color);
         return new Color(color | (Integer.parseInt(buffer, 16) << 24), true);
     }
@@ -811,6 +757,4 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
         if(Debug.ON)
             Debug.trace("Unexpected start of element " + element + ", ignoring.");
     }
-
-    private static void traceIllegalClosing(String element) {if(Debug.ON) Debug.trace("Unexpected end of element " + element + ", ignoring.");}
 }

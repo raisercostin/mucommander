@@ -1,7 +1,7 @@
 /*
 
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,23 +50,13 @@ import java.awt.*;
  *
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeListener {
+public class FileTableCellRenderer implements TableCellRenderer, ThemeListener {
 
     private FileTable table;
     private FileTableModel tableModel;
 
-    /** Custom JLabel used to render extension column's cells */
-    private CellLabel extensionLabel;
-    /** Custom JLabel used to render name column's cells */
-    private CellLabel nameLabel;
-    /** Custom JLabel used to render size column's cells */
-    private CellLabel sizeLabel;
-    /** Custom JLabel used to render date column's cells */
-    private CellLabel dateLabel;
-    /** Custom JLabel used to render permissions column's cells */
-    private CellLabel permissionsLabel;
-
-
+    /** Custom JLabel that render specific column cells */
+    private CellLabel[] cellLabels = new CellLabel[Columns.COLUMN_COUNT];
 
     // - Color definitions -----------------------------------------------------------
     // -------------------------------------------------------------------------------
@@ -89,13 +79,9 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
     private static final int MARKED               = 4;
     private static final int PLAIN_FILE           = 5;
 
-
-
     // - Font definitions ------------------------------------------------------------
     // -------------------------------------------------------------------------------
     private static Font font;
-
-
 
     // - Initialisation --------------------------------------------------------------
     // -------------------------------------------------------------------------------
@@ -161,21 +147,20 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
         this.tableModel = table.getFileTableModel();
 
         // Create a label for each column
-        this.extensionLabel = new CellLabel();
-        this.nameLabel = new CellLabel();
-        this.sizeLabel = new CellLabel();
-        this.dateLabel = new CellLabel();
-        this.permissionsLabel = new CellLabel();
+        for(int i=0; i<Columns.COLUMN_COUNT; i++)
+            this.cellLabels[i] = new CellLabel();
 
         // Set labels' font.
         setCellLabelsFont(font);
 
         // Set labels' text alignment
-        extensionLabel.setHorizontalAlignment(CellLabel.CENTER);
-        nameLabel.setHorizontalAlignment(CellLabel.LEFT);
-        sizeLabel.setHorizontalAlignment(CellLabel.RIGHT);
-        dateLabel.setHorizontalAlignment(CellLabel.RIGHT);
-        permissionsLabel.setHorizontalAlignment(CellLabel.LEFT);
+        cellLabels[Columns.EXTENSION].setHorizontalAlignment(CellLabel.CENTER);
+        cellLabels[Columns.NAME].setHorizontalAlignment(CellLabel.LEFT);
+        cellLabels[Columns.SIZE].setHorizontalAlignment(CellLabel.RIGHT);
+        cellLabels[Columns.DATE].setHorizontalAlignment(CellLabel.RIGHT);
+        cellLabels[Columns.PERMISSIONS].setHorizontalAlignment(CellLabel.LEFT);
+        cellLabels[Columns.OWNER].setHorizontalAlignment(CellLabel.LEFT);
+        cellLabels[Columns.GROUP].setHorizontalAlignment(CellLabel.LEFT);
 
         // Listens to certain configuration variables
         ThemeManager.addCurrentThemeListener(this);
@@ -185,7 +170,9 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
     /**
      * Returns the font used to render all table cells.
      */
-    public static Font getCellFont() {return font;}
+    public static Font getCellFont() {
+        return font;
+    }
 
 	
     /**
@@ -193,15 +180,16 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
      */
     private void setCellLabelsFont(Font newFont) {
         // Set custom font
-        nameLabel.setFont(newFont);
-        sizeLabel.setFont(newFont);
-        dateLabel.setFont(newFont);
-        permissionsLabel.setFont(newFont);
-        // No need to set extension label's font as only icons (no text) are rendered by this label
-    } 
+        for(int i=0; i<Columns.COLUMN_COUNT; i++) {
+            // No need to set extension label's font as this label renders only icons and no text
+            if(i==Columns.EXTENSION)
+                continue;
+
+            cellLabels[i].setFont(newFont);
+        }
+    }
 
 
-    
     ///////////////////////////////
     // TableCellRenderer methods //
     ///////////////////////////////
@@ -275,13 +263,12 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
         colorIndex    = getColorIndex(row, file, tableModel);
 
         columnId = table.convertColumnIndexToModel(column);
-        
-        // Extension/icon column: return ImageIcon instance
-        if(columnId == EXTENSION) {
-            label = extensionLabel;
+        label = cellLabels[columnId];
 
+        // Extension/icon column: return ImageIcon instance
+        if(columnId == Columns.EXTENSION) {
             // Set file icon (parent folder icon if '..' file)
-            extensionLabel.setIcon(
+            label.setIcon(
                                    row==0 && tableModel.hasParentFolder()?
                                    IconManager.getIcon(IconManager.FILE_ICON_SET, CustomFileIconProvider.PARENT_FOLDER_ICON_NAME, FileIcons.getScaleFactor())
                                    :FileIcons.getFileIcon(file)
@@ -289,21 +276,6 @@ public class FileTableCellRenderer implements Columns, TableCellRenderer, ThemeL
         }
         // Any other column (name, date or size)
         else {
-            switch(columnId) {
-                case NAME:
-                    label = nameLabel;
-                    break;
-                case SIZE:
-                    label = sizeLabel;
-                    break;
-                case DATE:
-                    label = dateLabel;
-                    break;
-                default:
-                    label = permissionsLabel;
-                    break;
-            }
-
             String text = (String)value;
             if(matches || isSelected)
                 label.setForeground(foregroundColors[focusedIndex][selectedIndex][colorIndex]);

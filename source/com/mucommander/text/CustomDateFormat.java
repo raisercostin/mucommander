@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +73,8 @@ public class CustomDateFormat implements ConfigurationListener {
         int pos1 = 0;
         int pos2;
         while((pos2=dateFormatString.indexOf('/', pos1))>-1) {
-            dateFormatStringSB.append(dateFormatString.substring(pos1, pos2)+separator);
+            dateFormatStringSB.append(dateFormatString.substring(pos1, pos2));
+            dateFormatStringSB.append(separator);
             pos1 = pos2+1;
         }
         dateFormatStringSB.append(dateFormatString.substring(pos1, dateFormatString.length()));
@@ -96,7 +97,7 @@ public class CustomDateFormat implements ConfigurationListener {
     /**
      * Forces CustomDateFormat to update the date format by looking it up in the preferences.
      */
-    public static void updateDateFormat() {
+    public static synchronized void updateDateFormat() {
         dateFormat = createDateFormat();
     }
 
@@ -115,7 +116,7 @@ public class CustomDateFormat implements ConfigurationListener {
      * @return a formatted string representing the given date.
      */
     public static synchronized String format(Date date) {
-        // Calls to SimpleDateFormat MUST be synchronized otherwise if will start throwing exceptions (verified that!),
+        // Calls to SimpleDateFormat MUST be synchronized otherwise it will start throwing exceptions (verified that!),
         // that is why this method is synchronized.
         // Quote from SimpleDateFormat's Javadoc: "Date formats are not synchronized. It is recommended to create
         // separate format instances for each thread. If multiple threads access a format concurrently, 
@@ -135,6 +136,6 @@ public class CustomDateFormat implements ConfigurationListener {
         String var = event.getVariable();
 
         if (var.equals(MuConfiguration.TIME_FORMAT) || var.equals(MuConfiguration.DATE_FORMAT) || var.equals(MuConfiguration.DATE_SEPARATOR))
-            dateFormat = createDateFormat();
+            updateDateFormat();
     }
 }

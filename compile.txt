@@ -17,6 +17,10 @@ libraries and tools are installed.
   This can be retrieved from http://ant.apache.org/
 
   Optional tools are:
+- FindBugs 1.3.1 or greater.
+  This is used to generate bytecode analysis reports.
+  It can be retrieved from http://findbugs.sourceforge.net/
+
 - NSIS 2.20 or greater
   This is used to generate Win32 setup files.
   It can be retrieved from http://nsis.sourceforge.net/
@@ -42,6 +46,13 @@ editing it.
   Under Mac OS X, you'll find the classes JAR file in:
   /System/Library/Frameworks/JavaVM.framework/Versions/1.6.0/Classes/classes.jar
 
+- jsse.lib (defaults to a system-dependant best guess)
+  Path to the JSSE JAR file.
+  This is usually found in /path/to/jre/lib/jsse.jar
+  Apple, however, decided to use non-standard paths for reasons of their own.
+  Under Mac OS X, you'll find the classes JAR file in:
+  /System/Library/Frameworks/JavaVM.framework/Versions/1.6.0/Classes/jsse.jar
+
 - ant.lib (defaults to /path/to/ant/lib/ant.jar)
   Path to the Ant JAR file.
   This is necessary in order to compile the various Ant tasks used by
@@ -52,6 +63,16 @@ editing it.
 - proguard.lib (defaults to ./tools/proguard.jar)
   Path to the ProGuard JAR file.
   The one used by muCommander can be found in ./tools/proguard.jar, but you can
+  modify that if you wish to try out other versions.
+
+- antcontrib.lib (defaults to ./tools/ant-contrib.jar)
+  Path to the Ant Contrib JAR file.
+  The one used by muCommander can be found in ./tools/ant-contrib.jar, but you can
+  modify that if you wish to try out other versions.
+
+- doccheck.lib (defaults to ./tools/doccheck.jar)
+  Path to the Doccheck JAR file.
+  The one used by muCommander can be found in ./tools/doccheck.jar, but you can
   modify that if you wish to try out other versions.
 
 - 7za.executable (non-required)
@@ -98,6 +119,34 @@ editing it.
   Whether the file system is case sensitive.
   Case sensitive systems allow ProGuard to perform slightly more agressive
   obfuscation of the bytecode. If unsure, leave this value to false.
+
+- findbugs.home (non-required).
+  Path to the FindBugs installation directory.
+  Thi sis used to generate bytecode analysis reports.
+  If this property is not set, bytecode analysis reports won't be generated.
+
+- simian.lib (Defaults to ./tools/simian.jar)
+  Path to the Simian JAR file.
+  The one used by muCommander can be found in ./tools/simian.jar, but you can
+  modify that if you wish to try out other versions.
+
+- javancss.lib (Defaults to ./tools/javancss.jar)
+  Path to the JavaNCSS JAR file.
+  The one used by muCommander can be found in ./tools/javancss.jar, but you can
+  modify that if you wish to try out other versions.
+
+  Some external tools need additional configuration to work properly:
+
+- JUnit
+  To ensure that unit testing can be performed, the
+  ./lib/noinclude/junit.jar file must be copied to $ANT_HOME/lib.
+  If this isn't done, unit testing will most likely be skipped.
+
+- JDepend
+  To ensure that dependency analysis can be performed, the
+  ./tools/jdepend.jar file must be copied to $ANT_HOME/lib.
+  If this isn't done, dependency analysis will most likely
+  be skipped.
 
 
 
@@ -170,3 +219,6 @@ useful are:
 
 - ant release
   Generates all known release files.
+
+- ant reports
+  Generates reports about various aspects of muCommander.

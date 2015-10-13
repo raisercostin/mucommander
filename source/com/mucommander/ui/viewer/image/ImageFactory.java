@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 package com.mucommander.ui.viewer.image;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.filter.ExtensionFilenameFilter;
 import com.mucommander.ui.viewer.FileViewer;
 import com.mucommander.ui.viewer.ViewerFactory;
 
@@ -28,13 +29,23 @@ import com.mucommander.ui.viewer.ViewerFactory;
  * @author Nicolas Rinaudo
  */
 public class ImageFactory implements ViewerFactory {
-    public boolean canViewFile(AbstractFile file) {
-        String name = file.getName();
-        String nameLowerCase = name.toLowerCase();
-        return nameLowerCase.endsWith(".png")
-            ||nameLowerCase.endsWith(".gif")
-            ||nameLowerCase.endsWith(".jpg")
-            ||nameLowerCase.endsWith(".jpeg");
+    /** Used to filter out file extensions that the image viewer cannot open. */
+    private ExtensionFilenameFilter filter;
+
+    public ImageFactory() {
+        filter = new ExtensionFilenameFilter(new String[] {".png", ".gif", ".jpg", ".jpeg"});
+        filter.setCaseSensitive(false);
     }
-    public FileViewer createFileViewer() {return new ImageViewer();}
+
+    public boolean canViewFile(AbstractFile file) {
+        // Do not allow directories
+        if(file.isDirectory())
+            return false;
+
+        return filter.accept(file);
+    }
+
+    public FileViewer createFileViewer() {
+        return new ImageViewer();
+    }
 }

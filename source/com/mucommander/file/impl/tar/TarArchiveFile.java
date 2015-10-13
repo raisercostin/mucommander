@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ package com.mucommander.file.impl.tar;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractROArchiveFile;
 import com.mucommander.file.ArchiveEntry;
+import com.mucommander.io.StreamUtils;
+import com.mucommander.util.StringUtils;
 import org.apache.tools.bzip2.CBZip2InputStream;
 import org.apache.tools.tar.TarInputStream;
 
@@ -59,24 +61,21 @@ public class TarArchiveFile extends AbstractROArchiveFile {
     private TarInputStream createTarStream() throws IOException {
         InputStream in = file.getInputStream();
 
-        String name = getName().toLowerCase();
+        String name = getName();
             // Gzip-compressed file
-        if(name.endsWith("tgz") || name.endsWith("tar.gz"))
+        if(StringUtils.endsWithIgnoreCase(name, "tgz") || StringUtils.endsWithIgnoreCase(name, "tar.gz"))
                 // Note: this will fail for gz/tgz entries inside a tar file (IOException: Not in GZIP format),
                 // why is a complete mystery: the gz/tgz entry can be extracted and then properly browsed
             in = new GZIPInputStream(in);
 
         // Bzip2-compressed file
-        else if(name.endsWith("tbz2") || name.endsWith("tar.bz2")) {
+        else if(StringUtils.endsWithIgnoreCase(name, "tbz2") || StringUtils.endsWithIgnoreCase(name, "tar.bz2")) {
             try {
                 // Skips the 2 magic bytes 'BZ', as required by CBZip2InputStream. Quoted from CBZip2InputStream's Javadoc:
                 // "Although BZip2 headers are marked with the magic 'Bz'. this constructor expects the next byte in the
                 // stream to be the first one after the magic.  Thus callers have to skip the first two bytes. Otherwise
                 // this constructor will throw an exception."
-                // Note: the return value of read() is unchecked. In the unlikely event that EOF is reached in the first
-                // 2 bytes, CBZip2InputStream will throw an IOException.
-                in.read();
-                in.read();
+                StreamUtils.skipFully(in, 2);
 
                 // Quoted from CBZip2InputStream's Javadoc:
                 // "CBZip2InputStream reads bytes from the compressed source stream via the single byte {@link java.io.InputStream#read()
@@ -106,8 +105,9 @@ public class TarArchiveFile extends AbstractROArchiveFile {
     private ArchiveEntry createArchiveEntry(org.apache.tools.tar.TarEntry tarEntry) {
         ArchiveEntry entry = new ArchiveEntry(tarEntry.getName(), tarEntry.isDirectory(), tarEntry.getModTime().getTime(), tarEntry.getSize());
         entry.setPermissions(tarEntry.getMode());
-        entry.setPermissionMask(511);     // Full UNIX permissions (777 octal)
-
+        entry.setPermissionMask(FULL_PERMISSIONS);     // Full UNIX permissions (777 octal)
+        entry.setOwner(tarEntry.getUserName());
+        entry.setGroup(tarEntry.getGroupName());
         return entry;
     }
 

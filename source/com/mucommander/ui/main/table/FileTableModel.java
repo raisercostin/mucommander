@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@ import com.mucommander.file.util.FileComparator;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.CustomDateFormat;
 import com.mucommander.text.SizeFormat;
-import com.mucommander.text.Translator;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.Date;
@@ -39,7 +38,13 @@ import java.util.Date;
  *
  * @author Maxence Bernard
  */
-public class FileTableModel extends AbstractTableModel implements Columns, ConfigurationListener {
+public class FileTableModel extends AbstractTableModel {
+
+    /** The current folder */
+    private AbstractFile currentFolder;
+
+    /** The current folder's parent folder, may be null */
+    private AbstractFile parent;
 
     /** Cached file instances */
     private AbstractFile cachedFiles[];
@@ -55,48 +60,73 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 	
     /** Marked files FileSet */
     private FileSet markedFiles;
+
     /** Combined size of files currently marked */
     private long markedTotalSize;
 
-    private AbstractFile currentFolder;
-    private AbstractFile parent;
+    /** Contains sort-related variables */
+    private SortInfo sortInfo;
 
-    private int sortByCriterion = NAME;
-    private boolean ascendingOrder = false;
-    private boolean foldersFirst = MuConfiguration.getVariable(MuConfiguration.SHOW_FOLDERS_FIRST, MuConfiguration.DEFAULT_SHOW_FOLDERS_FIRST);
-
-    /** True if name column temporarily editable */
+    /** True if the name column is temporarily editable */
     private boolean nameColumnEditable;
 
-    private static boolean displayCompactSize = MuConfiguration.getVariable(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE,
-                                                                                 MuConfiguration.DEFAULT_DISPLAY_COMPACT_FILE_SIZE);
+    /** SizeFormat format used to create the size column's string */
+    private static int sizeFormat;
+
     /** String used as size information for directories */
     public final static String DIRECTORY_SIZE_STRING = "<DIR>";
 
-    static final String[] COLUMN_LABELS;
+    /** Listens to configuration changes and updates static fields accordingly */
+    public final static ConfigurationListener CONFIGURATION_ADAPTER;
+
 
     static {
-        COLUMN_LABELS = new String[5];
-        COLUMN_LABELS[EXTENSION]   = Translator.get("extension");
-        COLUMN_LABELS[NAME]        = Translator.get("name");
-        COLUMN_LABELS[SIZE]        = Translator.get("size");
-        COLUMN_LABELS[DATE]        = Translator.get("date");
-        COLUMN_LABELS[PERMISSIONS] = Translator.get("permissions");
+        // Initialize the size column format based on the configuration
+        setSizeFormat(MuConfiguration.getVariable(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE,
+                                                  MuConfiguration.DEFAULT_DISPLAY_COMPACT_FILE_SIZE));
+
+        // Listens to configuration changes and updates static fields accordingly.
+        // Note: a reference to the listener must be kept to prevent it from being garbage-collected.
+        CONFIGURATION_ADAPTER = new ConfigurationListener() {
+            public synchronized void configurationChanged(ConfigurationEvent event) {
+                String var = event.getVariable();
+
+                if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE))
+                    setSizeFormat(event.getBooleanValue());
+            }
+        };
+        MuConfiguration.addConfigurationListener(CONFIGURATION_ADAPTER);
     }
 
-    public FileTableModel() {
-        MuConfiguration.addConfigurationListener(this);
 
-        // Arrays init to avoid NullPointerExcepions until setCurrentFolder()
-        // gets called for the first time
+    /**
+     * Sets the SizeFormat format used to create the size column's string.
+     *
+     * @param compactSize true to use a compact size format, false for full size in bytes 
+     */
+    private static void setSizeFormat(boolean compactSize) {
+        if(compactSize)
+            sizeFormat = SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_SHORT | SizeFormat.ROUND_TO_KB;
+        else
+            sizeFormat = SizeFormat.DIGITS_FULL | SizeFormat.UNIT_NONE;
+
+        sizeFormat |= SizeFormat.INCLUDE_SPACE;
+    }
+
+
+    public FileTableModel() {
+        // Init arrays to avoid NullPointerExcepions until setCurrentFolder() gets called for the first time
         cachedFiles = new AbstractFile[0];
         fileArrayIndex = new int[0];
-        cellValuesCache = new Object[0][4];
+        cellValuesCache = new Object[0][Columns.COLUMN_COUNT-1];
         rowMarked = new boolean[0];
         markedFiles = new FileSet();
     }
 
-	
+    void setSortInfo(SortInfo sortInfo) {
+        this.sortInfo = sortInfo;
+    }
+
     public synchronized AbstractFile getCurrentFolder() {
         return currentFolder;
     }
@@ -128,18 +158,9 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         this.markedFiles = new FileSet(folder);
         this.markedTotalSize = 0;
 
-//if(com.mucommander.Debug.ON) com.mucommander.Debug.time();
-
         // Init and fill cell cache to speed up table even more
-        this.cellValuesCache = new Object[nbRows][4];
+        this.cellValuesCache = new Object[nbRows][Columns.COLUMN_COUNT-1];
         fillCellCache();
-
-//if(com.mucommander.Debug.ON) com.mucommander.Debug.time();
-
-        // Sort the new folder using the current sort criteria, ascending/descending order and 'folders first' value
-        sortBy(sortByCriterion, ascendingOrder, foldersFirst);
-
-//if(com.mucommander.Debug.ON) com.mucommander.Debug.time();
     }
 
 	
@@ -153,24 +174,32 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 		
         // Special '..' file
         if(parent!=null) {
-            cellValuesCache[0][NAME-1] = "..";
-            cellValuesCache[0][SIZE-1] = DIRECTORY_SIZE_STRING;
-            cellValuesCache[0][DATE-1] =	CustomDateFormat.format(new Date(currentFolder.getDate()));
-//            cellValuesCache[0][PERMISSIONS-1] =	parent.getPermissionsString();
+            cellValuesCache[0][Columns.NAME-1] = "..";
+            cellValuesCache[0][Columns.SIZE-1] = DIRECTORY_SIZE_STRING;
+            cellValuesCache[0][Columns.DATE-1] =	CustomDateFormat.format(new Date(currentFolder.getDate()));
             // Don't display parent's permissions as they can have a different format from the folder contents
             // (e.g. for archives) and this looks weird
-            cellValuesCache[0][PERMISSIONS-1] =	"";
+            cellValuesCache[0][Columns.PERMISSIONS-1] =	"";
+            cellValuesCache[0][Columns.OWNER-1] = "";
+            cellValuesCache[0][Columns.GROUP-1] = "";
         }
 		
         AbstractFile file;
         int fileIndex = 0;
+        boolean canGetOwner = currentFolder.canGetOwner();
+        boolean canGetGroup = currentFolder.canGetGroup();
+
         for(int i=parent==null?0:1; i<len; i++) {
             file = getCachedFileAtRow(i);
             int cellIndex = fileArrayIndex[fileIndex]+(parent==null?0:1);
-            cellValuesCache[cellIndex][NAME-1] = file.getName();
-            cellValuesCache[cellIndex][SIZE-1] = file.isDirectory()?DIRECTORY_SIZE_STRING: SizeFormat.format(file.getSize(), (displayCompactSize? SizeFormat.DIGITS_SHORT: SizeFormat.DIGITS_FULL)|(displayCompactSize? SizeFormat.UNIT_SHORT: SizeFormat.UNIT_NONE)| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB);
-            cellValuesCache[cellIndex][DATE-1] = CustomDateFormat.format(new Date(file.getDate()));
-            cellValuesCache[cellIndex][PERMISSIONS-1] = file.getPermissionsString();
+            cellValuesCache[cellIndex][Columns.NAME-1] = file.getName();
+            cellValuesCache[cellIndex][Columns.SIZE-1] = file.isDirectory()?DIRECTORY_SIZE_STRING:SizeFormat.format(file.getSize(), sizeFormat);
+            cellValuesCache[cellIndex][Columns.DATE-1] = CustomDateFormat.format(new Date(file.getDate()));
+            cellValuesCache[cellIndex][Columns.PERMISSIONS-1] = file.getPermissionsString();
+            if(canGetOwner)
+                cellValuesCache[cellIndex][Columns.OWNER-1] = file.getOwner();
+            if(canGetGroup)
+                cellValuesCache[cellIndex][Columns.GROUP-1] = file.getGroup();
             fileIndex++;
         }
     }
@@ -181,7 +210,10 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
      * This method can return the parent folder file ('..') if a parent exists and rowIndex is 0.
      * 
      * <p>Returns <code>null</code> if rowIndex is lower than 0 or is greater than or equals
-     * {@link #getRowCount() getRowCount()}.
+     * {@link #getRowCount() getRowCount()}.</p>
+     *
+     * @param rowIndex a row index, comprised between 0 and #getRowCount()
+     * @return a CachedFile instance of the file located at the given row index
      */
     synchronized AbstractFile getCachedFileAtRow(int rowIndex) {
         if(rowIndex==0 && parent!=null)
@@ -204,7 +236,10 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
      * This method can return the parent folder file ('..') if a parent exists and rowIndex is 0.
      *
      * <p>Returns <code>null</code> if rowIndex is lower than 0 or is greater than or equals
-     * {@link #getRowCount() getRowCount()}.
+     * {@link #getRowCount() getRowCount()}.</p>
+     *
+     * @param rowIndex a row index, comprised between 0 and #getRowCount()
+     * @return the file located at the given row index
      */
     public synchronized AbstractFile getFileAtRow(int rowIndex) {
         AbstractFile file = getCachedFileAtRow(rowIndex);
@@ -219,7 +254,12 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 	
 
     /**
-     * Returns the row at which the given file is located, <code>-1<code> if the file is not in the current folder.
+     * Returns the index of the row where the given file is located, <code>-1<code> if the file is not in the
+     * current folder.
+     *
+     * @param file the file for which to find the row index
+     * @return the index of the row where the given file is located, <code>-1<code> if the file is not in the
+     * current folder
      */
     public synchronized int getFileRow(AbstractFile file) {
         // Handle parent folder file
@@ -232,15 +272,14 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         int right = getRowCount()-1;
         int mid;
         AbstractFile midFile;
-        FileComparator fc = new FileComparator(getComparatorCriterion(sortByCriterion), ascendingOrder, foldersFirst);
+        FileComparator fc = getFileComparator(sortInfo);
+
         while(left<=right) {
             mid = (right-left)/2 + left;
             midFile = getCachedFileAtRow(mid);
-            // if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("left="+left+" right="+right+" mid="+mid+" midFile="+midFile);
             if(midFile.equals(file))
                 return mid;
-//            if(compareTo(file, midFile, sortByCriterion, ascendingOrder)>0)
-            if(fc.compare(file, midFile)>0)
+            if(fc.compare(file, midFile)<0)
                 right = mid-1;
             else
                 left = mid+1;
@@ -253,6 +292,9 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
     /**
      * Returns the file located at the given index, not including the parent file.
      * Returns <code>null</code> if fileIndex is lower than 0 or is greater than or equals {@link #getFileCount() getFileCount()}.
+     *
+     * @param fileIndex index of a file, comprised between 0 and #getFileCount()
+     * @return the file located at the given index, not including the parent file
      */
     public synchronized AbstractFile getFileAt(int fileIndex) {
         // Need to check that row index is not larger than actual number of rows
@@ -266,8 +308,9 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 	
     /**
-     * Returns the actual number of files the current folder contains, excluding the parent '..' file
-     * from the returned count.
+     * Returns the actual number of files the current folder contains, excluding the parent '..' file (if any).
+     *
+     * @return the actual number of files the current folder contains, excluding the parent '..' file (if any)
      */
     public synchronized int getFileCount() {
         return cachedFiles.length;
@@ -275,8 +318,11 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 	
     /**
-     * Returns if the given row is marked (!= selected). If the specified row corresponds to the special '..' parent
-     * file, <code>false</code> will always be returned.
+     * Returns <code>true</code> if the given row is marked (/!\ not selected). If the specified row corresponds to the
+     * special '..' parent file, <code>false</code> is always returned.
+     *
+     * @param row index of a row to test
+     * @return <code>true</code> if the given row is marked
      */
     public synchronized boolean isRowMarked(int row) {
         if(row==0 && parent!=null)
@@ -287,11 +333,13 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 
     /**
-     * Marks the given row. If the specified row corresponds to the special '..' parent file, the row won't be marked.
+     * Marks/Unmarks the given row. If the specified row corresponds to the special '..' parent file, the row won't
+     * be marked.
+     *
+     * @param row the row to mark/unmark
+     * @param marked <code>true</code> to mark the row, <code>false</code> to unmark it
      */
     public synchronized void setRowMarked(int row, boolean marked) {
-        //		if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("row="+row+" marked="+marked+" rowMarked="+rowMarked[row]);
-
         if(row==0 && parent!=null)
             return;
 			
@@ -332,7 +380,6 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
      * @param marked if true, all the rows within the range will be marked, unmarked otherwise
      */
     public void setRangeMarked(int startRow, int endRow, boolean marked) {
-
         if(endRow >= startRow) {
             for(int i= startRow; i<= endRow; i++)
                 setRowMarked(i, marked);
@@ -345,7 +392,10 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 
     /**
-     * Marks/unmarks the given file.
+     * Marks/Unmarks the given file.
+     *
+     * @param file the file to mark/unmark
+     * @param marked <code>true</code> to mark the row, <code>false</code> to unmark it.
      */
     public synchronized void setFileMarked(AbstractFile file, boolean marked) {
         int row = getFileRow(file);
@@ -401,8 +451,10 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 
     /**
-     * Return the (already computed) number of marked files, much faster than retrieving marked files
-     * and counting them.
+     * Returns the number of marked files. This number is pre-calculated so calling this method is much faster than
+     * retrieving the list of marked files and counting them.
+     *
+     * @return the number of marked files
      */
     public int getNbMarkedFiles() {
         return markedFiles.size();
@@ -410,15 +462,19 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
 	
     /**
-     * Return the (already computed) combined size of marked files, much faster than retrieving marked files
-     * and calculating the total size.
+     * Returns the combined size of marked files. This number is pre-calculated so calling this method is much faster
+     * than retrieving the list of marked files and calculating their combined size.
+     *
+     * @return the combined size of marked files
      */
     public long getTotalMarkedSize() {
         return markedTotalSize;
     }
 
     /**
-     * Makes name column temporarily editable, should only be called by FileTable.
+     * Makes the name column temporarily editable. This method should only be called by FileTable.
+     *
+     * @param editable <code>true</code> to make the name column editable, false to prevent it from being edited
      */
     void setNameColumnEditable(boolean editable) {
         this.nameColumnEditable = editable;
@@ -431,24 +487,33 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
 
     /**
      * Translates {@link Columns} int values into {@link FileComparator} criteria.
+     *
+     * @param column index of a column, see {@link com.mucommander.ui.main.table.Columns} for allowed values
+     * @return a FileComparator criterion corresponding to the given Column
      */
-    private static int getComparatorCriterion(int sortByCriterion) {
+    private static int getComparatorCriterion(int column) {
         int comparatorCriterion;
-        switch(sortByCriterion) {
-            case NAME:
+        switch(column) {
+            case Columns.NAME:
                 comparatorCriterion = FileComparator.NAME_CRITERION;
                 break;
-            case SIZE:
+            case Columns.SIZE:
                 comparatorCriterion = FileComparator.SIZE_CRITERION;
                 break;
-            case DATE:
+            case Columns.DATE:
                 comparatorCriterion = FileComparator.DATE_CRITERION;
                 break;
-            case EXTENSION:
+            case Columns.EXTENSION:
                 comparatorCriterion = FileComparator.EXTENSION_CRITERION;
                 break;
-            case PERMISSIONS:
+            case Columns.PERMISSIONS:
                 comparatorCriterion = FileComparator.PERMISSIONS_CRITERION;
+                break;
+            case Columns.OWNER:
+                comparatorCriterion = FileComparator.OWNER_CRITERION;
+                break;
+            case Columns.GROUP:
+                comparatorCriterion = FileComparator.GROUP_CRITERION;
                 break;
             default:
                 comparatorCriterion = FileComparator.NAME_CRITERION;
@@ -457,17 +522,16 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         return comparatorCriterion;
     }
 
+    private static FileComparator getFileComparator(SortInfo sortInfo) {
+        return new FileComparator(getComparatorCriterion(sortInfo.getCriterion()), sortInfo.getAscendingOrder(), sortInfo.getFoldersFirst());
+    }
+
 
     /**
-     * Sorts rows by the given criterion, by ascending or descending order, showing folders first or mixing them with
-     * regular files.
+     * Sorts rows by the current criterion, ascending/descending order and 'folders first' value.
      */
-    public synchronized void sortBy(int criterion, boolean ascending, boolean foldersFirst)  {		// boolean ascending
-        this.sortByCriterion = criterion;
-        this.ascendingOrder = ascending;
-        this.foldersFirst = foldersFirst;
-
-        sort(new FileComparator(getComparatorCriterion(criterion), ascending, foldersFirst), 0, fileArrayIndex.length-1);
+    synchronized void sortRows()  {
+        sort(getFileComparator(sortInfo), 0, fileArrayIndex.length-1);
     }
 
 
@@ -485,7 +549,7 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         }
         else if( lo == hi - 1 ) {
             // sort a two element list by swapping if necessary
-            if (fc.compare(cachedFiles[fileArrayIndex[lo]],cachedFiles[fileArrayIndex[hi]])<0) {
+            if (fc.compare(cachedFiles[fileArrayIndex[lo]],cachedFiles[fileArrayIndex[hi]])>0) {
                 temp = fileArrayIndex[lo];
                 fileArrayIndex[lo] = fileArrayIndex[hi];
                 fileArrayIndex[hi] = temp;
@@ -502,13 +566,13 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         while( lo < hi ) {
             // Search forward from files[lo] until an element is found that
             // is greater than the pivot or lo >= hi
-            while (fc.compare(cachedFiles[fileArrayIndex[lo]], pivot)>=0 && lo < hi) {
+            while (fc.compare(cachedFiles[fileArrayIndex[lo]], pivot)<=0 && lo < hi) {
                 lo++;
             }
 
             // Search backward from files[hi] until element is found that
             // is less than the pivot, or lo >= hi
-            while (fc.compare(pivot, cachedFiles[fileArrayIndex[hi]])>=0 && lo < hi ) {
+            while (fc.compare(pivot, cachedFiles[fileArrayIndex[hi]])<=0 && lo < hi ) {
                 hi--;
             }
 
@@ -537,10 +601,12 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
     //////////////////////////////////////////
 	
     public int getColumnCount() {
-        return 5;	// icon, name, size, date and permissions
+        return Columns.COLUMN_COUNT; // icon, name, size, date, permissions, owner, group
     }
 
-    public String getColumnName(int columnIndex) {return COLUMN_LABELS[columnIndex];}
+    public String getColumnName(int columnIndex) {
+        return Columns.getColumnLabel(columnIndex);
+    }
 
     /**
      * Returns the total number of rows, including the special parent folder file '..', if there is one.
@@ -561,7 +627,7 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
         }
 
         // Icon/extension column, return a null value
-        if(columnIndex==EXTENSION)
+        if(columnIndex==Columns.EXTENSION)
             return null;
 		
         // Decrement column index for cellValuesCache array
@@ -581,24 +647,9 @@ public class FileTableModel extends AbstractTableModel implements Columns, Confi
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         // Name column can temporarily be made editable by FileTable
         // but parent file '..' name should never be editable
-        if(columnIndex==NAME && (parent==null || rowIndex!=0))
+        if(columnIndex==Columns.NAME && (parent==null || rowIndex!=0))
             return nameColumnEditable;
 	
         return false;
-    }
-
-
-    ///////////////////////////////////
-    // ConfigurationListener methods //
-    ///////////////////////////////////
-	
-    /**
-     * Listens to some configuration variables.
-     */
-    public synchronized void configurationChanged(ConfigurationEvent event) {
-        String var = event.getVariable();
-		
-        if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE))
-            displayCompactSize = event.getBooleanValue();
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,14 @@ import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.util.ResourceLoader;
 import com.mucommander.io.BackupInputStream;
+import com.mucommander.io.StreamUtils;
+import com.mucommander.runtime.JavaVersions;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.ui.action.*;
 import com.mucommander.ui.button.NonFocusableButton;
 import com.mucommander.ui.button.PopupButton;
@@ -63,7 +68,7 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
     private final static String TOOLBAR_RESOURCE_PATH = "/"+DEFAULT_TOOLBAR_FILE_NAME;
 
     /** Toolbar descriptor file used when calling {@link #loadDescriptionFile()} */
-    private static File descriptionFile;
+    private static AbstractFile descriptionFile;
 
     /** Dimension of button separators */
     private final static Dimension SEPARATOR_DIMENSION = new Dimension(10, 16);
@@ -81,34 +86,50 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
     /**
      * Sets the path to the toolbar description file to be loaded when calling {@link #loadDescriptionFile()}.
      * By default, this file is {@link #DEFAULT_TOOLBAR_FILE_NAME} within the preferences folder.
-     *
-     * @param filePath path to the toolbar descriptor file
+     * @param path path to the toolbar descriptor file
      */
-    public static void setDescriptionFile(String filePath) throws FileNotFoundException {
-        File tempFile;
+    public static void setDescriptionFile(String path) throws FileNotFoundException {
+        AbstractFile file;
 
-        tempFile = new File(filePath);
-        if(!(tempFile.exists() && tempFile.isFile() && tempFile.canRead()))
-            throw new FileNotFoundException("Not a valid file: " + filePath);
-
-        descriptionFile = tempFile;
+        if((file = FileFactory.getFile(path)) == null)
+            setDescriptionFile(new File(path));
+        else
+            setDescriptionFile(file);
     }
 
-    public static File getDescriptionFile() {
+    /**
+     * Sets the path to the toolbar description file to be loaded when calling {@link #loadDescriptionFile()}.
+     * By default, this file is {@link #DEFAULT_TOOLBAR_FILE_NAME} within the preferences folder.
+     * @param file path to the toolbar descriptor file
+     */
+    public static void setDescriptionFile(File file) throws FileNotFoundException {setDescriptionFile(FileFactory.getFile(file.getAbsolutePath()));}
+
+    /**
+     * Sets the path to the toolbar description file to be loaded when calling {@link #loadDescriptionFile()}.
+     * By default, this file is {@link #DEFAULT_TOOLBAR_FILE_NAME} within the preferences folder.
+     * @param file path to the toolbar descriptor file
+     */
+    public static void setDescriptionFile(AbstractFile file) throws FileNotFoundException {
+        if(file.isBrowsable())
+            throw new FileNotFoundException("Not a valid file: " + file);
+        descriptionFile = file;
+    }
+
+    public static AbstractFile getDescriptionFile() throws IOException {
         if(descriptionFile == null)
-            return new File(PlatformManager.getPreferencesFolder(), DEFAULT_TOOLBAR_FILE_NAME);
+            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_TOOLBAR_FILE_NAME);
         return descriptionFile;
     }
 
-    private static void copyDefaultDescriptionFile(File destination) throws IOException {
+    private static void copyDefaultDescriptionFile(AbstractFile destination) throws IOException {
         InputStream in = null;
         OutputStream out = null;
 
         try {
             in = ResourceLoader.getResourceAsStream(TOOLBAR_RESOURCE_PATH);
-            out = new FileOutputStream(destination); 
+            out = destination.getOutputStream(false);
 
-            AbstractFile.copyStream(in, out);
+            StreamUtils.copyStream(in, out);
         }
         finally {
             if(in != null) {
@@ -130,7 +151,7 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
      * <p>This method must be called before instanciating ToolBar for the first time.
      */
     public static void loadDescriptionFile() throws Exception {
-        File file;
+        AbstractFile file;
 
         file = getDescriptionFile();
         // If the given file doesn't exist, copy the default one in the JAR file
@@ -189,6 +210,35 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
                     addButton(action);
             }
         }
+
+        // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+            int nbComponents = getComponentCount();
+            Component comp;
+            boolean hasPrevious, hasNext;
+
+            // Set the 'segment position' required for the 'segmented capsule' style  
+            for(int i=0; i<nbComponents; i++) {
+                comp = getComponent(i);
+                if(!(comp instanceof JButton))
+                    continue;
+
+                hasPrevious = i!=0 && (getComponent(i-1) instanceof JButton);
+                hasNext = i!=nbComponents-1 && (getComponent(i+1) instanceof JButton);
+
+                String segmentPosition;
+                if(hasPrevious && hasNext)
+                    segmentPosition = "middle";
+                else if(hasPrevious)
+                    segmentPosition = "last";
+                else if(hasNext)
+                    segmentPosition = "first";
+                else
+                    segmentPosition = "only";
+
+                ((JButton)comp).putClientProperty("JButton.segmentPosition", segmentPosition);
+             }
+        }
     }
 
 
@@ -217,9 +267,17 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
         if(scaleFactor!=1.0f)
             button.setIcon(IconManager.getScaledIcon(action.getIcon(), scaleFactor));
 
-        // Init rollover
-        RolloverButtonAdapter.setButtonDecoration(button);
-        button.addMouseListener(rolloverButtonAdapter);
+        // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+            button.putClientProperty("JButton.buttonType", "segmentedTextured");
+            button.setRolloverEnabled(true);
+        }
+        // On other platforms, use a custom rollover effect
+        else {
+            // Init rollover
+            RolloverButtonAdapter.setButtonDecoration(button);
+            button.addMouseListener(rolloverButtonAdapter);
+        }
 
         add(button);
     }
@@ -305,8 +363,8 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
 
         public JPopupMenu getPopupMenu() {
             FileURL history[] = action instanceof GoBackAction?
-                    mainFrame.getActiveTable().getFolderPanel().getFolderHistory().getBackFolders()
-                    :mainFrame.getActiveTable().getFolderPanel().getFolderHistory().getForwardFolders();
+                    mainFrame.getActivePanel().getFolderHistory().getBackFolders()
+                    :mainFrame.getActivePanel().getFolderHistory().getForwardFolders();
             int historyLen = history.length;        
 
             // If no back/forward folder, do not display popup menu

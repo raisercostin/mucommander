@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -219,7 +219,7 @@ public class AppTask extends Task {
      * Path to your application's JAR file.
      * <p>
      * In order for the application to start, the JAR file must be
-     * executable. Click <a href="http://java.sun.com/j2se/javadoc/">here</a> to
+     * executable. Click <a href="http://java.sun.com/developer/Books/javaprogramming/JAR/basics/manifest.html">here</a> to
      * learn more about making JAR files executable.
      * </p>
      * @ant.required
@@ -490,7 +490,8 @@ public class AppTask extends Task {
             process.waitFor();
             failed = process.exitValue() != 0;
         }
-        catch(Exception e) {failed = true;}
+        catch(IOException e) {failed = true;}
+        catch(InterruptedException e) {failed = true;}
 
         // Could not find chmod. Prints a helpful message, and tries to get on with the build.
         if(failed) {

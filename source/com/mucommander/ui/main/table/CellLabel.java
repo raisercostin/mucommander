@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -192,10 +192,14 @@ public class CellLabel extends JLabel {
      * @param g where to paint the label.
      */
     public void paint(Graphics g) {
+        boolean doOutline;
+
+        doOutline = outlineColor != null && !outlineColor.equals(lastBackgroundColor);
+
         // Checks whether we need to paint a gradient background.
         if(gradientColor != null) {
             Graphics2D g2;       // Allows us to use the setPaint and getPaint methods.
-            Paint      oldPaint; // Used to restore the graphics's Paint component after filling the background.
+            Paint      oldPaint; // Previous Paint affected to g.
 
             // Initialisation.
             g2       = (Graphics2D)g;
@@ -203,9 +207,12 @@ public class CellLabel extends JLabel {
 
             // Paints the gradient background.
             g2.setPaint(new GradientPaint(0, 0, lastBackgroundColor, 0, getHeight(), gradientColor, false));
-            g2.fillRect(0, 0, getWidth(), getHeight());
+            if(doOutline)
+                g2.fillRect(0, 1, getWidth(), getHeight() - 2);
+            else
+                g2.fillRect(0, 0, getWidth(), getHeight());
 
-            // Restores the Graphics instance to its previous state.
+            // Restores the graphics to its previous state.
             g2.setPaint(oldPaint);
         }
 
@@ -213,7 +220,7 @@ public class CellLabel extends JLabel {
         super.paint(g);
 
         // If necessary, paints the outline color.
-        if(outlineColor != null && !outlineColor.equals(lastBackgroundColor)) {
+        if(doOutline) {
             g.setColor(outlineColor);
             g.drawLine(0, 0, getWidth(), 0);
             g.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);

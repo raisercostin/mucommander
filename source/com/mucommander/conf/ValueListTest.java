@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -182,7 +182,6 @@ public class ValueListTest extends TestCase {
      */
     public void testListValues() {
         Vector    data;
-        ValueList values;
 
         data = new Vector();
         data.add(ValueList.toString(createIntegerData(), ";"));

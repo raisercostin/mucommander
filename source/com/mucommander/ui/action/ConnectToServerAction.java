@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ import com.mucommander.ui.main.MainFrame;
 import java.util.Hashtable;
 
 /**
- * This action pops up the 'Connect to Server' dialog that is used to connect to a remote server.
+ * This action pops up the 'Connect to Server' dialog that assists the user in connecting to a remote server.
  *
  * @author Maxence Bernard
  */
@@ -35,6 +35,6 @@ public class ConnectToServerAction extends MuAction implements InvokesDialog {
     }
 
     public void performAction() {
-        new ServerConnectDialog(mainFrame).showDialog();
+        new ServerConnectDialog(mainFrame.getActivePanel()).showDialog();
     }
 }

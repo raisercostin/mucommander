@@ -23,10 +23,10 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.io.*;
 
 import java.io.*;
-import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
+import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 import java.util.zip.ZipException;
@@ -86,12 +86,14 @@ public class ZipFile implements ZipConstants {
     /** Global zip file comment */
     private String comment;
 
-
     /**
      * The default encoding to use for parsing filenames and comments. This value is only used for Zip entries that do
      * not have the UTF-8 flag set. If not specified (null), then automatic encoding detection is used (default).
      */
     private String defaultEncoding = null;
+
+    /** Holds byte buffer instance used to convert short and longs, avoids creating lots of small arrays */
+    private ZipBuffer zipBuffer = new ZipBuffer();
 
 
     /**
@@ -352,7 +354,7 @@ public class ZipFile implements ZipConstants {
                     long cdLength = cdEndOffset-cdStartOffset;
 
                     // Copy the central directory
-                    copyChunk(rais, raos, cdStartOffset, newCdStartOffset, cdLength);
+                    StreamUtils.copyChunk(rais, raos, cdStartOffset, newCdStartOffset, cdLength);
 
                     // Update central directory header offsets
                     shift = cdStartOffset-newCdStartOffset;
@@ -375,7 +377,7 @@ public class ZipFile implements ZipConstants {
                     // Note: the data descriptor (if any) is not erased, this would require some extra check and it is
                     // not really necessary, as the information it contains is not sensitive
                     raos.seek(entryInfo.headerOffset);
-                    writeZeros(raos, entryInfo.dataOffset-entryInfo.headerOffset + ze.getCompressedSize());
+                    StreamUtils.fillWithConstant(raos, (byte)0, entryInfo.dataOffset-entryInfo.headerOffset + ze.getCompressedSize(), WRITE_BUFFER_SIZE);
 
                     // Update the central directory :
                     // - do not touch the file headers that are located before the deleted entry
@@ -387,7 +389,7 @@ public class ZipFile implements ZipConstants {
                     long startOffset = ((ZipEntry)entries.elementAt(entryIndex+1)).getEntryInfo().centralHeaderOffset;
                     cdEndOffset = lastEntryInfo.centralHeaderOffset + lastEntryInfo.centralHeaderLen;
 
-                    copyChunk(rais, raos, startOffset, entryInfo.centralHeaderOffset, cdEndOffset-startOffset);
+                    StreamUtils.copyChunk(rais, raos, startOffset, entryInfo.centralHeaderOffset, cdEndOffset-startOffset);
 
                     // Update central directory header offsets for files located after the deleted entry as their
                     // offset has changed
@@ -400,7 +402,7 @@ public class ZipFile implements ZipConstants {
             }
 
             // Write the central directory end section
-            ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries-1, cdEndOffset - cdStartOffset, cdStartOffset, comment, UTF_8);
+            ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries-1, cdEndOffset - cdStartOffset, cdStartOffset, comment, UTF_8, zipBuffer);
 
             // Truncate the zip file to reclaim the trailing unused space
             raos.setLength(raos.getOffset());
@@ -446,7 +448,7 @@ public class ZipFile implements ZipConstants {
             entryInfo.encoding = UTF_8;   // Always use UTF-8 for new entries
             entryInfo.headerOffset = centralDirectoryStart;
             entryInfo.dataOffset = entryInfo.headerOffset +
-                                     ZipOutputStream.writeLocalFileHeader(entry, raos, entryInfo.encoding, false);
+                                     ZipOutputStream.writeLocalFileHeader(entry, raos, entryInfo.encoding, false, zipBuffer);
 
             // Add the new entry to the internal lists
             entry.setEntryInfo(entryInfo);
@@ -454,11 +456,14 @@ public class ZipFile implements ZipConstants {
             nameMap.put(entry.getName(), entry);
 
             // Create the ZipEntryOutputStream to write the entry's contents
-            ZipEntryOutputStream zeos = new ZipEntryOutputStream(raos) {
+
+            // Use BufferPool to avoid excessive memory allocation and garbage collection.
+            final byte[] deflaterBuf = BufferPool.getArrayBuffer(DEFAULT_DEFLATER_BUFFER_SIZE);
+            ZipEntryOutputStream zeos = new DeflatedOutputStream(raos, new Deflater(DEFAULT_DEFLATER_COMPRESSION, true), deflaterBuf) {
                 // Post-data file info and central directory get written when the stream is closed
                 public void close() throws IOException {
                     // Write data info in the local file header
-                    ZipOutputStream.finalizeEntryData(entry, this, raos, false);
+                    ZipOutputStream.finalizeEntryData(entry, this, raos, false, zipBuffer);
 
                     // Write the central directory that was squashed by the new entry (at least partially)
                     ZipEntry tempZe;
@@ -478,17 +483,21 @@ public class ZipFile implements ZipConstants {
                                         raos,
                                         tempEntryInfo.encoding,     // Preserve existing encoding so that LFH and CFH match
                                         tempEntryInfo.headerOffset,
-                                        tempEntryInfo.hasDataDescriptor);
+                                        tempEntryInfo.hasDataDescriptor,
+                                        zipBuffer);
 
                         // Update length of central header
                         tempEntryInfo.centralHeaderLen = raos.getOffset() - tempEntryInfo.centralHeaderOffset;
                     }
 
-                    ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries, cdLength, cdOffset, comment, UTF_8);
+                    ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries, cdLength, cdOffset, comment, UTF_8, zipBuffer);
 
                     // In some rare cases, the resulting zip file may be smaller.
                     // Truncate the file to ensure that it ends at the central directory end position.
                     raos.setLength(raos.getOffset());
+
+                    // Release the buffer for reuse
+                    BufferPool.releaseArrayBuffer(deflaterBuf);
 
                     super.close();
                     closeWrite();
@@ -510,6 +519,52 @@ public class ZipFile implements ZipConstants {
     }
 
 
+    /**
+     * Updates the date and permissions of the entry designated by the given ZipEntry object. The specified entry must
+     * exist in this Zip file.
+     *
+     * <p>The underlying {@link AbstractFile} must have random write access. If not, an <code>IOException</code> will be
+     * thrown.</p>
+     *
+     * @param entry the entry to update
+     * @throws IOException if the underlying AbstractFile does not have random write access or if an I/O error occurred
+     */
+    public void updateEntry(ZipEntry entry) throws IOException {
+        try {
+            // Open the zip file for write
+            openWrite();
+
+            ZipEntryInfo entryInfo = entry.getEntryInfo();
+
+            /* Local file header */
+
+            // Update time and date
+            raos.seek(entryInfo.headerOffset+10);
+            raos.write(ZipLong.getBytes(entry.getDosTime(), zipBuffer.longBuffer));
+
+            // Note: external attributes are not present in the local file header
+
+            /* Central file header */
+
+            // Update 'Version made by', platform might have changed if the Zip didn't contain Unix permissions
+            raos.seek(entryInfo.centralHeaderOffset+4);
+            ZipOutputStream.writeVersionMadeBy(entry, raos, zipBuffer);
+
+            // Update time and date
+            raos.seek(entryInfo.centralHeaderOffset+12);
+            raos.write(ZipLong.getBytes(entry.getDosTime(), zipBuffer.longBuffer));
+
+            // Update 'external attributes' for permissions
+            raos.seek(entryInfo.centralHeaderOffset+38);
+            raos.write(ZipLong.getBytes(entry.getExternalAttributes(), zipBuffer.longBuffer));
+        }
+        finally {
+            closeWrite();
+        }
+
+    }
+
+    
     /**
      * Removes free space fragments from this zip file, thus reducing the size of the zip file. If this zip file does
      * not contain any free space fragments, the zip file is not modified.
@@ -545,7 +600,7 @@ public class ZipFile implements ZipConstants {
                 calculateDataOffset(currentEntryInfo);
 
             if(currentEntryInfo.headerOffset>0) {
-                copyChunk(rais, raos, currentEntryInfo.headerOffset, 0, (currentEntryInfo.dataOffset- currentEntryInfo.headerOffset)+currentEntry.getCompressedSize());
+                StreamUtils.copyChunk(rais, raos, currentEntryInfo.headerOffset, 0, (currentEntryInfo.dataOffset- currentEntryInfo.headerOffset)+currentEntry.getCompressedSize());
                 shift = currentEntryInfo.headerOffset;
 
                 currentEntryInfo.headerOffset = 0;
@@ -574,7 +629,7 @@ public class ZipFile implements ZipConstants {
 
                 // Tests if there is some unused space between the 2 entries
                 if(previousEntryEnd < currentEntryInfo.headerOffset) {
-                    copyChunk(rais, raos, currentEntryInfo.headerOffset, previousEntryInfo.dataOffset+previousCompressedSize, (currentEntryInfo.dataOffset- currentEntryInfo.headerOffset)+currentEntry.getCompressedSize());
+                    StreamUtils.copyChunk(rais, raos, currentEntryInfo.headerOffset, previousEntryInfo.dataOffset+previousCompressedSize, (currentEntryInfo.dataOffset- currentEntryInfo.headerOffset)+currentEntry.getCompressedSize());
                     shift = currentEntryInfo.headerOffset - (previousEntryInfo.dataOffset+previousCompressedSize);
 
                     currentEntryInfo.headerOffset -= shift;
@@ -600,13 +655,13 @@ public class ZipFile implements ZipConstants {
                     entryInfo.centralHeaderOffset = raos.getOffset();
 
                     // Preserve existing encoding when rewriting CFH so that it matches LFH
-                    cdLength += ZipOutputStream.writeCentralFileHeader(ze, raos, entryInfo.encoding, entryInfo.headerOffset, entryInfo.hasDataDescriptor);
+                    cdLength += ZipOutputStream.writeCentralFileHeader(ze, raos, entryInfo.encoding, entryInfo.headerOffset, entryInfo.hasDataDescriptor, zipBuffer);
 
                     // Update length of central directory file header
                     entryInfo.centralHeaderLen = raos.getOffset() - entryInfo.centralHeaderOffset;
                 }
 
-                ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries, cdLength, cdOffset, comment, UTF_8);
+                ZipOutputStream.writeCentralDirectoryEnd(raos, nbEntries, cdLength, cdOffset, comment, UTF_8, zipBuffer);
 
                 // Truncate the zip file to reclaim the trailing unused space
                 raos.setLength(raos.getOffset());
@@ -620,72 +675,6 @@ public class ZipFile implements ZipConstants {
             catch(IOException e) {}
         }
     }
-
-
-    /**
-     * Copies a chunk of data from the given {@link RandomAccessInputStream} to the specified
-     * {@link RandomAccessOutputStream}.
-     *
-     * @param rais the source stream
-     * @param raos the destination stream
-     * @param srcOffset start of data in the source stream
-     * @param destOffset start of data in the destination stream
-     * @param length number of bytes to copy
-     * @throws IOException if an error occurred while copying data
-     */
-    private static void copyChunk(RandomAccessInputStream rais, RandomAccessOutputStream raos, long srcOffset, long destOffset, long length) throws IOException {
-//if(Debug.ON) Debug.trace("srcOffset="+srcOffset+" destOffset="+destOffset+" length="+length);
-
-        rais.seek(srcOffset);
-        raos.seek(destOffset);
-
-        // Use BufferPool to avoid excessive memory allocation and garbage collection
-        byte buffer[] = BufferPool.getBuffer(WRITE_BUFFER_SIZE);
-
-        try {
-            long remaining = length;
-            int nbBytes;
-            while(remaining>0) {
-                nbBytes = (int)(remaining< WRITE_BUFFER_SIZE ?remaining: WRITE_BUFFER_SIZE);
-                rais.readFully(buffer, 0, nbBytes);
-                raos.write(buffer, 0, nbBytes);
-                remaining -= nbBytes;
-            }
-        }
-        finally {
-            BufferPool.releaseBuffer(buffer);
-        }
-    }
-
-
-    /**
-     * Writes the specified number of zero bytes to the given <code>OutputStream</code>. 
-     *
-     * @param out the OutputStream to write zeros to
-     * @param len number of zero bytes to write
-     * @throws IOException if an error occurred while writing zeros
-     */
-    private static void writeZeros(OutputStream out, long len) throws IOException {
-//if(Debug.ON) Debug.trace("writing "+len+" zeros");
-
-        // Use BufferPool to avoid excessive memory allocation and garbage collection
-        int bufferLen = WRITE_BUFFER_SIZE;
-        byte buffer[] = BufferPool.getBuffer(bufferLen);
-
-        try {
-            long remaining = len;
-            int nbWrite;
-            while(remaining>0) {
-                nbWrite = (int)(remaining>bufferLen?bufferLen:remaining);
-                out.write(buffer, 0, nbWrite);
-                remaining -= nbWrite;
-            }
-        }
-        finally {
-            BufferPool.releaseBuffer(buffer);
-        }
-    }
-
 
 
     /**
@@ -775,16 +764,16 @@ public class ZipFile implements ZipConstants {
             entryInfo.centralHeaderOffset = rais.getOffset() - 4;     // 4 for the header signature
 
             rais.readFully(cfh);
-            int off = 0;
             ZipEntry ze = new ZipEntry();
 
-            int versionMadeBy = ZipShort.getValue(cfh, off);
-            off += 2;
+            int versionMadeBy = ZipShort.getValue(cfh, 0);
+            // off += 2;
             ze.setPlatform((versionMadeBy >> 8) & 0x0F);
 
-            off += 2; // skip version info
+            // skip version info
+            // off += 2;
 
-            int gp = ZipShort.getValue(cfh, off);   // General purpose bit flag
+            int gp = ZipShort.getValue(cfh, 4);   // General purpose bit flag
             boolean isUTF8 = (gp&0x800)!=0;         // Tests if bit 11 is set, signaling UTF-8 is used for filename and comment
 
             if(isUTF8)
@@ -792,45 +781,47 @@ public class ZipFile implements ZipConstants {
             // Else encoding will be guessed and set later
 
             entryInfo.hasDataDescriptor = (gp&8)!=0;
+            // off += 2;
 
-            off += 2;
-//if(Debug.ON) Debug.trace("hasDataDescriptor="+entryInfo.hasDataDescriptor);
+            int method = ZipShort.getValue(cfh, 6);
+            // Note: ZipEntry#setMethod(int) will throw a java.lang.InternalError ("invalid compression method") if the
+            // method is different from DEFLATED or STORED (happens with IMPLODED for example).
+            // Thus we check the method ourselves to fail gracefully.
+            if(method!=DEFLATED && method!=STORED)
+                throw new ZipException("Unsupported compression method");
 
-            ze.setMethod(ZipShort.getValue(cfh, off));
-            off += 2;
+            ze.setMethod(method);
+            // off += 2;
 
-            // FIXME this is actually not very cpu cycles friendly as we are converting from
-            // dos to java while the underlying Sun implementation will convert
-            // from java to dos time for internal storage...
-            long time = dosToJavaTime(ZipLong.getValue(cfh, off));
-            ze.setTime(time);
-            off += 4;
+            ze.setDosTime(ZipLong.getValue(cfh, 8));
+            // off += 4;
 
-            ze.setCrc(ZipLong.getValue(cfh, off));
-            off += 4;
+            ze.setCrc(ZipLong.getValue(cfh, 12));
+            // off += 4;
 
-            ze.setCompressedSize(ZipLong.getValue(cfh, off));
-            off += 4;
+            ze.setCompressedSize(ZipLong.getValue(cfh, 16));
+            // off += 4;
 
-            ze.setSize(ZipLong.getValue(cfh, off));
-            off += 4;
+            ze.setSize(ZipLong.getValue(cfh, 20));
+            // off += 4;
 
-            int fileNameLen = ZipShort.getValue(cfh, off);
-            off += 2;
+            int fileNameLen = ZipShort.getValue(cfh, 24);
+            // off += 2;
 
-            int extraLen = ZipShort.getValue(cfh, off);
-            off += 2;
+            int extraLen = ZipShort.getValue(cfh, 26);
+            // off += 2;
 
-            int commentLen = ZipShort.getValue(cfh, off);
-            off += 2;
+            int commentLen = ZipShort.getValue(cfh, 28);
+            // off += 2;
 
-            off += 2; // disk number
+            // skip disk number
+            // off += 2;
 
-            ze.setInternalAttributes(ZipShort.getValue(cfh, off));
-            off += 2;
+            ze.setInternalAttributes(ZipShort.getValue(cfh, 32));
+            // off += 2;
 
-            ze.setExternalAttributes(ZipLong.getValue(cfh, off));
-            off += 4;
+            ze.setExternalAttributes(ZipLong.getValue(cfh, 34));
+            // off += 4;
 
             // Read filename bytes
             byte[] filename = new byte[fileNameLen];
@@ -839,7 +830,6 @@ public class ZipFile implements ZipConstants {
             if(isUTF8) {
                 // We know the filename is encoded in UTF-8, set it now
                 ze.setName(getString(filename, UTF_8));
-//if(Debug.ON) Debug.trace("using UTF-8, filename="+ze.getName());
             }
             else {
                 // Keep the filename bytes, String will be encoded after
@@ -849,7 +839,7 @@ public class ZipFile implements ZipConstants {
             }
 
             // Offset to local file header
-            entryInfo.headerOffset = ZipLong.getValue(cfh, off);
+            entryInfo.headerOffset = ZipLong.getValue(cfh, 38);
             // data offset will be filled later
 
             // Read and set extra bytes
@@ -864,7 +854,6 @@ public class ZipFile implements ZipConstants {
             if(isUTF8) {
                 // We know the comment is encoded in UTF-8, set it now
                 ze.setComment(getString(comment, UTF_8));
-//if(Debug.ON) Debug.trace("using UTF-8, comment="+ze.getComment());
             }
             else {
                 // Keep the comment bytes, String will be encoded after
@@ -888,7 +877,6 @@ public class ZipFile implements ZipConstants {
         if(encodingAccumulator.size()>0) {
             int nbEntries = entries.size();
             String guessedEncoding = EncodingDetector.detectEncoding(encodingAccumulator.toByteArray());
-//            if(Debug.ON) Debug.trace("guessedEncoding="+guessedEncoding);
 
             ZipEntry entry;
             ZipEntryInfo entryInfo;
@@ -903,11 +891,9 @@ public class ZipFile implements ZipConstants {
 
                 entry.setName(getString(entryInfo.filename, guessedEncoding));
                 entryInfo.filename = null;
-//if(Debug.ON) Debug.trace("guessedEncoding="+guessedEncoding+" filename="+entry.getName());
 
                 entry.setComment(getString(entryInfo.comment, guessedEncoding));
                 entryInfo.comment = null;
-//if(Debug.ON) Debug.trace("guessedEncoding="+guessedEncoding+" comment="+entry.getComment());
             }
         }
     }
@@ -1036,23 +1022,6 @@ public class ZipFile implements ZipConstants {
         rais.seek(cdStart);
     }
 
-
-    /*
-     * Converts DOS time (Epoch=1980) to Java time (Epoch=1970).
-     */
-    private static long dosToJavaTime(long dosTime) {
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.YEAR, (int) ((dosTime >> 25) & 0x7f) + 1980);
-        cal.set(Calendar.MONTH, (int) ((dosTime >> 21) & 0x0f) - 1);
-        cal.set(Calendar.DATE, (int) (dosTime >> 16) & 0x1f);
-        cal.set(Calendar.HOUR_OF_DAY, (int) (dosTime >> 11) & 0x1f);
-        cal.set(Calendar.MINUTE, (int) (dosTime >> 5) & 0x3f);
-        cal.set(Calendar.SECOND, (int) (dosTime << 1) & 0x3e);
-
-        return cal.getTime().getTime();
-    }
-
-
     /**
      * Creates and returns a String created using the given bytes and encoding.
      * If the specified encoding isn't supported, the platform's default encoding will be used.
@@ -1084,11 +1053,10 @@ public class ZipFile implements ZipConstants {
     ///////////////////
     
     /**
-     * InputStream that delegates requests to the underlying
-     * RandomAccessFile, making sure that only bytes from a certain
-     * range can be read.
+     * InputStream that delegates requests to the underlying RandomAccessFile, making sure that only bytes from a
+     * certain range can be read.
      */
-    private class BoundedInputStream extends InputStream {
+    private static class BoundedInputStream extends InputStream {
 
         private final RandomAccessInputStream rais;
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 package com.mucommander.file.impl.local;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
 import com.mucommander.process.AbstractProcess;
+import com.mucommander.runtime.JavaVersions;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +50,7 @@ class LocalProcess extends AbstractProcess {
     public LocalProcess(String[] tokens, File dir) throws IOException {
         // Java 1.5 and higher can merge stderr and stdout through ProcessBuilder.
         // This is the preferred way of working with processes.
-        if(PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_5) {
+        if(JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
             ProcessBuilder pb = new ProcessBuilder(tokens);
             // Set the process' working directory
             pb.directory(dir);
@@ -79,7 +79,7 @@ class LocalProcess extends AbstractProcess {
      * Returns <code>true</code> if the VM supports merged <code>java.lang.Process</code> streams.
      * @return <code>true</code> if the VM supports merged <code>java.lang.Process</code> streams, <code>false</code> otherwise.
      */
-    public boolean usesMergedStreams() {return PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6;}
+    public boolean usesMergedStreams() {return JavaVersions.JAVA_1_6.isCurrentOrHigher();}
 
     /**
      * Waits for the process to die.

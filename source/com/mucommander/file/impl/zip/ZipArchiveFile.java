@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@ package com.mucommander.file.impl.zip;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractRWArchiveFile;
 import com.mucommander.file.ArchiveEntry;
+import com.mucommander.file.FilePermissions;
 import com.mucommander.file.impl.zip.provider.ZipConstants;
 import com.mucommander.file.impl.zip.provider.ZipEntry;
 import com.mucommander.file.impl.zip.provider.ZipFile;
+import com.mucommander.io.FilteredOutputStream;
 
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -97,13 +98,17 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
      * @return a ZipEntry whose attributes are fetched from the given ZipEntry
      */
     private ZipEntry createZipEntry(ArchiveEntry entry) {
+        boolean isDirectory = entry.isDirectory();
         String path = entry.getPath();
-        if(entry.isDirectory() && !path.endsWith("/"))
+        if(isDirectory && !path.endsWith("/"))
             path += "/";
 
         com.mucommander.file.impl.zip.provider.ZipEntry zipEntry = new com.mucommander.file.impl.zip.provider.ZipEntry(path);
         zipEntry.setMethod(ZipConstants.DEFLATED);
         zipEntry.setTime(System.currentTimeMillis());
+        zipEntry.setUnixMode(AbstractFile.padPermissions(entry.getPermissions(), entry.getPermissionsMask(), isDirectory
+                    ?FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS
+                    :FilePermissions.DEFAULT_FILE_PERMISSIONS));
 
         return zipEntry;
     }
@@ -116,6 +121,12 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
      */
     private ArchiveEntry createArchiveEntry(ZipEntry zipEntry) {
         ArchiveEntry entry = new ArchiveEntry(zipEntry.getName(), zipEntry.isDirectory(), zipEntry.getTime(), zipEntry.getSize());
+
+        if(zipEntry.hasUnixMode()) {
+            entry.setPermissions(zipEntry.getUnixMode());
+            entry.setPermissionMask(FULL_PERMISSIONS);
+        }
+
         entry.setEntryObject(zipEntry);
 
         return entry;
@@ -167,6 +178,11 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
                 // java.util.zip.ZipInputStream can throw an IllegalArgumentException when the filename/comment encoding
                 // is not UTF-8 as expected (ZipInputStream always expects UTF-8). The more general Exception is caught
                 // (just to be safe) and an IOException thrown.
+                throw new IOException();
+            }
+            catch(Error e) {
+                // ZipInpustStream#getNextEntry() will throw a java.lang.InternalError ("invalid compression method")
+                // if the compression method is different from DEFLATED or STORED (happens with IMPLODED for example).
                 throw new IOException();
             }
             finally {
@@ -230,7 +246,7 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
             // Set the ZipEntry object into the ArchiveEntry
             entry.setEntryObject(zipEntry);
 
-            return new FilterOutputStream(zipFile.addEntry(zipEntry)) {
+            return new FilteredOutputStream(zipFile.addEntry(zipEntry)) {
                 public void close() throws IOException {
                     super.close();
 
@@ -266,6 +282,29 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
 
         // Remove the entry from the entries tree
         removeFromEntriesTree(entry);
+    }
+
+    public void updateEntry(ArchiveEntry entry) throws IOException {
+        ZipEntry zipEntry = (com.mucommander.file.impl.zip.provider.ZipEntry)entry.getEntryObject();
+
+        // Most of the time, the ZipEntry will not be null. However, it can be null in some rare cases, when directory
+        // entries have been created in the entries tree but don't exist in the Zip file.
+        // That is the case when a file entry exists in the Zip file but has no directory entry for the parent.
+        if(zipEntry!=null) {
+            // Entry exists physically in the zip file
+
+            checkZipFile();
+
+            zipEntry.setTime(entry.getDate());
+            zipEntry.setUnixMode(entry.getPermissions());
+            
+            // Physically update the entry's attributes in the Zip file
+            zipFile.updateEntry(zipEntry);
+
+            // Declare the zip file and entries tree up-to-date
+            declareZipFileUpToDate();
+            declareEntriesTreeUpToDate();
+        }
     }
 
     public synchronized void optimizeArchive() throws IOException {

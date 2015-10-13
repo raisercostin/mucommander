@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import com.mucommander.file.FileFactory;
 import com.mucommander.ui.main.MainFrame;
 
 import java.util.Hashtable;
+import javax.swing.JOptionPane;
 
 /**
  * This action opens a URL in the system's default browser. This action is enabled only if the OS/Window manager
@@ -53,8 +54,10 @@ public class OpenURLInBrowserAction extends MuAction {
         if(url!=null && (url instanceof String)) {
             AbstractFile file = FileFactory.getFile((String)url);
 
-            if(file!=null)
-                PlatformManager.openUrl(file);
+            if(file != null) {
+                try {PlatformManager.openUrl(file);}
+                catch(Exception e) {reportGenericError();}
+            }
         }
     }
 }

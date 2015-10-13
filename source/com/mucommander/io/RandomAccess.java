@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@ import java.io.IOException;
 public interface RandomAccess {
 
     /**
-     * Closes the random access file stream and releases any system resources associated with the stream.
-     * A closed random access file cannot perform input or output operations and cannot be reopened.
+     * Closes the random access stream and releases any system resources associated with the stream.
+     * A closed stream cannot perform input or output operations and cannot be reopened.
      *
      * @throws IOException if an I/O error occurs
      */

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ public class OrFileFilter extends ChainedFileFilter {
      * @param file the file to test against the registered filters
      * @return if the file was matched by one filter, false if none of them did
      */
-    public synchronized boolean accept(AbstractFile file) {
+    public boolean accept(AbstractFile file) {
         int nbFilters = filters.size();
 
         if(nbFilters==0)

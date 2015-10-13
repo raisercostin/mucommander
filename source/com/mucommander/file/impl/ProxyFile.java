@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ import com.mucommander.process.AbstractProcess;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 /**
  * ProxyFile is an {@link AbstractFile} that acts as a proxy between the class that extends it
@@ -125,6 +127,22 @@ public abstract class ProxyFile extends AbstractFile {
         return file.canSetPermission(access, permission);
     }
 
+    public String getOwner() {
+        return file.getOwner();
+    }
+
+    public boolean canGetOwner() {
+        return file.canGetOwner();
+    }
+
+    public String getGroup() {
+        return file.getGroup();
+    }
+
+    public boolean canGetGroup() {
+        return file.canGetGroup();
+    }
+
     public boolean isDirectory() {
         return file.isDirectory();
     }
@@ -196,6 +214,10 @@ public abstract class ProxyFile extends AbstractFile {
 
     public FileURL getURL() {
         return file.getURL();
+    }
+
+    public URL getJavaNetURL() throws MalformedURLException {
+        return file.getJavaNetURL();
     }
 
     public String getName() {
@@ -296,6 +318,14 @@ public abstract class ProxyFile extends AbstractFile {
 
     public void deleteRecursively() throws IOException {
         file.deleteRecursively();
+    }
+
+    public void importPermissions(AbstractFile sourceFile) {
+        file.importPermissions(sourceFile);
+    }
+
+    public void importPermissions(AbstractFile sourceFile, int defaultPermissions) {
+        file.importPermissions(sourceFile, defaultPermissions);
     }
 
     public boolean equals(Object f) {

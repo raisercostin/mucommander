@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,11 @@ package com.mucommander.ui.main;
 import com.mucommander.Debug;
 import com.mucommander.ShutdownHook;
 import com.mucommander.auth.AuthException;
-import com.mucommander.auth.MappedCredentials;
+import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.extension.ExtensionManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.ui.dialog.auth.AuthDialog;
@@ -35,6 +36,7 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Vector;
 
 /**
@@ -80,10 +82,38 @@ public class WindowManager implements WindowListener, ConfigurationListener {
 
     // - Initialisation ---------------------------------------------------------
     // --------------------------------------------------------------------------
+    /**
+     * Installs all custom look and feels.
+     */
+    private static void installCustomLookAndFeels() {
+        List     plafs;         // All available custom look and feels.
+        Iterator plafsIterator; // Iterator on custom look and feels.
+
+        // Tries to retrieve the custom look and feels list.
+        if((plafs = MuConfiguration.getListVariable(MuConfiguration.CUSTOM_LOOK_AND_FEELS, MuConfiguration.CUSTOM_LOOK_AND_FEELS_SEPARATOR)) == null)
+            return;
+
+        // Goes through the list and install every custom look and feel we could find.
+        // Look and feels that aren't supported under the current platform are ignored.
+        plafsIterator = plafs.iterator();
+        while(plafsIterator.hasNext()) {
+            try {installLookAndFeel((String)plafsIterator.next());}
+            catch(Throwable e) {if(Debug.ON) Debug.trace(e);}
+        }
+    }
 
     static {
         mainFrames = new Vector();
         instance   = new WindowManager();
+
+        // Notifies Swing that look&feels must be loaded as extensions.
+        // This is necessary to ensure that look and feels placed in the extensions folder
+        // are accessible.
+        UIManager.getDefaults().put("ClassLoader", ExtensionManager.getClassLoader());
+
+        // Installs all custom look and feels.
+        installCustomLookAndFeels();
+        
 
         // Sets custom lookAndFeel if different from current lookAndFeel
         String lnfName = MuConfiguration.getVariable(MuConfiguration.LOOK_AND_FEEL);
@@ -163,7 +193,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
 
         // Tries the specified path as-is.
         AbstractFile file;
-        MappedCredentials newCredentials = null;
+        CredentialsMapping newCredentialsMapping;
 
         while(true) {
             try {
@@ -179,9 +209,9 @@ public class WindowManager implements WindowListener, ConfigurationListener {
                     AuthException authException = (AuthException)e;
                     AuthDialog authDialog = new AuthDialog(currentMainFrame, authException.getFileURL(), authException.getMessage());
                     authDialog.showDialog();
-                    newCredentials = authDialog.getCredentials();
-                    if(newCredentials!=null) {
-                        path = newCredentials.getRealm().toString(true);
+                    newCredentialsMapping = authDialog.getCredentialsMapping();
+                    if(newCredentialsMapping !=null) {
+                        path = newCredentialsMapping.getRealm().toString(true);
                     }
                     // If the user cancels, we fall back to the default path.
                     else {
@@ -266,8 +296,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     public static synchronized MainFrame createNewMainFrame() {
         if(currentMainFrame == null)
             return createNewMainFrame(getInitialPath(LEFT_FRAME), getInitialPath(RIGHT_FRAME));
-        return createNewMainFrame(currentMainFrame.getFolderPanel1().getFileTable().getCurrentFolder(),
-                                  currentMainFrame.getFolderPanel2().getFileTable().getCurrentFolder());
+        return createNewMainFrame(currentMainFrame.getLeftPanel().getFileTable().getCurrentFolder(),
+                                  currentMainFrame.getRightPanel().getFileTable().getCurrentFolder());
     }
 
     /**
@@ -380,9 +410,9 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     public static synchronized void disposeMainFrame(MainFrame mainFrameToDispose) {
         // Saves last folders
         MuConfiguration.setVariable("prefs.startup_folder.left.last_folder", 
-                                         mainFrameToDispose.getFolderPanel1().getFolderHistory().getLastRecallableFolder());
+                                         mainFrameToDispose.getLeftPanel().getFolderHistory().getLastRecallableFolder());
         MuConfiguration.setVariable("prefs.startup_folder.right.last_folder", 
-                                         mainFrameToDispose.getFolderPanel2().getFolderHistory().getLastRecallableFolder());
+                                         mainFrameToDispose.getRightPanel().getFolderHistory().getLastRecallableFolder());
 
         // Saves window position, size and screen resolution
         Rectangle bounds = mainFrameToDispose.getBounds();
@@ -472,18 +502,38 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         mainFrame.toFront();
     }
 
+    public static void installLookAndFeel(String className) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+        LookAndFeel plaf;
+
+        plaf = (LookAndFeel)Class.forName(className, true, ExtensionManager.getClassLoader()).newInstance();
+        if(plaf.isSupportedLookAndFeel())
+            UIManager.installLookAndFeel(plaf.getName(), plaf.getClass().getName());
+    }
 
     /**
      * Changes LooknFeel to the given one, updating the UI of each MainFrame.
      */
     private static void setLookAndFeel(String lnfName) {
         try {
-            UIManager.setLookAndFeel(lnfName);
+            ClassLoader oldLoader;
+            Thread      currentThread;
+
+            // Initialises class loading.
+            // This is necessary due to Swing's UIDefaults.LazyProxyValue behaviour that just
+            // won't use the right ClassLoader instance to load resources.
+            currentThread = Thread.currentThread();
+            oldLoader     = currentThread.getContextClassLoader();
+            currentThread.setContextClassLoader(ExtensionManager.getClassLoader());
+
+            UIManager.setLookAndFeel((LookAndFeel)Class.forName(lnfName, true, ExtensionManager.getClassLoader()).newInstance());
+
+            // Restores the contextual ClassLoader.
+            currentThread.setContextClassLoader(oldLoader);
 
             for(int i=0; i<mainFrames.size(); i++)
                 SwingUtilities.updateComponentTreeUI((MainFrame)(mainFrames.elementAt(i)));
         }
-        catch(Exception e) {}
+        catch(Throwable e) {if(Debug.ON) Debug.trace(e);}
     }
 
 

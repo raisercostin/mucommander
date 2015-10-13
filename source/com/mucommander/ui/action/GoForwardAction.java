@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,6 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.ui.event.ActivePanelListener;
-import com.mucommander.ui.event.LocationEvent;
-import com.mucommander.ui.event.LocationListener;
-import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
 
 import java.util.Hashtable;
@@ -39,7 +35,7 @@ public class GoForwardAction extends GoToAction {
 
 
     public void performAction() {
-        mainFrame.getActiveTable().getFolderPanel().getFolderHistory().goForward();
+        mainFrame.getActivePanel().getFolderHistory().goForward();
     }
 
 
@@ -48,7 +44,7 @@ public class GoForwardAction extends GoToAction {
      * folder in the history, this action will be enabled, if not it will be disabled.
      */
     protected void toggleEnabledState() {
-        setEnabled(mainFrame.getActiveTable().getFolderPanel().getFolderHistory().hasForwardFolder());
+        setEnabled(mainFrame.getActivePanel().getFolderHistory().hasForwardFolder());
     }
 
 }

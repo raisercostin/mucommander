@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ import javax.swing.text.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.util.Locale;
 
 /**
  * Dialog displaying information about muCommander.
@@ -123,6 +125,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
             // Contributors.
             insertHeader(doc,         "Code contributors");
+            insertNormalString(doc,   "Vassil Dichev");
             insertNormalString(doc,   "Mariusz Jakubowski");
             insertNormalString(doc,   "Xavier Martin");
             insertNormalString(doc,   "Alejandro Scandroli");
@@ -137,6 +140,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedString(doc, "Tony Klüver",         "German");
             insertDetailedString(doc, "Marcos Cobeña",       "Spanish");
             insertDetailedString(doc, "Cristiano Duarte",    "Brazilian Portuguese");
+            insertDetailedString(doc, "Jakob Ekström",       "Swedish");
             insertDetailedString(doc, "Catalin Hritcu",      "Romanian");
             insertDetailedString(doc, "Kent Hsu",            "Traditional Chinese");
             insertDetailedString(doc, "Jioh L. Jung",        "Korean");
@@ -145,9 +149,10 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedString(doc, "Pieter Kristensen",   "Dutch");
             insertDetailedString(doc, "Ján Ľudvík",          "Slovak");
             insertDetailedString(doc, "Jaromír Mára",        "Czech");
+            insertDetailedString(doc, "Nardog",              "Japanese");
             insertDetailedString(doc, "Peter Vasko",         "Czech");
             insertDetailedString(doc, "Jonathan Murphy",     "British English");
-            insertDetailedString(doc, "XXXX Pro",            "Russian");
+            insertDetailedString(doc, "4X_Pro",              "Russian");
             insertDetailedString(doc, "Woodie",              "Simplified Chinese");
             insertLineBreak(doc);
 
@@ -163,13 +168,15 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             // External Libraries.
             insertHeader(doc,         "External libraries");
             insertDetailedUrl(doc,    "Ant",                 "Apache License",                       "http://ant.apache.org");
+            insertDetailedUrl(doc,    "Furbelow",            "LGPL",                                 "http://sourceforge.net/projects/furbelow");
             insertDetailedUrl(doc,    "ICU4J",               "ICU License",                          "http://www.icu-project.org");
             insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");
             insertDetailedUrl(doc,    "Jakarta Commons Net", "Apache License",                       "http://jakarta.apache.org/commons/net");
             insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
             insertDetailedUrl(doc,    "JmDNS",               "LGPL",                                 "http://jmdns.sourceforge.net");
-            insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
+            insertDetailedUrl(doc,    "JNA",                 "LGPL",                                 "http://jna.dev.java.net");
             insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
+            insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
             insertLineBreak(doc);
 
             // External tools.
@@ -205,6 +212,14 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertNormalString(doc,   "Name: " + System.getProperty("os.name"));
             insertNormalString(doc,   "Version: " + System.getProperty("os.version"));
             insertNormalString(doc,   "Architecture: " + System.getProperty("os.arch"));
+            insertLineBreak(doc);
+
+            // Locale information.
+            Locale locale = Locale.getDefault();
+            insertHeader(doc,         "Locale");
+            insertNormalString(doc,   "Language: " + locale.getLanguage());
+            insertNormalString(doc,   "Country: " + locale.getCountry());
+            insertNormalString(doc,   "Encoding: " + System.getProperty("file.encoding"));
         }
         catch(Exception e) {}
 
@@ -404,8 +419,11 @@ public class AboutDialog extends FocusDialog implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         if(e.getSource() == okButton)
             dispose();
-        else if(e.getSource() == homeButton)
-            PlatformManager.open(com.mucommander.file.FileFactory.getFile(RuntimeConstants.HOMEPAGE_URL));
+        else if(e.getSource() == homeButton) {
+            try {PlatformManager.open(com.mucommander.file.FileFactory.getFile(RuntimeConstants.HOMEPAGE_URL));}
+            // Ignores errors here as there really isn't anything we can do.
+            catch(IOException ignored) {}
+        }
         else if(e.getSource() == licenseButton)
             new LicenseDialog(this).showDialog();
     }

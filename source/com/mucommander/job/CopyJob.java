@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import com.mucommander.file.AbstractRWArchiveFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
 
@@ -38,36 +37,19 @@ import java.io.IOException;
  *
  * @author Maxence Bernard
  */
-public class CopyJob extends TransferFileJob {
-
-    /** Base destination folder */
-    protected AbstractFile baseDestFolder;
+public class CopyJob extends AbstractCopyJob {
 
     /** Destination file that is being copied, this value is updated every time #processFile() is called.
      * The value can be used by subclasses that override processFile should they need to work on the destination file. */
     protected AbstractFile currentDestFile;
 
-    /** New filename in destination */
-    private String newName;
-
-    /** Default choice when encountering an existing file */
-    private int defaultFileExistsAction = FileCollisionDialog.ASK_ACTION;
-
-    /** Title used for error dialogs */
-    private String errorDialogTitle;
-	
     /** Operating mode : COPY_MODE, UNPACK_MODE or DOWNLOAD_MODE */
     private int mode;
-
-    /** The archive that contains the destination files (may be null) */
-    private AbstractRWArchiveFile archiveToOptimize;
-
-    /** True when an archive is being optimized */
-    private boolean isOptimizingArchive;
 
     public final static int COPY_MODE = 0;
     public final static int UNPACK_MODE = 1;
     public final static int DOWNLOAD_MODE = 2;
+
 	
 	
     /**
@@ -79,19 +61,17 @@ public class CopyJob extends TransferFileJob {
      * @param destFolder destination folder where the files will be copied
      * @param newName the new filename in the destination folder, can be <code>null</code> in which case the original filename will be used.
      * @param mode mode in which CopyJob is to operate: COPY_MODE, UNPACK_MODE or DOWNLOAD_MODE.
-     * @param fileExistsAction default action to be triggered if a file already exists in the destination (action can be to ask the user)
+     * @param fileExistsAction default action to be performed when a file already exists in the destination, see {@link com.mucommander.ui.dialog.file.FileCollisionDialog} for allowed values
      */
     public CopyJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet files, AbstractFile destFolder, String newName, int mode, int fileExistsAction) {
-        super(progressDialog, mainFrame, files);
+        super(progressDialog, mainFrame, files, destFolder, newName, fileExistsAction);
 
-        this.baseDestFolder = destFolder;
-        this.newName = newName;
         this.mode = mode;
-        this.defaultFileExistsAction = fileExistsAction;
         this.errorDialogTitle = Translator.get(mode==UNPACK_MODE?"unpack_dialog.error_title":mode==DOWNLOAD_MODE?"download_dialog.error_title":"copy_dialog.error_title");
     }
 
-	
+
+
     ////////////////////////////////////
     // TransferFileJob implementation //
     ////////////////////////////////////
@@ -154,73 +134,18 @@ public class CopyJob extends TransferFileJob {
             destFileName = originalName;
 		
         // Create destination AbstractFile instance
-        AbstractFile destFile;
-        do {    // Loop for retry
-            try {
-                destFile = destFolder.getDirectChild(destFileName);
-                currentDestFile = destFile;
-                break;
-            }
-            catch(IOException e) {
-                // Destination file couldn't be instanciated
-
-                int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_write_file", destFileName));
-                // Retry loops
-                if(ret==RETRY_ACTION)
-                    continue;
-                // Cancel or close dialog return false
-                return false;
-                // Skip continues
-            }
-        } while(true);
+        AbstractFile destFile = createDestinationFile(destFolder, destFileName);
+        if (destFile == null)
+            return false;
+        currentDestFile = destFile;
 
         // Do nothing if file is a symlink (skip file and return)
         if(file.isSymlink())
             return true;
 
-        // Check for file collisions (file exists in the destination, destination subfolder of source, ...)
-        // if a default action hasn't been specified
-        int collision = FileCollisionChecker.checkForCollision(file, destFile);
-        boolean append = false;
-
-        // Handle collision, asking the user what to do or using a default action to resolve the collision 
-        if(collision != FileCollisionChecker.NO_COLLOSION) {
-            int choice;
-            // Use default action if one has been set, if not show up a dialog
-            if(defaultFileExistsAction==FileCollisionDialog.ASK_ACTION) {
-                FileCollisionDialog dialog = new FileCollisionDialog(progressDialog, mainFrame, collision, file, destFile, true);
-                choice = waitForUserResponse(dialog);
-                // If 'apply to all' was selected, this choice will be used for any other files (user will not be asked again)
-                if(dialog.applyToAllSelected())
-                    defaultFileExistsAction = choice;
-            }
-            else
-                choice = defaultFileExistsAction;
-
-            // Cancel, skip or close dialog
-            if (choice==-1 || choice== FileCollisionDialog.CANCEL_ACTION) {
-                interrupt();
-                return false;
-            }
-            // Skip file
-            else if (choice== FileCollisionDialog.SKIP_ACTION) {
-                return false;
-            }
-            // Append to file (resume file copy)
-            else if (choice== FileCollisionDialog.RESUME_ACTION) {
-                append = true;
-            }
-            // Overwrite file
-            else if (choice== FileCollisionDialog.OVERWRITE_ACTION) {
-                // Do nothing, simply continue
-            }
-            //  Overwrite file if destination is older
-            else if (choice== FileCollisionDialog.OVERWRITE_IF_OLDER_ACTION) {
-                // Overwrite if file is newer (stricly)
-                if(file.getDate()<=destFile.getDate())
-                    return false;
-            }
-        }
+        destFile = checkForCollision(file, destFolder, destFile, false);
+        if (destFile == null)
+            return false;
 
         // Copy directory recursively
         if(file.isDirectory()) {
@@ -263,12 +188,12 @@ public class CopyJob extends TransferFileJob {
                     return true;
                 }
                 catch(IOException e) {
-                    // Unable to open source file
-                    int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_read_folder", destFile.getName()));
+                    // file.ls() failed
+                    int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_read_folder", file.getName()));
                     // Retry loops
                     if(ret==RETRY_ACTION)
                         continue;
-                    // Cancel, skip or close dialog return false
+                    // Cancel, skip or close dialog returns false
                     return false;
                 }
             } while(true);
@@ -280,13 +205,8 @@ public class CopyJob extends TransferFileJob {
         }
     }
 
-    public String getStatusString() {
-        if(isOptimizingArchive)
-            return Translator.get("optimizing_archive", archiveToOptimize.getName());
 
-        return Translator.get(mode==UNPACK_MODE?"unpack_dialog.unpacking_file":mode==DOWNLOAD_MODE?"download_dialog.downloading_file":"copy_dialog.copying_file", getCurrentFileInfo());
-    }
-	
+
     // This job modifies baseDestFolder and its subfolders
     protected boolean hasFolderChanged(AbstractFile folder) {
         if(Debug.ON) Debug.trace("folder="+folder+" returning "+baseDestFolder.isParentOf(folder));
@@ -304,27 +224,9 @@ public class CopyJob extends TransferFileJob {
 
         // If the destination files are located inside an archive, optimize the archive file
         AbstractArchiveFile archiveFile = baseDestFolder.getParentArchive();
-        if(archiveFile!=null && archiveFile.isWritableArchive()) {
-            while(true) {
-                try {
-                    archiveToOptimize = ((AbstractRWArchiveFile)archiveFile);
-                    isOptimizingArchive = true;
+        if(archiveFile!=null && archiveFile.isWritableArchive())
+            optimizeArchive((AbstractRWArchiveFile)archiveFile);
 
-                    archiveToOptimize.optimizeArchive();
-
-                    break;
-                }
-                catch(IOException e) {
-                    if(showErrorDialog(errorDialogTitle, Translator.get("error_while_optimizing_archive", archiveFile.getName()))==RETRY_ACTION)
-                        continue;
-
-                    break;
-                }
-            }
-
-            isOptimizingArchive = true;
-        }
-            
         // If this job correponds to a 'local copy' of a single file and in the same directory,
         // select the copied file in the active table after this job has finished (and hasn't been cancelled)
         if(files.size()==1 && newName!=null && baseDestFolder.equals(files.fileAt(0).getParentSilently())) {
@@ -332,5 +234,15 @@ public class CopyJob extends TransferFileJob {
             // after creation, we need to get an instance that reflects the newly created file attributes
             selectFileWhenFinished(FileFactory.getFile(baseDestFolder.getAbsolutePath(true)+newName));
         }
+    }
+
+    public String getStatusString() {
+        if(isCheckingIntegrity())
+            return super.getStatusString();
+        
+        if(isOptimizingArchive)
+            return Translator.get("optimizing_archive", archiveToOptimize.getName());
+
+        return Translator.get(mode==UNPACK_MODE?"unpack_dialog.unpacking_file":mode==DOWNLOAD_MODE?"download_dialog.downloading_file":"copy_dialog.copying_file", getCurrentFileInfo());
     }
 }

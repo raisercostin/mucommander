@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,8 +38,8 @@ public class ToggleShowFoldersFirstAction extends MuAction {
 
     public void performAction() {
         FileTable activeTable = mainFrame.getActiveTable();
-        boolean showFoldersFirst = !activeTable.isShowFoldersFirstEnabled();
-        activeTable.setShowFoldersFirstEnabled(showFoldersFirst);
+        boolean showFoldersFirst = !activeTable.getSortInfo().getFoldersFirst();
+        activeTable.setFoldersFirst(showFoldersFirst);
         MuConfiguration.setVariable(MuConfiguration.SHOW_FOLDERS_FIRST, showFoldersFirst);
     }
 }

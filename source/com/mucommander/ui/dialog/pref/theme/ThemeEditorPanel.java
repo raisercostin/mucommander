@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,7 @@ import com.mucommander.ui.chooser.PreviewLabel;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.dialog.pref.PreferencesPanel;
 import com.mucommander.ui.layout.ProportionalGridPanel;
-import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.theme.ThemeData;
-import java.beans.PropertyChangeListener;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
@@ -263,7 +261,7 @@ abstract class ThemeEditorPanel extends PreferencesPanel {
      * Used to listen on <code>FontChoosers</code> and update theme data when the font is changed.
      * @author Nicolas Rinaudo
      */
-    private class ThemeFontChooserListener implements ChangeListener {
+    private static class ThemeFontChooserListener implements ChangeListener {
         // - Instance fields -------------------------------------------------------------
         // -------------------------------------------------------------------------------
         /** Theme data in which to update the font when it changes. */
@@ -299,7 +297,7 @@ abstract class ThemeEditorPanel extends PreferencesPanel {
      * Used to listen on <code>FontChoosers</code> and update preview components when the font is changed.
      * @author Nicolas Rinaudo
      */
-    private class PreviewFontChooserListener implements ChangeListener {
+    private static class PreviewFontChooserListener implements ChangeListener {
         // - Instance fields -------------------------------------------------------------
         // -------------------------------------------------------------------------------
         /** Component to update when the font has changed. */

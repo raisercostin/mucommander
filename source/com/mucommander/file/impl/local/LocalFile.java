@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,19 +19,23 @@
 package com.mucommander.file.impl.local;
 
 import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.filter.FilenameFilter;
-import com.mucommander.io.FileTransferException;
-import com.mucommander.io.RandomAccessInputStream;
-import com.mucommander.io.RandomAccessOutputStream;
+import com.mucommander.file.util.Kernel32API;
+import com.mucommander.io.*;
 import com.mucommander.process.AbstractProcess;
+import com.mucommander.runtime.JavaVersions;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsFamily;
+import com.mucommander.runtime.OsVersions;
+import com.sun.jna.ptr.LongByReference;
 
-import javax.swing.filechooser.FileSystemView;
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.regex.Matcher;
@@ -74,6 +78,9 @@ public class LocalFile extends AbstractFile {
     private String parentFilePath;
     private String absPath;
 
+    /** True if this file has a Windows-style UNC path. Can be true only under Windows. */
+    private boolean isUNC;
+
     /** Caches the parent folder, initially null until getParent() gets called */
     private AbstractFile parent;
     /** Indicates whether the parent folder instance has been retrieved and cached or not (parent can be null) */
@@ -82,16 +89,22 @@ public class LocalFile extends AbstractFile {
     /** Underlying local filesystem's path separator: "/" under UNIX systems, "\" under Windows and OS/2 */
     public final static String SEPARATOR = File.separator;
 
+    /** Are we running Windows ? */
+    private final static boolean IS_WINDOWS =  OsFamilies.WINDOWS.isCurrent();
+
     /** true if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...) instead
      * of having single a root folder '/' */
-    public final static boolean USES_ROOT_DRIVES = PlatformManager.isWindowsFamily() || PlatformManager.getOsFamily()==PlatformManager.OS_2;
+    public final static boolean USES_ROOT_DRIVES = IS_WINDOWS || OsFamilies.OS_2.isCurrent();
 
-    /** Are we running Windows ? */
-    private final static boolean IS_WINDOWS;
 
-		
     static {
-        IS_WINDOWS = PlatformManager.isWindowsFamily();
+        // Prevents Windows from poping up a message box when it cannot find a file. Those message box are triggered by
+        // java.io.File methods when operating on removable drives such as floppy or CD-ROM drives which have no disk
+        // inserted.
+        // This has been fixed in Java 1.6 b55 but this fixes previous versions of Java.
+        // See http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4089199
+        if(IS_WINDOWS)
+            Kernel32API.INSTANCE.SetErrorMode(Kernel32API.SEM_NOOPENFILEERRORBOX);
     }
 
 
@@ -104,11 +117,13 @@ public class LocalFile extends AbstractFile {
 
         String path = fileURL.getPath();
 
-        // If OS is Windows and hostname is not 'localhost', translate path back
-        // into a Windows-style UNC network path ( \\hostname\path )
+        // If OS is Windows and hostname is not 'localhost', translate the path back into a Windows-style UNC path
+        // in the form \\hostname\share\path .
         String hostname = fileURL.getHost();
-        if(IS_WINDOWS && !FileURL.LOCALHOST.equals(hostname))
+        if(IS_WINDOWS && !FileURL.LOCALHOST.equals(hostname)) {
             path = "\\\\"+hostname+fileURL.getPath().replace('/', '\\');    // Replace leading / char by \
+            isUNC = true;
+        }
 
         this.file = new File(path);
 
@@ -138,16 +153,34 @@ public class LocalFile extends AbstractFile {
         return FileFactory.getFile(userHomePath);
     }
 
-
     /**
-     * Uses platform dependant commands to extract free and total space on the volume where this file resides.
+     * Returns the total and free space on the volume where this file resides.
      *
-     * <p>This method has been made public as it is more efficient to retrieve both free space and volume space
-     * info than calling getFreeSpace() and getTotalSpace() separately, since a single command process retrieves both.
+     * <p>Using this method to retrieve both free space and volume space is more efficient than calling
+     * {@link #getFreeSpace()} and {@link #getTotalSpace()} separately -- the underlying method retrieving both
+     * attributes at the same time.</p>
      *
-     * @return [totalSpace, freeSpace], both of which can be null if information could not be retrieved.
+     * @return a {totalSpace, freeSpace} long array, both values can be null if the information could not be retrieved
      */
     public long[] getVolumeInfo() {
+        // Under Java 1.6 and up, use the (new) java.io.File methods
+        if(JavaVersions.JAVA_1_6.isCurrentOrHigher()) {
+            return new long[] {
+                getTotalSpace(),
+                getFreeSpace()
+            };
+        }
+
+        // Under Java 1.5 or lower, use native methods
+        return getNativeVolumeInfo();
+    }
+
+    /**
+     * Uses platform dependant functions to retrieve the total and free space on the volume where this file resides.
+     *
+     * @return a {totalSpace, freeSpace} long array, both values can be null if the information could not be retrieved
+     */
+    protected long[] getNativeVolumeInfo() {
         BufferedReader br = null;
         String absPath = getAbsolutePath();
         long dfInfo[] = new long[]{-1, -1};
@@ -155,53 +188,66 @@ public class LocalFile extends AbstractFile {
         try {
             // OS is Windows
             if(IS_WINDOWS) {
-                // Parses the output of 'dir "filePath"' command to retrieve free space information
-                // Note : total space information is not available under Windows
+//                // Parses the output of 'dir "filePath"' command to retrieve free space information
+//
+//                // 'dir' command returns free space on the last line
+//                //Process process = PlatformManager.execute("dir \""+absPath+"\"", this);
+//                //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
+//                Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
+//
+//                // Check that the process was correctly started
+//                if(process!=null) {
+//                    br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//                    String line;
+//                    String lastLine = null;
+//                    // Retrieves last line of dir
+//                    while((line=br.readLine())!=null) {
+//                        if(!line.trim().equals(""))
+//                            lastLine = line;
+//                    }
+//
+//                    // Last dir line may look like something this (might vary depending on system's language, below in French):
+//                    // 6 Rep(s)  14 767 521 792 octets libres
+//                    if(lastLine!=null) {
+//                        StringTokenizer st = new StringTokenizer(lastLine, " \t\n\r\f,.");
+//                        // Discard first token
+//                        st.nextToken();
+//
+//                        // Concatenates as many contiguous groups of numbers
+//                        String token;
+//                        String freeSpace = "";
+//                        while(st.hasMoreTokens()) {
+//                            token = st.nextToken();
+//                            char c = token.charAt(0);
+//                            if(c>='0' && c<='9')
+//                                freeSpace += token;
+//                            else if(!freeSpace.equals(""))
+//                                break;
+//                        }
+//
+//                        dfInfo[1] = Long.parseLong(freeSpace);
+//                    }
+//                }
 
-                // 'dir' command returns free space on the last line
-                //Process process = PlatformManager.execute("dir \""+absPath+"\"", this);
-                //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
-                Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
+                // Retrieves the total and free space information using the GetDiskFreeSpaceEx function of the
+                // Kernel32 API.
+                LongByReference totalSpaceLBR = new LongByReference();
+                LongByReference freeSpaceLBR = new LongByReference();
 
-                // Check that the process was correctly started
-                if(process!=null) {
-                    br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                    String line;
-                    String lastLine = null;
-                    // Retrieves last line of dir
-                    while((line=br.readLine())!=null) {
-                        if(!line.trim().equals(""))
-                            lastLine = line;
-                    }
-
-                    // Last dir line may look like something this (might vary depending on system's language, below in French):
-                    // 6 Rep(s)  14 767 521 792 octets libres		
-                    if(lastLine!=null) {
-                        StringTokenizer st = new StringTokenizer(lastLine, " \t\n\r\f,.");
-                        // Discard first token
-                        st.nextToken();
-
-                        // Concatenates as many contiguous groups of numbers
-                        String token;
-                        String freeSpace = "";
-                        while(st.hasMoreTokens()) {
-                            token = st.nextToken();
-                            char c = token.charAt(0);
-                            if(c>='0' && c<='9')
-                                freeSpace += token;
-                            else if(!freeSpace.equals(""))
-                                break;
-                        }
-
-                        dfInfo[1] = Long.parseLong(freeSpace);
-                    }
+                if(Kernel32API.INSTANCE.GetDiskFreeSpaceEx(absPath, null, totalSpaceLBR, freeSpaceLBR)) {
+                    dfInfo[0] = totalSpaceLBR.getValue();
+                    dfInfo[1] = freeSpaceLBR.getValue();
+                }
+                else {
+                    if(Debug.ON) Debug.trace("Call to GetDiskFreeSpaceEx failed, absPath="+absPath);
                 }
             }
-            // Parses the output of 'df -k "filePath"' command on UNIX-based systems to retrieve free and total space information
-            else {
+            else if(OsFamily.getCurrent().isUnixBased()) {
+                // Parses the output of 'df -k "filePath"' command on UNIX-based systems to retrieve free and total space information
+
                 // 'df -k' returns totals in block of 1K = 1024 bytes
                 Process process = Runtime.getRuntime().exec(new String[]{"df", "-k", absPath}, null, file);
-				
+
                 // Check that the process was correctly started
                 if(process!=null) {
                     br = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -218,7 +264,7 @@ public class LocalFile extends AbstractFile {
                     // The 'Filesystem' and 'Mounted On' fields can contain spaces (e.g. 'automount -fstab [202]' and
                     // '/Volumes/muCommander 0.8' resp.) and therefore be made of several tokens. A stable way to
                     // determine the position of the fields we're interested in is to look for the last token that
-                    // starts with a '/' character which should necessarily correspond to the first token of the 
+                    // starts with a '/' character which should necessarily correspond to the first token of the
                     // 'Mounted on' field. The '1K-blocks' and 'Avail' fields are 4 and 2 tokens away from it
                     // respectively.
 
@@ -254,9 +300,16 @@ public class LocalFile extends AbstractFile {
                     // 'Avail' field (free space)
                     dfInfo[1] = Long.parseLong((String)tokenV.elementAt(pos-2)) * 1024;
                 }
+
+//                // Retrieves the total and free space information using the POSIX statvfs function
+//                POSIX.STATVFSSTRUCT struct = new POSIX.STATVFSSTRUCT();
+//                if(POSIX.INSTANCE.statvfs(absPath, struct)==0) {
+//                    dfInfo[0] = struct.f_blocks * (long)struct.f_frsize;
+//                    dfInfo[1] = struct.f_bfree * (long)struct.f_frsize;
+//                }
             }
         }
-        catch(Exception e) {	// Could be IOException, NoSuchElementException or NumberFormatException, but better be safe and catch Exception
+        catch(Throwable e) {	// JNA throws a java.lang.UnsatisfiedLinkError if the native can't be found
             if(com.mucommander.Debug.ON) {
                 com.mucommander.Debug.trace("Exception thrown while retrieving volume info: "+e);
                 e.printStackTrace();
@@ -272,40 +325,22 @@ public class LocalFile extends AbstractFile {
 
 	
     /**
-     * Attemps to detect if this file is the root of a floppy drive.
-     * This method works only on platform that have root drives, such as Windows, and even on those the result is just 
-     * a guess.
+     * Attemps to detect if this file is the root of a removable media drive (floppy, CD, DVD, USB drive...).
+     * This method produces accurate results only under Windows.
      *
-     * @return <code>true</code> if this file looks like the root of a floppy drive. 
-     */
-    public boolean guessFloppyDrive() {
-        if(PlatformManager.isWindowsFamily() && !isRoot())
-            return false;
-
-        // Use FileSystemView.isFloppyDrive(File) to determine if this file is a floppy drive.
-        // This method is available only in Java 1.4 and up.
-//        if(PlatformManager.JAVA_VERSION>=PlatformManager.JAVA_1_4)
-        return FileSystemView.getFileSystemView().isFloppyDrive(file);
-
-//        // We're running Java 1.3 or below, try to guess if file is floppy drive under Windows
-//        if(IS_WINDOWS && absPath.equals("A:") || absPath.equals("B:"))
-//            return true;
-//
-//        // No clue, return false
-//        return false;
-    }
-	
-    /**
-     * Attemps to detect if this file is the root of a removable media drive (floppy, CD, DVD, ...).
-     * This method works only on platform that have root drives, such as Windows, and even on those the result is just
-     * a guess.
-     *
-     * @return <code>true</code> if this file looks like the root of a removable media drive (floppy, CD, DVD, ...). 
+     * @return <code>true</code> if this file is the root of a removable media drive (floppy, CD, DVD, USB drive...). 
      */
     public boolean guessRemovableDrive() {
-        // A weak way to characterize such a drive is to check if the corresponding root folder is a floppy drive or 
-        // read-only. A better way would be to create a JNI interface as described here: http://forum.java.sun.com/thread.jspa?forumID=256&threadID=363074
-        return guessFloppyDrive() || (hasRootDrives() && isRoot() && !file.canWrite());
+        if(IS_WINDOWS) {
+            int driveType = Kernel32API.INSTANCE.GetDriveType(getAbsolutePath(true));
+            if(driveType!=Kernel32API.DRIVE_UNKNOWN)
+                return driveType==Kernel32API.DRIVE_REMOVABLE || driveType==Kernel32API.DRIVE_CDROM;
+        }
+
+
+        // For other OS that have root drives (OS/2), a weak way to characterize removable drives is by checking if the
+        // corresponding root folder is read-only.
+        return hasRootDrives() && isRoot() && !file.canWrite();
     }
 
 
@@ -322,8 +357,8 @@ public class LocalFile extends AbstractFile {
      * @return <code>true</code> if the underlying local filesystem uses drives assigned to letters
      */
     public static boolean hasRootDrives() {
-        return PlatformManager.isWindowsFamily()
-            || PlatformManager.getOsFamily()==PlatformManager.OS_2
+        return IS_WINDOWS
+            || OsFamilies.OS_2.isCurrent()
             || "\\".equals(SEPARATOR);
     }
 
@@ -341,14 +376,21 @@ public class LocalFile extends AbstractFile {
     /////////////////////////////////////////
 
     public boolean isSymlink() {
+        // At the moment symlinks under Windows (aka NTFS junction points) are not supported because java.io.File
+        // knows nothing about them and there is no way to discriminate them. So there is no need to waste time
+        // comparing canonical paths, just return false.
+        // Todo: add support for .lnk files (~hard links)
+        if(IS_WINDOWS)
+            return false;
+
         // Note: this value must not be cached as its value can change over time (canonical path can change)
-        LocalFile parent = (LocalFile)getParent();
+        AbstractFile parent = getParent();
         String canonPath = getCanonicalPath(false);
         if(parent==null || canonPath==null)
             return false;
         else {
             String parentCanonPath = parent.getCanonicalPath(true);
-            return !canonPath.equals(parentCanonPath+getName());
+            return !canonPath.equalsIgnoreCase(parentCanonPath+getName());
         }
     }
 
@@ -398,88 +440,136 @@ public class LocalFile extends AbstractFile {
 	
 
     public boolean getPermission(int access, int permission) {
-        if(access!= USER_ACCESS)
+        // Only the 'user' permissions are supported
+        if(access!=USER_ACCESS)
             return false;
 
         if(permission==READ_PERMISSION)
             return file.canRead();
         else if(permission==WRITE_PERMISSION)
             return file.canWrite();
-        else if(permission==EXECUTE_PERMISSION && PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
+        // Execute permission can only be retrieved under Java 1.6 and up
+        else if(permission==EXECUTE_PERMISSION && JavaVersions.JAVA_1_6.isCurrentOrHigher())
             return file.canExecute();
 
         return false;
     }
 
     public boolean setPermission(int access, int permission, boolean enabled) {
-        if(access!= USER_ACCESS || PlatformManager.getJavaVersion() < PlatformManager.JAVA_1_6)
+        // Only the 'user' permissions under Java 1.6 are supported
+        if(access!=USER_ACCESS || JavaVersions.JAVA_1_6.isCurrentLower())
             return false;
 
         if(permission==READ_PERMISSION)
             return file.setReadable(enabled);
         else if(permission==WRITE_PERMISSION)
             return file.setWritable(enabled);
-        else if(permission==EXECUTE_PERMISSION && PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
+        else if(permission==EXECUTE_PERMISSION)
             return file.setExecutable(enabled);
 
         return false;
     }
 
     public boolean canGetPermission(int access, int permission) {
-        // getPermission is limited to the user access type
+        // Only the 'user' permissions are supported
         if(access!=USER_ACCESS)
             return false;
 
-        // Windows only supports write permission: files are either read-only or read-write
-        if(PlatformManager.isWindowsFamily())
-            return permission==WRITE_PERMISSION;
-
         // Execute permission is supported only under Java 1.6 (and on platforms other than Windows)
-        return permission!=EXECUTE_PERMISSION || PlatformManager.getJavaVersion()>=PlatformManager.JAVA_1_6;
+        return permission!=EXECUTE_PERMISSION || JavaVersions.JAVA_1_6.isCurrentOrHigher();
     }
 
     public boolean canSetPermission(int access, int permission) {
         // setPermission is limited to the user access type
-        if(access!=USER_ACCESS || PlatformManager.getJavaVersion()<PlatformManager.JAVA_1_6)
+        if(access!=USER_ACCESS || JavaVersions.JAVA_1_6.isCurrentLower())
             return false;
 
         // Windows only supports write permission: files are either read-only or read-write
-        return !PlatformManager.isWindowsFamily() || permission==WRITE_PERMISSION;
+        return !IS_WINDOWS || permission==WRITE_PERMISSION;
     }
 
+    /**
+     * Always returns <code>null</code>, this information is not available unfortunately.
+     */
+    public String getOwner() {
+        return null;
+    }
 
+    /**
+     * Always returns <code>false</code>, this information is not available unfortunately.
+     */
+    public boolean canGetOwner() {
+        return false;
+    }
+
+    /**
+     * Always returns <code>null</code>, this information is not available unfortunately.
+     */
+    public String getGroup() {
+        return null;
+    }
+
+    /**
+     * Always returns <code>false</code>, this information is not available unfortunately.
+     */
+    public boolean canGetGroup() {
+        return false;
+    }
 
     public boolean isDirectory() {
-        // To avoid drive seeks and potential 'floppy drive not available' dialog under Win32
-        // triggered by java.io.File.getCanonicalPath() 
-        if(IS_WINDOWS && guessFloppyDrive())
-            return true;
+        // This test is not necessary anymore now that 'No disk' error dialogs are disabled entirely (using Kernel32
+        // DLL's SetErrorMode function). Leaving this code commented for a while in case the problem comes back.
+
+//        // To avoid drive seeks and potential 'floppy drive not available' dialog under Win32
+//        // triggered by java.io.File.isDirectory()
+//        if(IS_WINDOWS && guessFloppyDrive())
+//            return true;
 
         return file.isDirectory();
     }
 
+    /**
+     * Implementation notes: the returned <code>InputStream</code> uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     */
     public InputStream getInputStream() throws IOException {
-        return new FileInputStream(file);
+        return new LocalInputStream(new FileInputStream(file).getChannel());
     }
 
+    /**
+     * Implementation notes: the returned <code>InputStream</code> uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     */
     public OutputStream getOutputStream(boolean append) throws IOException {
-        return new FileOutputStream(absPath, append);
+        return new LocalOutputStream(new FileOutputStream(absPath, append).getChannel());
     }
 
     public boolean hasRandomAccessInputStream() {
         return true;
     }
 
+    /**
+     * Implementation notes: the returned <code>InputStream</code> uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     */
     public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
-        return new LocalRandomAccessInputStream(new RandomAccessFile(file, "r"));
+        return new LocalRandomAccessInputStream(new RandomAccessFile(file, "r").getChannel());
     }
 
     public boolean hasRandomAccessOutputStream() {
         return true;
     }
 
+    /**
+     * Implementation notes: the returned <code>InputStream</code> uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     */
     public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-        return new LocalRandomAccessOutputStream(new RandomAccessFile(file, "rw"));
+        return new LocalRandomAccessOutputStream(new RandomAccessFile(file, "rw").getChannel());
     }
 
     public void delete() throws IOException {
@@ -491,7 +581,7 @@ public class LocalFile extends AbstractFile {
 
 
     public AbstractFile[] ls() throws IOException {
-        return ls((FilenameFilter)null);
+        return ls(null);
     }
 
     public void mkdir() throws IOException {
@@ -501,14 +591,14 @@ public class LocalFile extends AbstractFile {
 	
 
     public long getFreeSpace() {
-        if(PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
+        if(JavaVersions.JAVA_1_6.isCurrentOrHigher())
             return file.getFreeSpace();
 
         return getVolumeInfo()[1];
     }
 	
     public long getTotalSpace() {
-        if(PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6)
+        if(JavaVersions.JAVA_1_6.isCurrentOrHigher())
             return file.getTotalSpace();
 
         return getVolumeInfo()[0];
@@ -561,10 +651,13 @@ public class LocalFile extends AbstractFile {
 
 
     public String getCanonicalPath() {
-        // To avoid drive seeks and potential 'floppy drive not available' dialog under Win32
-        // triggered by java.io.File.getCanonicalPath()
-        if(IS_WINDOWS && guessFloppyDrive())
-            return absPath;
+        // This test is not necessary anymore now that 'No disk' error dialogs are disabled entirely (using Kernel32
+        // DLL's SetErrorMode function). Leaving this code commented for a while in case the problem comes back.
+         
+//        // To avoid drive seeks and potential 'floppy drive not available' dialog under Win32
+//        // triggered by java.io.File.getCanonicalPath()
+//        if(IS_WINDOWS && guessFloppyDrive())
+//            return absPath;
 
         // Note: canonical path must not be cached as its resolution can change over time, for instance
         // if a file 'Test' is renamed to 'test' in the same folder, its canonical path would still be 'Test'
@@ -599,11 +692,16 @@ public class LocalFile extends AbstractFile {
 
         AbstractFile children[] = new AbstractFile[names.length];
         FileURL childURL;
+
         for(int i=0; i<names.length; i++) {
             // Clone the FileURL of this file and set the child's path, this is more efficient than creating a new
             // FileURL instance from scratch.
             childURL = (FileURL)fileURL.clone();
-            childURL.setPath(absPath+SEPARATOR+names[i]);
+
+            if(isUNC)   // Special case for UNC paths which include the hostname in it
+                childURL.setPath(addTrailingSeparator(fileURL.getPath())+names[i]);
+            else
+                childURL.setPath(absPath+SEPARATOR+names[i]);
 
             // Retrieves an AbstractFile (LocalFile or AbstractArchiveFile) instance potentially fetched from the
             // LRU cache and reuse this file as parent
@@ -619,24 +717,51 @@ public class LocalFile extends AbstractFile {
      * is also a local file.
      */
     public boolean moveTo(AbstractFile destFile) throws FileTransferException  {
+        // If destination file is not a LocalFile nor has a LocalFile ancestor (for instance an archive entry),
+        // renaming won't work so use the default moveTo() implementation instead
         if(!destFile.getURL().getProtocol().equals(FileProtocols.FILE)) {
             return super.moveTo(destFile);
         }
 
-        // If destination file is not a LocalFile nor has a LocalFile ancestor (for instance an archive entry),
-        // renaming won't work so use the default moveTo() implementation instead
         destFile = destFile.getTopAncestor();
         if(!(destFile instanceof LocalFile)) {
             return super.moveTo(destFile);
         }
 
-        // Fail in some situations where java.io.File#renameTo() doesn't, such as if the destination already exists.
+        // Fail in some situations where java.io.File#renameTo() doesn't.
         // Note that java.io.File#renameTo()'s implementation is system-dependant, so it's always a good idea to
         // perform all those checks even if some are not necessary on this or that platform.
         checkCopyPrerequisites(destFile, true);
 
-        // Move file
-        return file.renameTo(((LocalFile)destFile).file);
+        // The behavior of java.io.File#renameTo() when the destination file already exists is not consistent
+        // accross platforms:
+        // - Under UNIX, it succeeds and return true
+        // - Under Windows, it fails and return false
+        // This Java bug goes in great details about this issue: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4017593
+        //
+        // => Since this method is required to succeed when the destination file exists, the Windows platform needs
+        // special treatment.
+
+        File destJavaIoFile = ((LocalFile)destFile).file;
+
+        if(IS_WINDOWS) {
+            // Windows 9x or Windows Me: Kernel32's MoveFileEx function is NOT available
+            if(OsVersions.WINDOWS_ME.isCurrentOrLower() && destFile.exists()) {
+                // The destination file is deleted before calling java.io.File#renameTo().
+                // Note that in this case, the atomicity of this method is not guaranteed anymore -- if
+                // java.io.File#renameTo() fails (for whatever reason), the destination file is deleted anyway.
+                destJavaIoFile.delete();
+            }
+            // Windows NT: Kernel32's MoveFileEx function is available.
+            else {
+                // Note: MoveFileEx is always used, even if the destination file does not exist, to avoid having to
+                // call #exists() on the destination file which has a cost.
+                return  Kernel32API.INSTANCE.MoveFileEx(absPath, destFile.getAbsolutePath(),
+                        Kernel32API.MOVEFILE_REPLACE_EXISTING|Kernel32API.MOVEFILE_WRITE_THROUGH);
+            }
+        }
+
+        return file.renameTo(destJavaIoFile);
     }
 
 
@@ -649,13 +774,12 @@ public class LocalFile extends AbstractFile {
      * Overridden for performance reasons.
      */
     public int getPermissionGetMask() {
-        // Windows only supports write permission for user: files are either read-only or read-write
-        if(PlatformManager.isWindowsFamily())
-            return 128;
+        // Note: 'read' and 'execute' permissions have no meaning under Windows (files are either read-only or
+        // read-write), but we return default values.
 
         // Get permission support is limited to the user access type. Executable permission flag is only available under
         // Java 1.6 and up.
-        return PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6?
+        return JavaVersions.JAVA_1_6.isCurrentOrHigher()?
                 448         // rwx------ (700 octal)
                 :384;       // rw------- (300 octal)
     }
@@ -664,14 +788,32 @@ public class LocalFile extends AbstractFile {
      * Overridden for performance reasons.
      */
     public int getPermissionSetMask() {
-        // Windows only supports write permission for user: files are either read-only or read-write
-        if(PlatformManager.isWindowsFamily())
+        // Under Windows, only the 'write' permissions can be changed: files are either read-only or read-write
+        if(IS_WINDOWS)
             return 128;
 
         // Set permission support is only available under Java 1.6 and up and is limited to the user access type
-        return PlatformManager.getJavaVersion() >= PlatformManager.JAVA_1_6?
+        return JavaVersions.JAVA_1_6.isCurrentOrHigher()?
                 448         // rwx------ (700 octal)
                 :0;         // --------- (0 octal)
+    }
+
+    /**
+     * Overridden for performance reasons.
+     */
+    public int getPermissions() {
+        int userPerms = 0;
+
+        if(getPermission(USER_ACCESS, READ_PERMISSION))
+            userPerms |= READ_PERMISSION;
+
+        if(getPermission(USER_ACCESS, WRITE_PERMISSION))
+            userPerms |= WRITE_PERMISSION;
+
+        if(canGetPermission(USER_ACCESS, EXECUTE_PERMISSION) && getPermission(USER_ACCESS, EXECUTE_PERMISSION))
+            userPerms |= EXECUTE_PERMISSION;
+
+        return userPerms<<6;
     }
 
     /**
@@ -679,7 +821,7 @@ public class LocalFile extends AbstractFile {
      * the root file.
      */
     public AbstractFile getRoot() throws IOException {
-        if(PlatformManager.isWindowsFamily()) {
+        if(IS_WINDOWS) {
             // Extract drive letter from the path
             Matcher matcher = windowsDriveRootPattern.matcher(absPath);
             if(matcher.matches())
@@ -707,7 +849,7 @@ public class LocalFile extends AbstractFile {
         // Not doing this under Windows would mean files would get moved between drives with renameTo, which doesn't
         // allow the transfer to be monitored.
         // Note that Windows UNC paths are handled by the super method when comparing hosts for equality.  
-        if(PlatformManager.isWindowsFamily()) {
+        if(IS_WINDOWS) {
             try {
                 if(!getRoot().equals(destFile.getRoot()))
                     return SHOULD_NOT_HINT; 
@@ -727,81 +869,197 @@ public class LocalFile extends AbstractFile {
 
     /**
      * LocalRandomAccessInputStream extends RandomAccessInputStream to provide random read access to a LocalFile.
+     * This implementation uses a NIO <code>FileChannel</code> under the hood to benefit from
+     * <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted using
+     * <code>Thread#interrupt()</code>.
      */
-    public class LocalRandomAccessInputStream extends RandomAccessInputStream {
+    public static class LocalRandomAccessInputStream extends RandomAccessInputStream {
 
-        private RandomAccessFile raf;
+        private final FileChannel channel;
+        private final ByteBuffer bb;
 
-        public LocalRandomAccessInputStream(RandomAccessFile raf) {
-            this.raf = raf;
+        private LocalRandomAccessInputStream(FileChannel channel) {
+            this.channel = channel;
+            this.bb = BufferPool.getByteBuffer();
         }
 
         public int read() throws IOException {
-            return raf.read();
+            synchronized(bb) {
+                bb.position(0);
+                bb.limit(1);
+
+                int nbRead = channel.read(bb);
+                if(nbRead<=0)
+                    return nbRead;
+
+                return 0xFF&bb.get(0);
+            }
         }
 
         public int read(byte b[], int off, int len) throws IOException {
-            return raf.read(b, off, len);
+            synchronized(bb) {
+                bb.position(0);
+                bb.limit(Math.min(bb.capacity(), len));
+
+                int nbRead = channel.read(bb);
+                if(nbRead<=0)
+                    return nbRead;
+
+                bb.position(0);
+                bb.get(b, off, nbRead);
+
+                return nbRead;
+            }
         }
 
         public void close() throws IOException {
-            raf.close();
+            BufferPool.releaseByteBuffer(bb);
+            channel.close();
         }
 
         public long getOffset() throws IOException {
-            return raf.getFilePointer();
+            return channel.position();
         }
 
         public long getLength() throws IOException {
-            return raf.length();
+            return channel.size();
         }
 
         public void seek(long offset) throws IOException {
-            raf.seek(offset);
+            channel.position(offset);
+        }
+    }
+
+    /**
+     * A replacement for <code>java.io.FileInputStream</code> that uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     *
+     * <p>This class simply delegates all its methods to a
+     * {@link com.mucommander.file.impl.local.LocalFile.LocalRandomAccessInputStream} instance. Therefore, this class
+     * does not derive from {@link com.mucommander.io.RandomAccessInputStream}, preventing random-access methods from
+     * being used.</p>
+     *
+     */
+    public static class LocalInputStream extends FilterInputStream {
+
+        public LocalInputStream(FileChannel channel) {
+            super(new LocalRandomAccessInputStream(channel));
+        }
+    }
+
+    /**
+     * A replacement for <code>java.io.FileOutputStream</code> that uses a NIO {@link FileChannel} under the hood to
+     * benefit from <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted
+     * using <code>Thread#interrupt()</code>.
+     *
+     * <p>This class simply delegates all its methods to a
+     * {@link com.mucommander.file.impl.local.LocalFile.LocalRandomAccessOutputStream} instance. Therefore, this class
+     * does not derive from {@link com.mucommander.io.RandomAccessOutputStream}, preventing random-access methods from
+     * being used.</p>
+     *
+     */
+    public static class LocalOutputStream extends FilteredOutputStream {
+
+        public LocalOutputStream(FileChannel channel) {
+            super(new LocalRandomAccessOutputStream(channel));
         }
     }
 
     /**
      * LocalRandomAccessOutputStream extends RandomAccessOutputStream to provide random write access to a LocalFile.
+     * This implementation uses a NIO <code>FileChannel</code> under the hood to benefit from
+     * <code>InterruptibleChannel</code> and allow a thread waiting for an I/O to be gracefully interrupted using
+     * <code>Thread#interrupt()</code>.
      */
-    public class LocalRandomAccessOutputStream extends RandomAccessOutputStream {
+    public static class LocalRandomAccessOutputStream extends RandomAccessOutputStream {
 
-        private RandomAccessFile raf;
+        private final FileChannel channel;
+        private final ByteBuffer bb;
 
-        public LocalRandomAccessOutputStream(RandomAccessFile raf) {
-            this.raf = raf;
+        public LocalRandomAccessOutputStream(FileChannel channel) {
+            this.channel = channel;
+            this.bb = BufferPool.getByteBuffer();
         }
 
         public void write(int i) throws IOException {
-            raf.write(i);
+            synchronized(bb) {
+                bb.position(0);
+                bb.limit(1);
+
+                bb.put((byte)i);
+                bb.position(0);
+
+                channel.write(bb);
+            }
         }
 
         public void write(byte b[]) throws IOException {
-            raf.write(b);
+            write(b, 0, b.length);
         }
 
         public void write(byte b[], int off, int len) throws IOException {
-            raf.write(b, off, len);
-        }
+            int nbToWrite;
+            synchronized(bb) {
+                do {
+                    bb.position(0);
+                    nbToWrite = Math.min(bb.capacity(), len);
+                    bb.limit(nbToWrite);
 
-        public void close() throws IOException {
-            raf.close();
-        }
+                    bb.put(b, off, nbToWrite);
+                    bb.position(0);
 
-        public long getOffset() throws IOException {
-            return raf.getFilePointer();
-        }
+                    nbToWrite = channel.write(bb);
 
-        public long getLength() throws IOException {
-            return raf.length();
-        }
-
-        public void seek(long offset) throws IOException {
-            raf.seek(offset);
+                    len -= nbToWrite;
+                    off += nbToWrite;
+                }
+                while(len>0);
+            }
         }
 
         public void setLength(long newLength) throws IOException {
-            raf.setLength(newLength);
+            long currentLength = getLength();
+
+            if(newLength==currentLength)
+                return;
+
+            long currentPos = channel.position();
+
+            if(newLength<currentLength) {
+                // Truncate the file and position the offset to the new EOF if it was beyond
+                channel.truncate(newLength);
+                if(currentPos>newLength)
+                    channel.position(newLength);
+            }
+            else {
+                // Expand the file by positionning the offset at the new EOF and writing a byte, and reposition the
+                // offset to where it was
+                channel.position(newLength-1);      // Note: newLength cannot be 0
+                write(0);
+                channel.position(currentPos);
+            }
+
+        }
+
+        public void close() throws IOException {
+            BufferPool.releaseByteBuffer(bb);
+            channel.close();
+        }
+
+        public long getOffset() throws IOException {
+            return channel.position();
+        }
+
+        public long getLength() throws IOException {
+            return channel.size();
+        }
+
+        public void seek(long offset) throws IOException {
+            channel.position(offset);
         }
     }
+
+
+
 }

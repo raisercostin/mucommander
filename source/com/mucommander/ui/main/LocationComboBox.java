@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +19,15 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.PlatformManager;
 import com.mucommander.bookmark.Bookmark;
 import com.mucommander.bookmark.BookmarkManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.RootFolders;
+import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.file.util.FileToolkit;
+import com.mucommander.runtime.OsFamilies;
 import com.mucommander.ui.combobox.EditableComboBox;
 import com.mucommander.ui.combobox.EditableComboBoxListener;
 import com.mucommander.ui.combobox.SaneComboBox;
@@ -57,7 +59,7 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
     private static Pattern windowsTrailingSpacePattern;
 
     static {
-        if(PlatformManager.isWindowsFamily())
+        if(OsFamilies.WINDOWS.isCurrent())
             windowsTrailingSpacePattern = Pattern.compile("[ ]+[\\\\]*$");
     }
 
@@ -153,8 +155,19 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
         if(!folderChangeInitiatedByLocationField) {
             FileURL folderURL = e.getFolderURL();
 
+            String locationText;
             // Do not display the URL's protocol for local files
-            locationField.setText(folderURL.getProtocol().equals(FileProtocols.FILE)?folderURL.getPath():folderURL.toString(false));
+            if(folderURL.getProtocol().equals(FileProtocols.FILE)) {
+                locationText = folderURL.getPath();
+                // Under for OSes with 'root drives' (Windows, OS/2), remove the leading '/' character
+                if(LocalFile.hasRootDrives())
+                    locationText = FileToolkit.removeLeadingSeparator(locationText, "/");
+            }
+            // Display the full URL for protocols other than 'file'
+            else {
+                locationText = folderURL.toString(false);
+            }
+            locationField.setText(locationText);
         }
 
         // Disable component until the folder has been changed, cancelled or failed.
@@ -207,7 +220,7 @@ public class LocationComboBox extends EditableComboBox implements LocationListen
         // Note that Win32 doesn't allow creating files with trailing spaces (in Explorer, command prompt...), but
         // those files can still be manually crafted and thus exist on one's hard drive.
         // Mucommander should in theory be able to access such files without any problem but this hasn't been tested.
-        if(PlatformManager.isWindowsFamily() && location.indexOf(":\\")==1) {
+        if(OsFamilies.WINDOWS.isCurrent() && location.indexOf(":\\")==1) {
             // Looks for trailing spaces and if some 
             Matcher matcher = windowsTrailingSpacePattern.matcher(location);
             if(matcher.find())

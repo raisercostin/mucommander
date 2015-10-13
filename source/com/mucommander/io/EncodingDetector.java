@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,12 +74,7 @@ public class EncodingDetector {
 
 
     /**
-     * Try and detect the character encoding in which the given bytes are encoded, and returns the best guess or
-     * <code>null</code> if there is none (not enough data or confidence).
-     * Note that the returned character encoding may or may not be available on the Java runtime.
-     *
-     * <p>A maximum of {@link #MAX_RECOMMENDED_BYTE_SIZE} will be read from the array. If the array is larger than this
-     * value, all further bytes will be ignored.</p>
+     * This method is a shorthand for {@link #detectEncoding(byte[], int, int) detectEncoding(b, 0, b.length)}.
      *
      * @param bytes the bytes for which to detect the encoding
      * @return the best guess at the character encoding, null if there is none (not enough data or confidence)
@@ -91,7 +86,8 @@ public class EncodingDetector {
     /**
      * Try and detect the character encoding in which the given bytes are encoded, and returns the best guess or
      * <code>null</code> if there is none (not enough data or confidence).
-     * Note that the returned character encoding may or may not be available on the Java runtime.
+     * Note that the returned character encoding may not be available on the Java runtime -- use
+     * <code>java.nio.Charset#isSupported(String)</code> to determine if it is available.
      *
      * <p>A maximum of {@link #MAX_RECOMMENDED_BYTE_SIZE} will be read from the array. If the array is larger than this
      * value, all further bytes will be ignored.</p>
@@ -135,43 +131,40 @@ public class EncodingDetector {
                 Debug.trace("getName()="+cms[i].getName()+" getConfidence()="+cms[i].getConfidence());
         }
 
-        return cm.getName();
+        return cm==null?null:cm.getName();
     }
 
 
     /**
      * Try and detect the character encoding in which the bytes contained by the given <code>InputStream</code> are
      * encoded, and returns the best guess or <code>null</code> if there is none (not enough data or confidence).
-     * Note that the returned character encoding may or may not be available on the Java runtime.
+     * Note that the returned character encoding may or may not be available on the Java runtime -- use
+     * <code>java.nio.Charset#isSupported(String)</code> to determine if it is available.
      *
      * <p>A maximum of {@link #MAX_RECOMMENDED_BYTE_SIZE} will be read from the <code>InputStream</code>. The
-     * InputStream will not be repositionned after the bytes have been read. It is up to the calling method to
-     * use the <code>InputStream#mark()</code> and <code>InputStream#reset()</code> methods (if supported) or reopen
-     * the stream if needed.
+     * stream will not be closed and will not be repositionned after the bytes have been read. It is up to the calling
+     * method to use the <code>InputStream#mark()</code> and <code>InputStream#reset()</code> methods (if supported) 
+     * or reopen the stream if needed.
      * </p>
      *
      * @param in the InputStream that supplies the bytes
      * @return the best guess at the character encoding, null if there is none (not enough data or confidence)
+     * @throws IOException if an error occurred while reading the stream
      */
     public static String detectEncoding(InputStream in) throws IOException {
-        int totalRead = 0;
-        int read;
-        byte buf[] = BufferPool.getBuffer(MAX_RECOMMENDED_BYTE_SIZE);
+        byte buf[] = BufferPool.getArrayBuffer(MAX_RECOMMENDED_BYTE_SIZE);
 
         try {
-            while((totalRead<MAX_RECOMMENDED_BYTE_SIZE) && (read=in.read(buf, totalRead, MAX_RECOMMENDED_BYTE_SIZE-totalRead))!=-1)
-                totalRead += read;
-
-            return detectEncoding(buf, 0, totalRead);
+            return detectEncoding(buf, 0, StreamUtils.readUpTo(in, buf));
         }
         finally {
-            BufferPool.releaseBuffer(buf);
+            BufferPool.releaseArrayBuffer(buf);
         }
     }
 
     /**
      * Returns an array of encodings that can be detected by the <code>detectEncoding</code> methods.
-     * Note that some of the returned character encoding may not be available on the Java runtime.
+     * Note that some of the returned character encodings may not be available on the Java runtime.
      *
      * @return an array of encodings that can be detected by the <code>detectEncoding</code> methods.
      */

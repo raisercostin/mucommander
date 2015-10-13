@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ import java.util.Vector;
  */
 public class Debug {
 
-    /** Sets whether or not debug messages should be output to the standard output */
+    /** Sets whether or not debug messages should be output to the standard output. */
     public final static boolean ON        = RuntimeConstants.DEBUG;
     /** Used to disable debug messages even though debug instructions have been compiled in. */
     private static      boolean enabled   = true;

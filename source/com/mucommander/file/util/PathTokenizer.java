@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
  */
 
 package com.mucommander.file.util;
-
-import com.mucommander.Debug;
 
 import java.util.Enumeration;
 import java.util.NoSuchElementException;
@@ -61,19 +59,19 @@ public class PathTokenizer implements Enumeration {
     /** Separator characters */
     private String separators;
 
-    /** True if this PathTokenizer tokenizes the path in reverse order, from right to left */
+    /** True if this PathTokenizer tokenizes the path in reverse order, from right to left. */
     private boolean reverseOrder;
 
-    /** Path tokens: separators and filenames */
+    /** Path tokens: separators and filenames. */
     private String[] tokens;
-    /** Current index in the token array */
+    /** Current index in the token array. */
     private int currentIndex;
-    /** Path part that has been tokenized */
-    private String currentPath;
-    /** Last separators token */ 
+    /** Path part that has been tokenized. */
+    private StringBuffer currentPath;
+    /** Last separators token. */ 
     private String lastSeparator;
 
-    /** Default separator characters */
+    /** Default separator characters. */
     public final static String DEFAULT_SEPARATORS = "/\\";
 
 
@@ -119,7 +117,10 @@ public class PathTokenizer implements Enumeration {
         }
 
         // Initialize current path
-        currentPath = reverseOrder?path:"";
+        if(reverseOrder)
+            currentPath = new StringBuffer(path);
+        else
+            currentPath = new StringBuffer(path.length());
 
         // Skip leading separator
         skipSeparators();
@@ -139,10 +140,7 @@ public class PathTokenizer implements Enumeration {
             lastSeparator += token;
 
             // Update current path
-            if(reverseOrder)
-                currentPath = currentPath.substring(0, currentPath.length()-token.length());
-            else
-                currentPath += token;
+            handleToken(token);
 
             currentIndex++;
         }
@@ -150,12 +148,19 @@ public class PathTokenizer implements Enumeration {
 
 
     /**
-     * Returns true if this PathTokenizer has more filename tokens.
+     * Returns <code>true</code> if this PathTokenizer has more filename tokens.
+     * @return <code>true</code> if this PathTokenizer has more filename tokens, <code>false</code> otherwise.
      */
     public boolean hasMoreFilenames() {
         return currentIndex<tokens.length;
     }
 
+    private void handleToken(String token) {
+        if(reverseOrder)
+            currentPath.setLength(currentPath.length()-token.length());
+        else
+            currentPath.append(token);
+    }
 
     /**
      * Returns the next filename token from this PathTokenizer. Throws a NoSuchElementException if no more filename
@@ -170,10 +175,7 @@ public class PathTokenizer implements Enumeration {
             String token = tokens[currentIndex++];
 
             // Update current path
-            if(reverseOrder)
-                currentPath = currentPath.substring(0, currentPath.length()-token.length());
-            else
-                currentPath += token;
+            handleToken(token);
 
             // Skip separators after the filename 
             skipSeparators();
@@ -190,9 +192,10 @@ public class PathTokenizer implements Enumeration {
      * {@link #nextFilename()} and separator string returned by {@link #getLastSeparator()}.<br>
      * If this PathTokenizer operates in reverse order, the returned path is the path part that has not yet been 
      * tokenized.
+     * @return the current path part that has been tokenized.
      */
     public String getCurrentPath() {
-        return currentPath;
+        return currentPath.toString();
     }
 
 
@@ -204,6 +207,7 @@ public class PathTokenizer implements Enumeration {
      *
      * <p>Initially, before any calls to {@link #nextFilename()} have been made, this method will return any leading
      * separator string in the path string, or an empty string if the path doesn't start with a separator.
+     * @return the last separator string that appeared in the path.
      */
     public String getLastSeparator() {
         return lastSeparator;
@@ -226,61 +230,5 @@ public class PathTokenizer implements Enumeration {
      */
     public Object nextElement() throws NoSuchElementException {
         return nextFilename();
-    }
-
-
-    //////////////////
-    // Test methods //
-    //////////////////
-
-    public static void main(String args[]) {
-        test("/Users/maxence/Temp");
-        test("/Users/maxence/Temp/");
-        test("/");
-        test("C:\\temp");
-        test("C:\\temp\\");
-        test("C:\\");
-        test("C:");
-        test("/C:\\temp");
-        test("/C:\\\\this///is/not\\\\a\\valid//path//but/we\\let//it\\parse/");
-        test("blah");
-        test("C:");
-        test("");
-    }
-
-    private static void test(String path) {
-
-        for(boolean reverseOrder=false; ; reverseOrder=true) {
-            if(Debug.ON) Debug.trace("tokenizing= "+path+" reverseOrder="+reverseOrder);
-
-            PathTokenizer pt = new PathTokenizer(path, DEFAULT_SEPARATORS, reverseOrder);
-            
-            if(Debug.ON) Debug.trace("getLastSeparator()= "+pt.getLastSeparator());
-            if(Debug.ON) Debug.trace("getCurrentPath()= "+pt.getCurrentPath());
-            String reconstructedPath = pt.getLastSeparator();
-            if(!reverseOrder)
-                if(Debug.ON) Debug.trace("reconstructedPath= "+reconstructedPath);
-
-            while(pt.hasMoreFilenames()) {
-                String nextToken = pt.nextFilename();
-                String lastSeparator = pt.getLastSeparator();
-                if(Debug.ON) Debug.trace("nextToken()= "+nextToken);
-                if(Debug.ON) Debug.trace("getLastSeparator()= "+lastSeparator);
-                if(Debug.ON) Debug.trace("getCurrentPath()= "+pt.getCurrentPath());
-
-                if(!reverseOrder) {
-                    reconstructedPath += nextToken+lastSeparator;
-                    if(Debug.ON) Debug.trace("reconstructedPath= "+reconstructedPath);
-                }
-            }
-
-            if(!reverseOrder && !reconstructedPath.equals(path))
-                if(Debug.ON) Debug.trace("TEST FAILED");
-
-            if(Debug.ON) Debug.trace("");
-
-            if(reverseOrder)
-                break;
-        }
     }
 }

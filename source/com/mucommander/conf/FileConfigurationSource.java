@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,12 +18,7 @@
 
 package com.mucommander.conf;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 
 /**
  * Configuration source that open input and output streams on a local file.
@@ -58,18 +53,24 @@ public class FileConfigurationSource implements ConfigurationSource {
     /**
      * Sets the file on which input and output streams will be opened.
      * @param file path to the file on which input and output streams will be opened.
+     * @see        #setFile(String)
+     * @see        #getFile()
      */
     public synchronized void setFile(File file) {this.file = file;}
 
     /**
      * Sets the file on which input and output streams will be opened.
      * @param path path to the file on which input and output streams will be opened.
+     * @see        #setFile(File)
+     * @see        #getFile()
      */
     public synchronized void setFile(String path) {file = new File(path);}
 
     /**
      * Returns the file on which input and output streams are opened.
      * @return the file on which input and output streams are opened.
+     * @see    #setFile(File)
+     * @see    #setFile(String)
      */
     public synchronized File getFile() {return file;}
 

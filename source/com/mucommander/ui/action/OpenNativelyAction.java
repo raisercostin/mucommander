@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
 
 import java.util.Hashtable;
+import java.io.IOException;
 
 /**
  * This action opens the currently selected file or folder with native file associations.
@@ -55,7 +56,8 @@ public class OpenNativelyAction extends MuAction {
         }
         else {
             // Tries to execute file with native file associations
-            PlatformManager.open(selectedFile);
+            try {PlatformManager.open(selectedFile);}
+            catch(IOException e) {reportGenericError();}
         }
     }
 }

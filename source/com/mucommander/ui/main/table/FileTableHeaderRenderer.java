@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,10 +34,7 @@ import java.awt.*;
  *
  * @author Maxence Bernard
  */
-public class FileTableHeaderRenderer extends DefaultTableCellRenderer implements Columns {
-
-    private boolean ascendingOrder = false;
-    private boolean isCurrent = false;
+public class FileTableHeaderRenderer extends DefaultTableCellRenderer {
 
     private final static ImageIcon ASCENDING_ICON = IconManager.getIcon(IconManager.COMMON_ICON_SET, "arrow_up.png");
     private final static ImageIcon DESCENDING_ICON = IconManager.getIcon(IconManager.COMMON_ICON_SET, "arrow_down.png");
@@ -52,24 +49,6 @@ public class FileTableHeaderRenderer extends DefaultTableCellRenderer implements
         setIconTextGap(6);
         // Note: the label is left-aligned by default
         setHorizontalAlignment(JLabel.CENTER);
-    }
-
-    /**
-     * Returns <code>true</code> if this header is the currently selected one.
-     *
-     * @param isCurrent true if this header is the currently selected one
-     */
-    public void setCurrent(boolean isCurrent) {
-        this.isCurrent = isCurrent;
-    }
-
-    /**
-     * Sets the direction of the arrow symbolizing the sort order.
-     *
-     * @param isAscending true if the order is ascending, false for descending
-     */
-    public void setOrder(boolean isAscending) {
-        this.ascendingOrder = isAscending;
     }
 
 
@@ -88,6 +67,17 @@ public class FileTableHeaderRenderer extends DefaultTableCellRenderer implements
                 label.setBackground(header.getBackground());
                 label.setFont(header.getFont());
             }
+
+            FileTable fileTable = (FileTable)table;
+            if(fileTable.getSortInfo().getCriterion()==fileTable.convertColumnIndexToModel(column)) {
+                // This header is the currently selected one
+                label.setIcon(fileTable.getSortInfo().getAscendingOrder()? ASCENDING_ICON : DESCENDING_ICON);
+            }
+            else {
+                // The renderer component acts as a rubber-stamp, therefore the icon value needs to be set to null explicitely
+                // as it might still hold a previous value
+                label.setIcon(null);
+            }
         }
 
         // Use borders made specifically for table headers
@@ -96,16 +86,6 @@ public class FileTableHeaderRenderer extends DefaultTableCellRenderer implements
 
         // Add a tooltip as headers are sometimes too small for the text to fit entirely
         label.setToolTipText((String)value);
-
-        if(isCurrent) {
-            // This header is the currently selected one
-            label.setIcon(ascendingOrder? ASCENDING_ICON : DESCENDING_ICON);
-        }
-        else {
-            // The renderer component acts as a rubber-stamp, therefore the icon value needs to be set to null explicitely
-            // as it might still hold a previous value
-            label.setIcon(null);
-        }
 
         return label;
     }

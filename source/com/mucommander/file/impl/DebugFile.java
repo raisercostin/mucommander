@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2007 Maxence Bernard
+ * Copyright (C) 2002-2008 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -220,6 +220,20 @@ public class DebugFile extends ProxyFile {
         lag();
 
         return super.getPermissions();
+    }
+
+    public String getOwner() {
+        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        lag();
+
+        return super.getOwner();
+    }
+
+    public String getGroup() {
+        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        lag();
+
+        return super.getGroup();
     }
 
     public AbstractFile getRoot() throws IOException {

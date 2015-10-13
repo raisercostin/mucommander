@@ -5,7 +5,7 @@
 
 
 ------------------
-muCommander v0.8.2
+muCommander v0.8.3
 ------------------
 
 muCommander is a cross-platform file manager featuring a Norton Commander
@@ -17,7 +17,7 @@ to post your questions, suggestions or bug reports.
 Your feedback is important and always welcome!
 
 Official website: http://www.mucommander.com
-Copyright (C) 2002-2007 Maxence Bernard
+Copyright (C) 2002-2008 Maxence Bernard
 
 
 Requirements
@@ -54,17 +54,23 @@ muCommander uses the following great third party works :
 - the Jakarta Commons Net library released under the Apache License.
  Jarkata Commons Net can be found at http://jakarta.apache.org .
 
-- the jCIFS library released under the GNU LGPL.
+- the jCIFS library released under the GNU LGPL license.
  jCIFS can be found at http://jcifs.samba.org .
 
-- the JmDNS library released under the GNU LGPL.
+- the JmDNS library released under the GNU LGPL license.
  JmDNS can be found at http://jmdns.sourceforge.net .
+
+- the JNA library released under the GNU LGPL license.
+ JmDNS can be found at http://jna.dev.java.net .
 
 - the Yanfs library released under the BSD license.
  Yanfs can be found at http://yanfs.dev.java.net .
 
 - Icons by Mark James released under the Creative Commons Attribution License.
  Mark James can be found at http://famfamfam.com .
+
+- the Furbelow library released under the GNU LGPL license.
+Furbelow can be found at http://sourceforge.net/projects/furbelow .
 
 
 Credits
@@ -75,6 +81,7 @@ Lead developers:
 - Nicolas Rinaudo
 
 Code contributors:
+- Vassil Dichev
 - Mariusz Jakubowski
 - Xavier Martin
 - Alejandro Scandroli
@@ -87,7 +94,7 @@ Translators:
 - Jioh L. Jung (Korean)
 - Andrzej Kosiński (Polish)
 - Tamás Balogh-Walder and György Varga (Hungarian)
-- XXXX Pro (Russian)
+- 4X_Pro (Russian)
 - Woodie (Simplified Chinese)
 - Joze Kovacic (Slovenian)
 - Catalin Hritcu (Romanian)
@@ -96,31 +103,43 @@ Translators:
 - Pieter Kristensen (Dutch)
 - Ján Ľudvík (Slovak)
 - Jonathan Murphy (British English)
+- Nardog (Japanese)
+- Jakob Ekström (Swedish)
 
 Many thanks to all of you who suggested new features, reported bugs, sent warm
 emails or generously donated to the project !
 
 
-What's new since v0.8.1 ?
+What's new since v0.8.2 ?
 -------------------------
 
 New features:
-- Files can be marked/unmarked using Regexp
+- Added support for SFTP public key authentication, contributed by
+  Vassil Dichev.
 
 Improvements:
-- 
+- Added Unix permissions support to Zip archives: entries' permissions are
+  now properly retrieved from and persisted into the archive, and can be changed
+  using the 'Change permissions' dialog.
+- When transferring files into a Zip archive, the source files' date is now 
+  properly preserved. The file entries' date can also be changed using the
+  'Change date' dialog.
 
 Localization:
--
-
-Bug fixes:
 - 
 
+Bug fixes:
+- Fixed keyboard focus issues in the text editor after the 'Find' dialog has
+  been invoked, contributed by Karel Tomáš. 
+
 Known issues:
-- Korean translation is not up-to-date.
+- Korean, Simplified Chinese, Slovenian and Slovak translations are not 
+  up-to-date.
+- SFTP support not available under Java 1.4, requires Java 1.5 or higher.
 - Executable permissions are not preserved properly for local files prior to
   Java 1.6.
 - SMB support may not work properly on non multi-language JRE.
+- Access to public SMB shares require credentials.
 - 'Copy files to clipboard' not working with some applications (files are not
   pasted).
 - Mac OS X : 'Sort by' keyboard shortcuts in menu show Command modifier instead
@@ -135,6 +154,7 @@ Known issues:
   will default to the first in the list.
 - Authentication issues when using several sets of credentials (login/password)
   on the same server.
+- Untrusted HTTPS connections are allowed without a warning.
 
 
 Command Line Interface
@@ -146,6 +166,7 @@ The following options are available:
  -b FILE, --bookmarks FILE         Load bookmarks from FILE.
  -c FILE, --configuration FILE     Load configuration from FILE
  -C FILE, --commandbar FILE        Load command bar from FILE
+ -e FOLDER, --extensions FOLDER    Load extensions from FOLDER.
  -f FILE, --commands FILE          Load custom commands from FILE.
  -i, --ignore-warnings             Do not fail on warnings (default).
  -k FILE, --keymap FILE            Load keymap from FILE
@@ -195,8 +216,8 @@ Here are a few hints on how to edit these files.
 
  - action_keymap.xml
 All customisable actions are listed in that file, using the following format:
-<action class="com.mucommander.ui.action.CopyFileNamesAction"
-        keystroke="alt C" alt_keystroke="meta C"/>
+<action class="com.mucommander.ui.action.CopyFilesToClipboardAction"
+        keystroke="control C" alt_keystroke="meta C"/>
 
 It's probably safer not to mess around with the class argument, as this could
 actually remove features from muCommander.
@@ -231,62 +252,11 @@ command_bar.xml, with two notable differences:
 
 - commands.xml
 This file controls the various system commands that muCommander can call.
-Documentation on how to customize those commands can be found here:
+Documentation on how to customise those commands can be found here:
 http://www.mucommander.com/forums/viewtopic.php?t=420
 
 
 - associations.xml
-This file controls muCommander's custom file associations. They will be
-initialised according to the system muCommander is running on and depend on
-commands.xml.
-
-This file is not (yet) written by muCommander, so you have to create it
-manually for the time being.
-
-It looks something like this:
-<?xml version="1.0" encoding="UTF-8"?>
-<associations>
-    <association mask=".*" command="open"/>
-</associations>
-
-Each association has the following attributes:
-- mask:    regular expression that the file name must match in order to be
-           managed by the association.
-- read:    if set to 'yes', a file must be readable in order to be matched by
-           the association.
-- write:   if set to 'yes', a file must be writable in order to be matched by
-           the association.
-- execute: if set to 'yes', a file must be executable in order to be matched by
-           the association.
-- command: the alias of the command to execute for this type of files.
-
-You must be extremely careful when editing this file, as it's quite easy to
-break muCommander by fiddling with it. Make sure that the system's default
-associations are always present, and that you do not change their attributes.
-- Windows 9x:
-<association mask=".*" command="open"/>
-
-- Windows NT:
-<association mask=".*\\.[eE][xX][eE]" command="openEXE"/>
-<association mask=".*" command="open"/>
-
-- Mac OS X:
-<association mask=".*" command="open"/>
-
-- Gnome:
-<!-- Only if running on Java prior to 1.6 -->
-<association mask="[^.]+" command="execute"/>
-
-<association mask=".*"    command="execute" execute="yes"/>
-<association mask=".*"    command="open"/>
-
-- KDE:
-<association mask="^https?:\\/\\/.+" command="openURL"/>
-<association mask=".*"               command="open"/>
-
-- Anything else:
-<!-- Only if running on Java prior to 1.6 -->
-<association mask="[^.]+" command="execute"/>
-
-<association mask=".*"    command="execute"/>
-
+This file controls custom command / file associations.
+Documentation on how to customise those associations can be found here:
+http://www.mucommander.com/forums/viewtopic.php?t=634
