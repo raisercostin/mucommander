@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.ui.icon;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.util.ResourceLoader;
 
 import javax.swing.*;
@@ -92,7 +93,7 @@ public class IconManager {
     public static ImageIcon getIcon(String iconPath, float scaleFactor) {
         URL resourceURL = ResourceLoader.getResourceAsURL(iconPath);
         if(resourceURL==null) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Warning: attempt to load non-existing icon: "+iconPath+" , icon missing ?");
+            AppLogger.fine("Warning: attempt to load non-existing icon: "+iconPath+" , icon missing ?");
             return null;
         }
 

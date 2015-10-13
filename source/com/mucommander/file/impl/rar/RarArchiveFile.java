@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +18,14 @@
 
 package com.mucommander.file.impl.rar;
 
+import com.mucommander.file.*;
+import com.mucommander.file.impl.rar.provider.RarFile;
+import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.rarfile.FileHeader;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Vector;
-
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractROArchiveFile;
-import com.mucommander.file.ArchiveEntry;
-import com.mucommander.file.impl.rar.provider.RarFile;
-import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.rarfile.FileHeader;
 
 
 /**
@@ -76,7 +74,7 @@ public class RarArchiveFile extends AbstractROArchiveFile {
     /**
      * Creates and return an {@link ArchiveEntry()} whose attributes are fetched from the given {@link com.mucommander.file.impl.rar.provider.de.innosystec.unrar.rarfile.FileHeader}
      *
-     * @param FileHeader the object that serves to initialize the attributes of the returned ArchiveEntry
+     * @param header the object that serves to initialize the attributes of the returned ArchiveEntry
      * @return an ArchiveEntry whose attributes are fetched from the given FileHeader
      */
     private ArchiveEntry createArchiveEntry(FileHeader header) {
@@ -84,7 +82,8 @@ public class RarArchiveFile extends AbstractROArchiveFile {
     			header.getFileNameString().replace('\\', '/'),
     			header.isDirectory(),
     			header.getMTime().getTime(),
-    			header.getFullUnpackSize()
+    			header.getFullUnpackSize(),
+                true
     	);
     }
 
@@ -93,18 +92,18 @@ public class RarArchiveFile extends AbstractROArchiveFile {
     // AbstractROArchiveFile implementation //
     //////////////////////////////////////////
     
-	public synchronized Vector getEntries() throws IOException {
-		checkRarFile();
-		
-		Vector entries = new Vector();
-		Iterator rarEntriesIterator = rarFile.getEntries().iterator();
-		while(rarEntriesIterator.hasNext())
-			entries.add(createArchiveEntry((FileHeader) rarEntriesIterator.next()));
-		
-		return entries;
-	}	
-	
-	public synchronized InputStream getEntryInputStream(ArchiveEntry entry) throws IOException {
+    public synchronized ArchiveEntryIterator getEntryIterator() throws IOException {
+        checkRarFile();
+
+        Vector entries = new Vector();
+        Iterator rarEntriesIterator = rarFile.getEntries().iterator();
+        while(rarEntriesIterator.hasNext())
+            entries.add(createArchiveEntry((FileHeader) rarEntriesIterator.next()));
+
+        return new WrapperArchiveEntryIterator(entries.iterator());
+    }
+
+    public synchronized InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
 		checkRarFile();
 		
 		return rarFile.getEntryInputStream(entry.getPath().replace('/', '\\'));

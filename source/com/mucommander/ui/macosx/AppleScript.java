@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.macosx;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.process.AbstractProcess;
 import com.mucommander.process.ProcessListener;
 import com.mucommander.process.ProcessRunner;
@@ -84,7 +84,7 @@ public class AppleScript {
         if(!OsFamilies.MAC_OS_X.isCurrent())
             return false;
 
-        if(Debug.ON) Debug.trace("Executing AppleScript: "+appleScript);
+        AppLogger.fine("Executing AppleScript: "+appleScript);
 
         // Use the 'osascript' command to execute the AppleScript. The '-s o' flag tells osascript to print errors to
         // stdout rather than stderr. The AppleScript is piped to the process instead of passing it as an argument
@@ -108,10 +108,10 @@ public class AppleScript {
             // Wait for the process to die
             int returnCode = process.waitFor();
 
-            if(Debug.ON) Debug.trace("osascript returned code="+returnCode+", output="+ outputBuffer);
+            AppLogger.fine("osascript returned code="+returnCode+", output="+ outputBuffer);
 
             if(returnCode!=0) {
-                if(Debug.ON) Debug.trace("osascript terminated abnormally");
+                AppLogger.fine("osascript terminated abnormally");
                 return false;
             }
 
@@ -119,10 +119,7 @@ public class AppleScript {
         }
         catch(Exception e) {        // IOException, InterruptedException
             // Shouldn't normally happen
-            if(Debug.ON) {
-                Debug.trace("Unexcepted exception while executing AppleScript: "+e);
-                e.printStackTrace();
-            }
+            AppLogger.fine("Unexcepted exception while executing AppleScript", e);
 
             try {
                 if(pout!=null)
@@ -213,7 +210,7 @@ public class AppleScript {
 //     * @return the script's output, null if an error occurred while compiling or executing the script
 //     */
 //    private static String executeAppleScript(String appleScript) {
-//        if(Debug.ON) Debug.trace("Executing AppleScript "+appleScript);
+//        AppLogger.finer("Executing AppleScript "+appleScript);
 //
 //        int pool = -1;
 //
@@ -229,26 +226,25 @@ public class AppleScript {
 //            NSMutableDictionary errorInfo = new NSMutableDictionary();
 //            NSAppleEventDescriptor eventDescriptor = new NSAppleScript(appleScript).execute(errorInfo);
 //            if(eventDescriptor==null) {
-//                if(Debug.ON)
-//                    Debug.trace("Caught AppleScript error: "+errorInfo.objectForKey(NSAppleScript.AppleScriptErrorMessage));
+//                AppLogger.fine("Caught AppleScript error: "+errorInfo.objectForKey(NSAppleScript.AppleScriptErrorMessage));
 //
 //                return null;
 //            }
 //
 //            String output = eventDescriptor.stringValue();  // Returns null if the script didn't output anything
-//            if(Debug.ON) Debug.trace("AppleScript output="+output);
+//            AppLogger.finer("AppleScript output="+output);
 //
 //            return output==null?"":output;
 //        }
 //        catch(Error e) {
 //            // Can happen if Cocoa-java is not in the classpath
-//            if(Debug.ON) Debug.trace("Unexcepted error while executing AppleScript (cocoa-java not available?): "+e);
+//            AppLogger.fine("Unexcepted error while executing AppleScript (cocoa-java not available?)", e);
 //
 //            return null;
 //        }
 //        catch(Exception e) {
 //            // Try block is not supposed to throw any exception, but this is low-level stuff so just to be safe
-//            if(Debug.ON) Debug.trace("Unexcepted exception while executing AppleScript: "+e);
+//            AppLogger.fine("Unexcepted exception while executing AppleScript", e);
 //
 //            return null;
 //        }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Vector;
+import java.util.WeakHashMap;
 
 /**
  * <code>AbstractArchiveFile</code> is the superclass of all archive files. It allows archive file to be browsed as if
@@ -40,19 +41,19 @@ import java.util.Vector;
  * listing the archive's contents or retrieving a particular entry's contents.
  *  <li>{@link AbstractRWArchiveFile}: read-write archives, these are also able to modify the archive by adding or
  * deleting an entry from the archive. These operations usually require random access to the underlying file,
- * so write operations may not be available on all underlying file types. The {@link #isWritableArchive()} method allows
+ * so write operations may not be available on all underlying file types. The {@link #isWritable()} method allows
  * to determine whether the archive file is able to carry out write operations or not.
  * </ul>
  * When implementing a new archive file/format, either <code>AbstractROArchiveFile</code> or <code>AbstractRWArchiveFile</code>
  * should be subclassed, but not this class.
  * </p>
  *
- * <p>The first time one of the <code>ls()</code> methods is called to list the archive's contents, the
- * {@link #getEntries()} method is called to retrieve a list of *all* the entries contained by the archive, not only the
+ * <p>The first time one of the <code>ls()</code> methods is called to list the archive's contents,
+ * {@link #getEntryIterator()} is called to retrieve a list of *all* the entries contained by the archive, not only the
  * ones at the top level but also the ones nested one of several levels below. Using this list of entries, it creates
  * a tree to map the structure of the archive and list the content of any particular directory within the archive.
- * This tree is recreated (<code>getEntries()</code> is called again) only if the archive file has changed, i.e. its
- * date has changed since the tree was created.</p>
+ * This tree is recreated (<code>getEntryIterator()</code> is called again) only if the archive file has changed, i.e.
+ * if its date has changed since the tree was created.</p>
  *
  * <p>Files returned by the <code>ls()</code> are {@link ArchiveEntryFile} instances which use an {@link ArchiveEntry}
  * object to retrieve the entry's attributes. In turn, these <code>ArchiveEntryFile</code> instances query the
@@ -76,6 +77,9 @@ public abstract class AbstractArchiveFile extends ProxyFile {
      * need to be reloaded */
     protected long entryTreeDate;
 
+    /** Caches ArchiveEntryFile instances so that there is only one ArchiveEntryFile corresponding to the same entry
+     * at any given time, to avoid attribute inconsistencies. The key is the corresponding ArchiveEntry. */
+    protected WeakHashMap archiveEntryFiles;
 
     /**
      * Creates an AbstractArchiveFile on top of the given file.
@@ -93,24 +97,28 @@ public abstract class AbstractArchiveFile extends ProxyFile {
      * @throws IOException if an error occured while retrieving this archive's entries
      */
     protected void createEntriesTree() throws IOException {
+        // TODO: this method is not thread-safe and must be synchronized
         ArchiveEntryTree treeRoot = new ArchiveEntryTree();
+        archiveEntryFiles = new WeakHashMap();
 
         long start = System.currentTimeMillis();
+        ArchiveEntryIterator entries = getEntryIterator();
+        try {
+            ArchiveEntry entry;
+            while((entry=entries.nextEntry())!=null)
+                treeRoot.addArchiveEntry(entry);
 
-        Vector entries = getEntries();
+            FileLogger.fine("entries tree created in "+(System.currentTimeMillis()-start)+" ms");
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("entries loaded in "+(System.currentTimeMillis()-start)+" ms, nbEntries="+entries.size());
-        start = System.currentTimeMillis();
-
-        int nbEntries = entries.size();
-        for(int i=0; i<nbEntries; i++) {
-            treeRoot.addArchiveEntry((ArchiveEntry)entries.elementAt(i));
+            this.entryTreeRoot = treeRoot;
+            declareEntriesTreeUpToDate();
         }
-
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("entries tree created in "+(System.currentTimeMillis()-start)+" ms");
-		
-        this.entryTreeRoot = treeRoot;
-        declareEntriesTreeUpToDate();
+        finally {
+            try { entries.close(); }
+            catch(IOException e) {
+                // Not much we can do about it
+            }
+        }
     }
 
     /**
@@ -202,7 +210,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
             files = new AbstractFile[nbChildren];
 
             for(int c=0; c<nbChildren; c++) {
-                files[c] = getArchiveEntryFile((ArchiveEntry)(((DefaultMutableTreeNode)treeNode.getChildAt(c)).getUserObject()), parentFile, true);
+                files[c] = getArchiveEntryFile((ArchiveEntry)(((DefaultMutableTreeNode)treeNode.getChildAt(c)).getUserObject()), parentFile);
             }
         }
         // Use provided FilenameFilter and temporarily store created entry files that match the filter in a Vector
@@ -213,7 +221,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
                 if(!filenameFilter.accept(entry.getName()))
                     continue;
 
-                filesV.add(getArchiveEntryFile(entry, parentFile, true));
+                filesV.add(getArchiveEntryFile(entry, parentFile));
             }
 
             files = new AbstractFile[filesV.size()];
@@ -230,7 +238,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
      * That means entries paths of archives located on Windows local filesystems will use '\' as a separator, and
      * '/' for Unix local archives.
      */
-    protected AbstractFile getArchiveEntryFile(ArchiveEntry entry, AbstractFile parentFile, boolean exists) throws IOException {
+    protected AbstractFile getArchiveEntryFile(ArchiveEntry entry, AbstractFile parentFile) throws IOException {
 
         String entryPath = entry.getPath();
 
@@ -240,27 +248,43 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         if(!fileSeparator.equals("/"))
             entryPath = StringUtils.replaceCompat(entryPath, "/", fileSeparator);
 
-        FileURL archiveURL = getURL();
-        FileURL entryURL = (FileURL)archiveURL.clone();
-        entryURL.setPath(addTrailingSeparator(archiveURL.getPath()) + entryPath);
-        
-        AbstractFile entryFile = FileFactory.wrapArchive(
-          new ArchiveEntryFile(
-            entryURL,
-            this,
-            entry,
-            exists            
-          )
-        );
-        entryFile.setParent(parentFile);
+        // Cache ArchiveEntryFile instances so that there is only one ArchiveEntryFile corresponding to the same entry
+        // at any given time, to avoid attribute inconsistencies.
 
-        return entryFile;
+        AbstractFile entryFile = (ArchiveEntryFile)archiveEntryFiles.get(entry);
+        if(entryFile==null) {
+            FileURL archiveURL = getURL();
+            FileURL entryURL = (FileURL)archiveURL.clone();
+            entryURL.setPath(addTrailingSeparator(archiveURL.getPath()) + entryPath);
+
+            entryFile = new ArchiveEntryFile(
+              entryURL,
+              this,
+              entry
+            );
+            entryFile.setParent(parentFile);
+
+            archiveEntryFiles.put(entry, entryFile);
+        }
+        return FileFactory.wrapArchive(entryFile);
+    }
+
+
+    /**
+     * Shorthand for {@link #getArchiveEntryFile(String)} called with the given entry's path.
+     *
+     * @param entry an entry contained by this archive
+     * @return an AbstractFile that corresponds to the given entry
+     * @throws IOException if neither the entry nor its parent exist within the archive
+     */
+    public AbstractFile getArchiveEntryFile(ArchiveEntry entry) throws IOException {
+        return getArchiveEntryFile(entry.getPath());
     }
 
     /**
      * Creates and returns an AbstractFile that corresponds to the given entry path within the archive.
      * The requested entry may or may not exist in the archive, the {@link #exists()} method of the returned entry file
-     * can be used used to get this information. However, if the requested entry does not exist in the archive and is
+     * can be used to find this out. However, if the requested entry does not exist in the archive and is
      * not located at the top level (i.e. is located in a subfolder), its parent folder must exist in the archive or
      * else an <code>IOException</code> will be thrown.
      *
@@ -275,6 +299,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         // Make sure the entries tree is created and up-to-date
         checkEntriesTree();
 
+        // Todo: check if that's really necessary / if there is a way to remove this
         entryPath = entryPath.replace('\\', '/');
 
         // Find the entry node corresponding to the given path
@@ -284,7 +309,7 @@ public abstract class AbstractArchiveFile extends ProxyFile {
             int depth = ArchiveEntry.getDepth(entryPath);
 
             AbstractFile parentFile;
-            if(depth==0)
+            if(depth==1)
                 parentFile = this;
             else {
                 String parentPath = entryPath;
@@ -298,31 +323,64 @@ public abstract class AbstractArchiveFile extends ProxyFile {
                     throw new IOException();
             }
 
-            return getArchiveEntryFile(new ArchiveEntry(entryPath, false), parentFile, false);
+            return getArchiveEntryFile(new ArchiveEntry(entryPath, false, 0, 0, false), parentFile);
         }
 
-        DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode)entryNode.getParent();
-        // Todo: suboptimal recursion, findEntryNode() is called each time
-        return getArchiveEntryFile((ArchiveEntry)entryNode.getUserObject(), parentNode== entryTreeRoot?this: getArchiveEntryFile(((ArchiveEntry)parentNode.getUserObject()).getPath()), true);
+        return getArchiveEntryFile(entryNode);
     }
 
+    /**
+     * Creates and returns an {@link AbstractFile} instance corresponding to the given entry node.
+     * This method recurses to resolve the entry's parent file.
+     *
+     * @param entryNode tree node corresponding to the entry for which to return a file
+     * @return an {@link AbstractFile} instance corresponding to the given entry node
+     */
+    protected AbstractFile getArchiveEntryFile(DefaultMutableTreeNode entryNode) throws IOException {
+        DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode)entryNode.getParent();
+        return getArchiveEntryFile(
+                (ArchiveEntry)entryNode.getUserObject(),
+                parentNode==entryTreeRoot
+                    ?this
+                    :getArchiveEntryFile(parentNode)
+        );
+    }
 
+    
     //////////////////////
     // Abstract methods //
     //////////////////////
 	
     /**
-     * Returns a Vector of {@link ArchiveEntry}, representing all the entries this archive file contains.
-     * This method will be called the first time one of the <code>ls()</code> is called. If will not be further called,
+     * Returns an iterator of {@link ArchiveEntry} that iterates through all the entries of this archive.
+     * Implementations of this method should as much as possible return entries in their "natural order", i.e. the order
+     * in which they are stored in the archive.
+     * <p>
+     * This method is called the first time one of the <code>ls()</code> is called. It will not be called anymore,
      * unless the file's date has changed since the last time one of the <code>ls()</code> methods was called.
+     * </p>
+     *
+     * @return an iterator of {@link ArchiveEntry} that iterates through all the entries of this archive
+     * @throws IOException if an error occurred while reading the archive, either because the archive is corrupt or
+     * because of an I/O error
      */
-    public abstract Vector getEntries() throws IOException;
+    public abstract ArchiveEntryIterator getEntryIterator() throws IOException;
 
     /**
-     * Returns an InputStream to read from the given archive entry. The specified {@link ArchiveEntry} instance is
-     * necessarily one of the entries that were returned by {@link #getEntries()}. 
+     * Returns an <code>InputStream</code> to read from the given archive entry. The specified {@link ArchiveEntry}
+     * instance must be one of the entries that were returned by the {@link ArchiveEntryIterator} returned by
+     * {@link #getEntryIterator()}.
+     *
+     * @param entry the archive entry to read
+     * @param entryIterator the iterator that is used to iterate through entries by the caller (if any). This parameter
+     * may be <code>null</code>, but when it is known, specifying may improve the performance of this method
+     * by an order of magnitude.
+     * @return an <code>InputStream</code> to read from the given archive entry
+     * @throws IOException if an error occurred while reading the archive, either because the archive is corrupt or
+     * because of an I/O error, or if the given entry wasn't found in the archive
      */
-    public abstract InputStream getEntryInputStream(ArchiveEntry entry) throws IOException;
+    public abstract InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException;
+
 
     /**
      * Returns <code>true</code> if this archive file is writable, i.e. is capable of adding and deleting entries to
@@ -340,8 +398,19 @@ public abstract class AbstractArchiveFile extends ProxyFile {
      *
      * @return true if this archive is writable, i.e. is capable of adding and deleting entries to
      * the underlying archive file.
+     *
+     * // TODO: generalize and move this method to AbstractFile
      */
-    public abstract boolean isWritableArchive();
+    public abstract boolean isWritable();
+
+
+    /////////////////////////////////////////
+    // Partial AbstractFile implementation //
+    /////////////////////////////////////////
+
+    public boolean isArchive() {
+        return exists() && !isDirectory();
+    }
 
 
     ////////////////////////
@@ -393,44 +462,19 @@ public abstract class AbstractArchiveFile extends ProxyFile {
         return ls(entryTreeRoot, this, null, filter);
     }
 
-    /**
-     * Always returns <code>true</code>, archive files can be browsed even though they are not directories.
-     */
-    public boolean isBrowsable() {
-        return true;
-    }
-	
-    /**
-     * Always returns <code>false</code>, archive files can be browsed but they are not directiories.
-     */
-    public boolean isDirectory() {
-        return false;
-    }
+    // Note: do not override #isDirectory() to always return true, as AbstractArchiveFile instances may be created when
+    // the file does not exist yet, and then be mkdir(): in that case, the file will be a directory and not an archive.
 
     /**
-     * Returns the proxied file's free space if this archive is writable (as reported by {@link #isWritableArchive()},
+     * Returns the proxied file's free space if this archive is writable (as reported by {@link #isWritable()},
      * else returns <code>0</code>. 
      *
      * @return the proxied file's free space is this archive is writable, 0 otherwise.
      */
     public long getFreeSpace() {
-        if(isWritableArchive())
+        if(isWritable())
             return file.getFreeSpace();
         else
             return 0;
-    }
-
-    /**
-     * Always returns <code>false</code>.
-     */
-    public boolean canRunProcess() {
-        return false;
-    }
-
-    /**
-     * Always throws an <code>IOException</code>.
-     */
-    public com.mucommander.process.AbstractProcess runProcess(String[] tokens) throws IOException {
-        throw new IOException();
     }
 }

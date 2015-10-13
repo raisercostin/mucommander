@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@ import com.mucommander.file.util.PathUtils;
 import com.mucommander.io.security.MuProvider;
 import com.mucommander.job.CalculateChecksumJob;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.CalculateChecksumAction;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.CalculateChecksumAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
@@ -81,7 +81,7 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
 
 
     public CalculateChecksumDialog(MainFrame mainFrame, FileSet files) {
-        super(mainFrame, MuAction.getStandardLabel(CalculateChecksumAction.class), files);
+        super(mainFrame, ActionProperties.getActionLabel(CalculateChecksumAction.Descriptor.ACTION_ID), files);
 
         YBoxPanel mainPanel = new YBoxPanel();
 
@@ -177,7 +177,6 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
         // Size dialog and show it to the screen
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
         setResizable(true);
-        showDialog();
     }
 
     /**

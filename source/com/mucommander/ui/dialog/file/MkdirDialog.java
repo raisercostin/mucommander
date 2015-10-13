@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,13 @@ import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.MkdirJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
-import com.mucommander.ui.action.MkdirAction;
-import com.mucommander.ui.action.MkfileAction;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.MkdirAction;
+import com.mucommander.ui.action.impl.MkfileAction;
 import com.mucommander.ui.chooser.SizeChooser;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.FilePathField;
@@ -75,14 +76,14 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
      * @param mkfileMode if true, the dialog will operate in 'mkfile' mode, if false in 'mkdir' mode
      */
     public MkdirDialog(MainFrame mainFrame, boolean mkfileMode) {
-        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MkfileAction.class:MkdirAction.class,mainFrame).getLabel(), mainFrame);
+        super(mainFrame, ActionManager.getActionInstance(mkfileMode?MkfileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID,mainFrame).getLabel(), mainFrame);
         this.mainFrame = mainFrame;
         this.mkfileMode = mkfileMode;
 
         Container contentPane = getContentPane();
 
         YBoxPanel mainPanel = new YBoxPanel();
-        mainPanel.add(new JLabel(MuAction.getStandardTooltip(mkfileMode?com.mucommander.ui.action.MkfileAction.class:com.mucommander.ui.action.MkdirAction.class)+" :"));
+        mainPanel.add(new JLabel(ActionProperties.getActionTooltip(mkfileMode?MkfileAction.Descriptor.ACTION_ID:MkdirAction.Descriptor.ACTION_ID)+" :"));
 
         // Create a path field with auto-completion capabilities
         pathField = new FilePathField();
@@ -129,7 +130,6 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
 
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
         setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
-        showDialog();
     }
 
 
@@ -144,21 +144,21 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
         PathUtils.ResolvedDestination resolvedDest = PathUtils.resolveDestination(enteredPath, mainFrame.getActiveTable().getCurrentFolder());
         // The path entered doesn't correspond to any existing folder
         if (resolvedDest==null) {
-            showErrorDialog(Translator.get("invalid_path", enteredPath));
+            InformationDialog.showErrorDialog(mainFrame, Translator.get("invalid_path", enteredPath));
             return;
         }
 
         // Checks if the directory already exists and reports the error if that's the case
         int destinationType = resolvedDest.getDestinationType();
         if(destinationType==PathUtils.ResolvedDestination.EXISTING_FOLDER) {
-            showErrorDialog(Translator.get("directory_already_exists", enteredPath));
+            InformationDialog.showErrorDialog(mainFrame, Translator.get("directory_already_exists", enteredPath));
             return;
         }
 
         // Don't check for existing regular files, MkdirJob will take of it and popup a FileCollisionDialog 
         AbstractFile destFile = resolvedDest.getDestinationFile();
 
-        FileSet fileSet = new FileSet(destFile.getParentSilently());
+        FileSet fileSet = new FileSet(destFile.getParent());
         // Job's FileSet needs to contain at least one file
         fileSet.add(destFile);
 
@@ -171,11 +171,6 @@ public class MkdirDialog extends FocusDialog implements ActionListener, ItemList
             job = new MkdirJob(progressDialog, mainFrame, fileSet);
 
         progressDialog.start(job);
-    }
-
-	
-    private void showErrorDialog(String msg) {
-        JOptionPane.showMessageDialog(mainFrame, msg, Translator.get("error"), JOptionPane.ERROR_MESSAGE);
     }
 
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.util.Random;
 
 /**
@@ -55,7 +56,7 @@ public class StressTester implements Runnable, ActionListener {
 
         while(run) {
             if(random.nextInt(2)==0)
-                ActionManager.performAction(com.mucommander.ui.action.SwitchActiveTableAction.class, mainFrame);    
+                ActionManager.performAction(com.mucommander.ui.action.impl.SwitchActiveTableAction.Descriptor.ACTION_ID, mainFrame);    
 
             FileTable fileTable = mainFrame.getActiveTable();
             AbstractFile currentFolder = fileTable.getCurrentFolder();
@@ -66,7 +67,7 @@ public class StressTester implements Runnable, ActionListener {
                 // 1 in 3 chance to go up if folder has children
                 if(children.length==0 || (random.nextInt(3)==0 && parentFolder!=null)) {
                     fileTable.selectRow(0);
-                    ActionManager.performAction(com.mucommander.ui.action.OpenAction.class, mainFrame);
+                    ActionManager.performAction(com.mucommander.ui.action.impl.OpenAction.Descriptor.ACTION_ID, mainFrame);
                 }
                 else {
                     AbstractFile randomChild = children[random.nextInt(children.length)];
@@ -76,17 +77,21 @@ public class StressTester implements Runnable, ActionListener {
                     // so that no error dialog pops up when calling tryChangeCurrentFolder()
                     randomChild.ls();
                     fileTable.selectFile(randomChild);
-                    ActionManager.performAction(com.mucommander.ui.action.OpenAction.class, mainFrame);
+                    ActionManager.performAction(com.mucommander.ui.action.impl.OpenAction.Descriptor.ACTION_ID, mainFrame);
                     //					folderPanel.tryChangeCurrentFolder(randomChild, true);
                 }
             }
             catch(Exception e) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught Exception: "+e);
+                AppLogger.fine("Caught Exception", e);
             }
 
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Sleeping for a bit...");
-            try {Thread.currentThread().sleep(100+random.nextInt(200)); }
-            catch(InterruptedException e) { if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught InterruptedException "+e);}
+            AppLogger.finest("Sleeping for a bit...");
+            try {
+                Thread.sleep(100+random.nextInt(200));
+            }
+            catch(InterruptedException e) {
+                AppLogger.fine("Caught InterruptedException", e);
+            }
         }
     }
 
@@ -97,8 +102,9 @@ public class StressTester implements Runnable, ActionListener {
     /**
      * Method used to start the stress tester.
      * @param args command line arguments.
+     * @throws IOException if an unrecoverable error occurred during startup
      */
-    public static void main(String args[]) {
+    public static void main(String args[]) throws IOException {
         Launcher.main(args);
 
         StressTester instance = new StressTester();

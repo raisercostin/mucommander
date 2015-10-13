@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.dialog.file;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.file.filter.*;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
@@ -64,10 +64,10 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
     private MainFrame mainFrame;
 	
     /** 
-     * Is selection case sensitive? (initially true)
+     * Is selection case sensitive? (initially false)
      * <br>Note: this field is static so the value is kept after the dialog is OKed.
      */ 
-    private static boolean caseSensitive = true;
+    private static boolean caseSensitive = false;
 
     /** 
      * Does the selection include folders? (initially false)
@@ -183,7 +183,7 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
                 testString = keywordString;
             }
 
-            // Instanciate the main file filter
+            // Instantiate the main file filter
             FileFilter filter;
             switch (comparison) {
                 case CONTAINS:
@@ -205,7 +205,7 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
                     }
                     catch(PatternSyntaxException ex) {
                         // Todo: let the user know the regexp is invalid
-                        if(Debug.ON) Debug.trace("Invalid regexp: "+e);
+                        AppLogger.fine("Invalid regexp", ex);
 
                         // This filter does match any file
                         filter = new PassThroughFileFilter(false);

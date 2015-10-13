@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,7 @@ import com.mucommander.file.compat.CompatURLStreamHandler;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.impl.ProxyFile;
-import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.file.util.PathUtils;
 import com.mucommander.io.*;
-import com.mucommander.process.AbstractProcess;
-import com.mucommander.runtime.OsFamilies;
 
 import javax.swing.*;
 import java.awt.*;
@@ -37,19 +33,18 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.regex.Pattern;
 
 /**
  * <code>AbstractFile</code> is the superclass of all files.
  *
- * <p>AbstractFile classes should never be instanciated directly. Instead, the {@link FileFactory} <code>getFile</code>
+ * <p>AbstractFile classes should never be instantiated directly. Instead, the {@link FileFactory} <code>getFile</code>
  * methods should be used to get a file instance from a path or {@link FileURL} location.</p>
  *
  * @see com.mucommander.file.FileFactory
  * @see com.mucommander.file.impl.ProxyFile
  * @author Maxence Bernard
  */
-public abstract class AbstractFile implements PermissionTypes, PermissionAccesses {
+public abstract class AbstractFile implements FileAttributes, PermissionTypes, PermissionAccesses {
 
     /** URL representing this file */
     protected FileURL fileURL;
@@ -70,9 +65,6 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
     // Note: raising buffer size from 8192 to 65536 makes a huge difference in SFTP read transfer rates but beyond
     // 65536, no more gain (not sure why).
     public final static int IO_BUFFER_SIZE = 65536;
-
-    /** Pattern matching Windows drive root folders, e.g. C:\ */
-    protected final static Pattern windowsDriveRootPattern = Pattern.compile("^[a-zA-Z]{1}[:]{1}[\\\\]{1}$");
 
 
     /**
@@ -165,29 +157,22 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
     /**
      * Returns the absolute path to this file:
      * <ul>
-     * <li>For local files, the sole path is returned, and <b>not</b> a URL with the scheme and host parts (e.g. /path/to/file, not file://localhost/path/to/file)
-     * <li>For any other file protocol, the full URL including the protocol and host parts is returned (e.g. smb://192.168.1.1/root/blah)
+     * <li>For local filesystems, the local file's path should be returned, and <b>not</b> a full URL with the scheme
+     * and host parts (e.g. /path/to/file, not file://localhost/path/to/file)</li>
+     * <li>For any other filesystems, the full URL including the protocol and host parts should be returned
+     * (e.g. smb://192.168.1.1/root/blah)</li>
      * </ul>
-     *
-     * <p>The returned path will always be free of any login and password and thus can be safely displayed or stored.</p>
+     * <p>
+     * This default implementation returns the string representation of this file's {@link #getURL() url}, without
+     * the login and password parts. File implementations overridding this method should always return a path free of
+     * any login and password, so that it can safely be displayed to the end user or stored, without risking to
+     * compromise sensitive information.
+     * </p>
      *
      * @return the absolute path to this file
      */
     public String getAbsolutePath() {
-        FileURL fileURL = getURL();
-
-        // For local files: return file's path 'sans' the scheme and host parts
-        if(fileURL.getScheme().equals(FileProtocols.FILE)) {
-            String path = fileURL.getPath();
-            // Under for OSes with 'root drives' (Windows, OS/2), remove the leading '/' character
-            if(LocalFile.hasRootDrives())
-                path = PathUtils.removeLeadingSeparator(path, "/");
-
-            return path;
-        }
-
-        // For any other file protocols: return the full URL that includes the scheme and host parts
-        return fileURL.toString(false);
+        return getURL().toString(false);
     }
 
 
@@ -243,18 +228,6 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
 
 
     /**
-     * Returns <code>true</code> if this file is browsable. A file is considered browsable if it contains children files
-     * that can be exposed by calling the <code>ls()</code> methods. {@link AbstractArchiveFile} implementations will
-     * usually return <code>true</code>, as will directories (directories are always browsable).
-     *
-     * @return true if this file is browsable
-     */
-    public boolean isBrowsable() {
-        return isDirectory() || (this instanceof AbstractArchiveFile);
-    }
-
-
-    /**
      * Returns <code>true</code> if this file is hidden.
      *
      * <p>This default implementation is solely based on the filename and returns <code>true</code> if this
@@ -269,45 +242,58 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
 
 
     /**
-     * Returns the root folder that contains this file either as a direct or an indirect child. If this file is already
-     * a root folder (has no parent), <code>this</code> is returned.
+     * Returns the root folder of this file, i.e. the top-level parent folder that has no parent folder. The returned
+     * folder necessarily contains this file, directly or indirectly. If this file already is a root folder, the same
+     * file will be returned.
+     * <p>
+     * This default implementation returns the file whose URL has the same scheme as this one, same credentials (if any),
+     * and a path equal to <code>/</code>.
+     * </p>
      *
      * @return the root folder that contains this file
-     * @throws IOException if the root file or one parent file could not be instanciated
      */
-    public AbstractFile getRoot() throws IOException {
-        AbstractFile parent;
-        AbstractFile child = this; 
-        while((parent=child.getParent())!=null && !parent.equals(child)) {
-            child = parent;
-        }
-		
-        return child;
-    }
+    public AbstractFile getRoot() {
+        FileURL rootURL = (FileURL)getURL().clone();
+        rootURL.setPath("/");
 
+        return FileFactory.getFile(rootURL);
+    }
 
     /**
      * Returns <code>true</code> if this file is a root folder.
-     *
-     * <p>This default implementation characterizes root folders in the following way:
-     * <ul>
-     *  <li>For local files under Windows: if the path corresponds a drive's root ('C:\' for instance)
-     *  <li>For local files under other OS: if the path is "/"
-     *  <li>For any other file kinds: if the FileURL's path is '/'
-     * </ul>
+     * <p>
+     * This default implementation returns <code>true</code> if this file's URL path is <code>/</code>.
      * </p>
      *
      * @return <code>true</code> if this file is a root folder
      */
     public boolean isRoot() {
-        if(fileURL.getScheme().equals(FileProtocols.FILE)) {
-            String path = getAbsolutePath();
-            return OsFamilies.WINDOWS.isCurrent()?windowsDriveRootPattern.matcher(path).matches():path.equals("/");
-        }
-        else
-            return getURL().getPath().equals("/");
+        return getURL().getPath().equals("/");
     }
 
+    /**
+     * Returns the volume on which this file is located, or <code>this</code> if this file is itself a volume.
+     * The returned file may never be <code>null</code>. Furthermore, the returned file may not always
+     * {@link #exists() exist}, for instance if the returned volume corresponds to a removable drive that's currently
+     * unavailable. If the returned file does exist, it must always be a {@link #isDirectory() directory}.
+     * In other words, archive files may not be considered as volumes.
+     * <p>
+     * The notion of volume may or may not have a meaning depending on the kind of fileystem. On local filesystems,
+     * the notion of volume can be assimilated into that of <i>mount point</i> for UNIX-based OSes, or <i>drive</i>
+     * for the Windows platform. Volumes may also have a meaning for certain network filesystems such as SMB, for which
+     * shares can be considered as volumes. Filesystems that don't have a notion of volume should return the
+     * {@link #getRoot() root folder}.
+     * </p>
+     * <p>
+     * This default implementation returns this file's {@link #getRoot() root folder}. This method should be overridden
+     * if this is not adequate.
+     * </p>
+     *
+     * @return the volume on which this file is located.
+     */
+    public AbstractFile getVolume() {
+        return getRoot();
+    }
 
     /**
      * Returns an <code>InputStream</code> to read this file's contents, starting at the specified offset (in bytes).
@@ -389,8 +375,8 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
     protected final void checkCopyPrerequisites(AbstractFile destFile, boolean allowCaseVariations) throws FileTransferException {
         boolean isAllowedCaseVariation = false;
 
-        // Throw an exception of a specific kind if the source and destination files are identical
-        boolean filesEqual = this.equals(destFile);
+        // Throw an exception of a specific kind if the source and destination files refer to the same file
+        boolean filesEqual = this.equalsCanonical(destFile);
         if(filesEqual) {
             // If case variations are allowed and the destination filename is a case variation of the source,
             // do not throw an exception.
@@ -612,7 +598,7 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
 
     /**
      * Returns the children files that this file contains, filtering out files that do not match the specified FilenameFilter.
-     * For this operation to be successful, this file must be 'browsable', i.e. {@link #isBrowsable()} must return 
+     * For this operation to be successful, this file must be 'browsable', i.e. {@link #isBrowsable()} must return
      * <code>true</code>.
      *
      * <p>This default implementation filters out files *after* they have been created. This method
@@ -764,6 +750,17 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
     ///////////////////
 
     /**
+     * Returns <code>true</code> if this file is browsable. A file is considered browsable if it contains children files
+     * that can be retrieved by calling the <code>ls()</code> methods. Archive files will usually return
+     * <code>true</code>, as will directories (directories are always browsable).
+     *
+     * @return true if this file is browsable
+     */
+    public final boolean isBrowsable() {
+        return isDirectory() || isArchive();
+    }
+
+    /**
      * Returns the name of the file without its extension.
      *
      * <p>A filename has an extension if and only if:<br/>
@@ -789,6 +786,14 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
         return name.substring(0, position);
     }
 
+    /**
+     * Shorthand for {@link #getAbsolutePath()}.
+     *
+     * @return the value returned by {@link #getAbsolutePath()}.
+     */
+    public final String getPath() {
+        return getAbsolutePath();
+    }
 
     /**
      * Returns the absolute path to this file.
@@ -820,12 +825,12 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * Returns a child of this file, whose path is the concatenation of this file's path and the given relative path.
      * Although this method does not enforce it, the specified path should be relative, i.e. should not start with
      * a separator.<br/>
-     * An <code>IOException</code> may be thrown if the child file could not be instanciated but the returned file
+     * An <code>IOException</code> may be thrown if the child file could not be instantiated but the returned file
      * instance should never be <code>null</code>.
      *
      * @param relativePath the child's path, relative to this file's path
      * @return an AbstractFile representing the requested child file, never null
-     * @throws IOException if the child file could not be instanciated
+     * @throws IOException if the child file could not be instantiated
      */
     public final AbstractFile getChild(String relativePath) throws IOException {
         FileURL childURL = (FileURL)getURL().clone();
@@ -855,7 +860,7 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * An <code>IOException</code> will be thrown in any of the following cases:
      * <ul>
      *  <li>if the filename contains one or several path separator (the file would not be a direct child)</li>
-     *  <li>if the child file could not be instanciated</li>
+     *  <li>if the child file could not be instantiated</li>
      * </ul>
      * This method never returns <<code>null</code>.
      *
@@ -876,23 +881,6 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
         childFile.setParent(this);
 
         return childFile;
-    }
-
-
-    /**
-     * Convience method that returns this file's parent, <code>null</code> if it doesn't have one or if it couldn't
-     * be instanciated. This method is less granular than {@link #getParent} but is convenient in cases where no
-     * distinction is made between having no parent and not being able to instanciate it.
-     *
-     * @return this file's parent, <code>null</code> if it doesn't have one or if it couldn't be instanciated
-     */
-    public final AbstractFile getParentSilently() {
-        try {
-            return getParent();
-        }
-        catch(IOException e) {
-            return null;
-        }
     }
 
 
@@ -1047,10 +1035,17 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
 
     /**
      * Convenience method that returns the parent {@link AbstractArchiveFile} that contains this file. If this file
-     * is an AbstractArchiveFile or an ancestor of AbstractArchiveFile, <code>this</code> is returned. If this file
-     * is not contained by an archive or is not an archive, <code>null</code> is returned.
+     * is an {@link AbstractArchiveFile} or an ancestor of {@link AbstractArchiveFile}, <code>this</code> is returned.
+     * If this file is neither contained by an archive nor is an archive, <code>null</code> is returned.
      *
-     * @return the parent AbstractArchiveFile that contains this file
+     * <p>
+     * <b>Important note:</b> the returned {@link AbstractArchiveFile}, if any, may not necessarily be an
+     * archive, as specified by {@link #isArchive()}. This is the case for files that were resolved as
+     * {@link AbstractArchiveFile} instances based on their path, but that do not yet exist or were created as
+     * directories. On the contrary, an existing archive will necessarily return a non-null value.
+     * </p>
+     *
+     * @return the parent {@link AbstractArchiveFile} that contains this file
      */
     public final AbstractArchiveFile getParentArchive() {
         if(hasAncestor(AbstractArchiveFile.class))
@@ -1146,7 +1141,7 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * @param path the path for which to add a trailing separator
      * @return the path with a trailing separator
      */
-    protected final String addTrailingSeparator(String path) {
+    public final String addTrailingSeparator(String path) {
         // Even though getAbsolutePath() is not supposed to return a trailing separator, root folders ('/', 'c:\' ...)
         // are exceptions that's why we still have to test if path ends with a separator
         String separator = getSeparator();
@@ -1330,29 +1325,64 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
     ////////////////////////
 
     /**
-     * Tests a file for equality: returns <code>true</code> if the given file has the same canonical path,
-     * as returned by {@link #getCanonicalPath()}.
+     * Tests a file for equality by comparing both files' {@link #getURL() URL}. Returns <code>true</code> if the URL
+     * of this file and the specified one are equal according to {@link FileURL#equals(Object, boolean, boolean)} called
+     * with credentials and properties comparison enabled.
+     *
+     * <p>
+     * Unlike {@link #equalsCanonical(Object)}, this method <b>is not</b> allowed to perform I/O operations and block
+     * the caller thread.
+     * </p>
+     *
+     * @param o the object to compare against this instance
+     * @return Returns <code>true</code> if the URL of this file and the specified one are equal
+     * @see FileURL#equals(Object, boolean, boolean)
+     * @see #equalsCanonical(Object)
+     */
+    public boolean equals(Object o) {
+        if(o==null || !(o instanceof AbstractFile))
+            return false;
+
+        return getURL().equals(((AbstractFile)o).getURL(), true, true);
+    }
+
+    /**
+     * Tests a file for equality by comparing both files' {@link #getCanonicalPath() canonical path}.
+     * Returns <code>true</code> if the canonical path of this file and the specified one are equal.
      *
      * <p>It is noteworthy that this method uses <code>java.lang.String#equals(Object)</code> to compare paths, which
      * in some rare cases may return <code>false</code> for non-ascii/Unicode paths that have the same written
      * representation but are not equal according to <code>java.lang.String#equals(Object)</code>. Handling such cases
      * would require a locale-aware String comparison which is not an option here.</p>
      *
-     * <p>This method should be overriden for network-based filesystems for which a host can have multiple
-     * path representations (hostname and IP address).</p>
+     * <p>It is also worth noting that hostnames are not resolved, which means this method does not consider
+     * a hostname and its corresponding IP address as being equal.</p>
+     *
+     * <p>Unlike {@link #equals(Object)}, this method <b>is</b> allowed to perform I/O operations and block
+     * the caller thread.</p>
+     *
+     * @param o the object to compare against this instance
+     * @return <code>true</code> if the canonical path of this file and the specified one are equal.
+     * @see #equals(Object)
      */
-    public boolean equals(Object f) {
-        if(f==null || !(f instanceof AbstractFile))
+    public boolean equalsCanonical(Object o) {
+        if(o==null || !(o instanceof AbstractFile))
             return false;
-		
-        return getCanonicalPath(false).equals(((AbstractFile)f).getCanonicalPath(false));
+
+        // TODO: resolve hostnames ?
+
+        return getCanonicalPath(false).equals(((AbstractFile)o).getCanonicalPath(false));
     }
 
+    /**
+     * Returns the hashCode of this file's {@link #getURL() URL}.
+     *
+     * @return the hashCode of this file's {@link #getURL() URL}.
+     */
     public int hashCode() {
-        return getCanonicalPath(false).hashCode();
+        return getURL().hashCode();
     }
-    
-	
+
     /**
      * Returns a String representation of this file. The returned String is this file's path as returned by
      * {@link #getAbsolutePath()}.
@@ -1405,9 +1435,8 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * Returns this file's parent, <code>null</code> if it doesn't have one.
      *
      * @return this file's parent, <code>null</code> if it doesn't have one
-     * @throws IOException if the parent file could not be instanciated
      */
-    public abstract AbstractFile getParent() throws IOException;
+    public abstract AbstractFile getParent();
 	
     /**
      * Sets this file's parent. <code>null</code> can be specified if this file doesn't have a parent.
@@ -1502,12 +1531,23 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * <ul>
      *  <li>this file does not exist</li>
      *  <li>this file is a regular file</li>
-     *  <li>this file is browsable (as reported by {@link #isBrowsable()} but not a directory</li>
+     *  <li>this file is an {@link #isArchive() archive}</li>
      * </ul> 
      *
      * @return <code>true</code> if this file is a directory, <code>false</code> in any of the cases listed above
      */
     public abstract boolean isDirectory();
+
+    /**
+     * Returns <code>true</code> if this file is an archive.
+     * <p>
+     * An archive is a file container that can be {@link #isBrowsable() browsed}.  Archive files may not be
+     * {@link #isDirectory() directories}, and vice-versa.
+     * </p>.
+     *
+     * @return <code>true</code> if this file is an archive.
+     */
+    public abstract boolean isArchive();
 
     /**
      * Returns <code>true</code> if this file is a symbolic link. Symbolic links need to be handled with special care,
@@ -1671,19 +1711,4 @@ public abstract class AbstractFile implements PermissionTypes, PermissionAccesse
      * is none
      */
     public abstract Object getUnderlyingFileObject();
-
-
-    /**
-     * Returns <code>true</code> if it's possible to run processes on the underlying file system.
-     * @return <code>true</code> if it's possible to run processes on the underlying file system, <code>false</code> otherwise.
-     */
-    public abstract boolean canRunProcess();
-
-    /**
-     * Creates a process executing the specified command tokens using this file as a working directory.
-     * @param  tokens                        command and its arguments for the process to create.
-     * @return                               a process executing the specified command tokens using this file as a working directory.
-     * @throws IOException                   thrown if an error occured while creating the process, if the current file is not a directory or if the operation is not supported.
-     */
-    public abstract AbstractProcess runProcess(String[] tokens) throws IOException;
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,19 +64,19 @@ public class CellLabel extends JLabel {
     // - Instance fields -----------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** Last text set by the setText method */
-    private String    lastText;
+    protected String    lastText;
     /** Last icon set by the setIcon method */
-    private ImageIcon lastIcon;
+    protected ImageIcon lastIcon;
     /** Last tooltip text set by the setToolTipText method */
-    private String    lastTooltip;
+    protected String    lastTooltip;
     /** Last foreground color set by the setForeground method */
-    private Color     lastForegroundColor;
+    protected Color     lastForegroundColor;
     /** Last background color set by the setBackground method */
-    private Color     lastBackgroundColor;
+    protected Color     lastBackgroundColor;
     /** Outline color (top and bottom). */
-    private Color     outlineColor;
+    protected Color     outlineColor;
     /** Gradient color for the background. */
-    private Color     gradientColor;
+    protected Color     gradientColor;
 
 
 
@@ -220,15 +220,17 @@ public class CellLabel extends JLabel {
         super.paint(g);
 
         // If necessary, paints the outline color.
-        if(doOutline) {
-            g.setColor(outlineColor);
-            g.drawLine(0, 0, getWidth(), 0);
-            g.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
-        }
+        if(doOutline)
+        	paintOutline(g);
     }	
 
+    protected void paintOutline(Graphics g) {
+    	g.setColor(outlineColor);
+        g.drawLine(0, 0, getWidth(), 0);
+        g.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+    }
 
-
+    
     // - DefaultTableCellRenderer implementation -----------------------------------------
     // -----------------------------------------------------------------------------------
     /*

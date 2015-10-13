@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.dnd;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.job.CopyJob;
@@ -41,7 +41,7 @@ import java.awt.event.InputEvent;
  * used to change the current folder, or copy/move files to the current folder.
  *
  * <p>There are 2 different modes this class can operate in. The mode to be used has to be specified when this class is
- * instanciated.
+ * instantiated.
  *
  * <p>In 'folder change mode', when a file or string representing a file path is dropped, the associated FolderPanel's
  * current folder is changed:
@@ -156,7 +156,7 @@ public class FileDropTargetListener implements DropTargetListener {
         if(dragAccepted && DnDContext.isDragInitiatedByMucommander()) {
             FolderPanel dragInitiator = DnDContext.getDragInitiator();
 
-            if(dragInitiator==folderPanel || dragInitiator.getCurrentFolder().equals(folderPanel.getCurrentFolder())) {
+            if(dragInitiator==folderPanel || dragInitiator.getCurrentFolder().equalsCanonical(folderPanel.getCurrentFolder())) {
                 // Refuse drag if the drag was initiated by the same FolderPanel, or if its current folder is the same
                 // as this one
                 this.dragAccepted = false;
@@ -169,13 +169,13 @@ public class FileDropTargetListener implements DropTargetListener {
                 if(currentDropAction==DnDConstants.ACTION_MOVE
                         && (dragModifiers&MOVE_ACTION_MODIFIERS_EX)==0
                         && (event.getSourceActions()&DnDConstants.ACTION_COPY)!=0) {
-                    if(Debug.ON) Debug.trace("changing default action, was: DnDConstants.ACTION_MOVE, now: DnDConstants.ACTION_COPY");
+                    AppLogger.finer("changing default action, was: DnDConstants.ACTION_MOVE, now: DnDConstants.ACTION_COPY");
                     currentDropAction = DnDConstants.ACTION_COPY;
                 }
             }
         }
 
-if(Debug.ON) Debug.trace("dragAccepted="+dragAccepted+" dropAction="+currentDropAction);
+        AppLogger.finest("dragAccepted="+dragAccepted+" dropAction="+currentDropAction);
 
         if(dragAccepted) {
             // Accept the drag event with our drop action
@@ -186,7 +186,7 @@ if(Debug.ON) Debug.trace("dragAccepted="+dragAccepted+" dropAction="+currentDrop
             event.rejectDrag();
         }
 
-if(Debug.ON) Debug.trace("cursor="+getDragActionCursor(currentDropAction, dragAccepted));
+        AppLogger.finest("cursor="+getDragActionCursor(currentDropAction, dragAccepted));
 
         // Change the mouse cursor on this FolderPanel and child components
         folderPanel.setCursor(getDragActionCursor(currentDropAction, dragAccepted));
@@ -261,7 +261,7 @@ if(Debug.ON) Debug.trace("cursor="+getDragActionCursor(currentDropAction, dragAc
             // For any other file kind (archive, regular file...), change directory to the file's parent folder
             // and select the file
             else
-                folderPanel.tryChangeCurrentFolder(file.getParentSilently(), file);
+                folderPanel.tryChangeCurrentFolder(file.getParent(), file);
 
             // Request focus on the FolderPanel
             folderPanel.requestFocus();

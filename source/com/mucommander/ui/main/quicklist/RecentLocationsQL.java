@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +18,17 @@
 
 package com.mucommander.ui.main.quicklist;
 
+import java.util.LinkedList;
+
+import javax.swing.Icon;
+
 import com.mucommander.file.AbstractFile;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
-import com.mucommander.ui.action.ShowRecentLocationsQLAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.ShowRecentLocationsQLAction;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.quicklist.QuickListWithIcons;
-
-import javax.swing.*;
-import java.util.LinkedList;
 
 /**
  * This quick list shows recently accessed locations.
@@ -35,11 +36,11 @@ import java.util.LinkedList;
  * @author Arik Hadas
  */
 public class RecentLocationsQL extends QuickListWithIcons implements LocationListener{
-	private static int MAX_ELEMENTS = 11;
+	private static int MAX_ELEMENTS = 15;
 	private LinkedList linkedList;
 
 	public RecentLocationsQL() {
-		super(MuAction.getStandardLabel(ShowRecentLocationsQLAction.class), Translator.get("recent_locations_quick_list.empty_message"));
+		super(ActionProperties.getActionLabel(ShowRecentLocationsQLAction.Descriptor.ACTION_ID), Translator.get("recent_locations_quick_list.empty_message"));
 		
 		linkedList = new LinkedList();
 	}
@@ -53,7 +54,7 @@ public class RecentLocationsQL extends QuickListWithIcons implements LocationLis
 	public void locationChanged(LocationEvent locationEvent) {
 		AbstractFile currentFolder = locationEvent.getFolderPanel().getCurrentFolder();
 			
-		if (!linkedList.remove(currentFolder) && linkedList.size() >= MAX_ELEMENTS)
+		if (!linkedList.remove(currentFolder) && linkedList.size() > MAX_ELEMENTS)
 			linkedList.removeLast();
 		linkedList.addFirst(currentFolder);
 	}

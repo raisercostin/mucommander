@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,18 +27,21 @@ import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.ui.action.ActionKeymap;
 import com.mucommander.ui.action.ActionManager;
-import com.mucommander.ui.action.CloseWindowAction;
+import com.mucommander.ui.action.impl.CloseWindowAction;
+import com.mucommander.ui.button.ToolbarMoreButton;
 import com.mucommander.ui.event.ActivePanelListener;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.layout.ProportionalSplitPane;
 import com.mucommander.ui.layout.YBoxPanel;
+import com.mucommander.ui.main.commandbar.CommandBar;
 import com.mucommander.ui.main.menu.MainMenuBar;
 import com.mucommander.ui.main.table.Columns;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableConfiguration;
 import com.mucommander.ui.main.table.SortInfo;
+import com.mucommander.ui.main.toolbar.ToolBar;
 import com.mucommander.ui.quicklist.QuickListFocusableComponent;
 
 import javax.swing.*;
@@ -68,7 +71,10 @@ public class MainFrame extends JFrame implements LocationListener {
     /** Active table in the MainFrame */
     private FileTable activeTable;
 
-    /** Tool bar instance */
+    /** Toolbar panel */
+    private JPanel toolbarPanel;
+
+    /** Toolbar component */
     private ToolBar toolbar;
 
     /** Status bar instance */
@@ -89,9 +95,54 @@ public class MainFrame extends JFrame implements LocationListener {
     /** Split pane orientation */
     private final static String SPLIT_ORIENTATION = MuConfiguration.SPLIT_ORIENTATION;
 
+
+    /**
+     * Sets the window icon, using the best method (Java 1.6's Window#setIconImages when available, Window#setIconImage
+     * otherwise) and icon resolution(s) (OS-dependent).
+     */
+    private void setWindowIcon() {
+        // TODO: this code should probably be moved to the desktop API
+
+        // - Mac OS X completely ignores calls to #setIconImage/setIconImages, no need to waste time
+        if(OsFamilies.MAC_OS_X.isCurrent())
+            return;
+
+        // Use Java 1.6 's new Window#setIconImages(List<Image>) when available
+        if(JavaVersions.JAVA_1_6.isCurrentOrHigher()) {
+            Vector icons = new Vector();
+
+            // Start by adding a 16x16 image with 1-bit transparency, any OS should support that.
+            icons.add(IconManager.getIcon("/icon16_8.png").getImage());
+
+            // - Windows XP messes up 8-bit PNG transparency.
+            // We would be better off with the .ico of the launch4j exe (which has 8-bit alpha transparency) but there
+            // seems to be no way to keep it when in 'dontWrapJar' mode (separate exe and jar files).
+            if(OsFamilies.WINDOWS.isCurrent() && OsVersions.WINDOWS_XP.isCurrentOrLower()) {
+                icons.add(IconManager.getIcon("/icon48_8.png").getImage());
+            }
+            // - Windows Vista supports 8-bit transparency and icon resolutions up to 256x256.
+            // - GNOME and KDE support 8-bit transparency.
+            else {
+                // Add PNG 24 images (8-bit transparency)
+                icons.add(IconManager.getIcon("/icon16_24.png").getImage());
+                icons.add(IconManager.getIcon("/icon32_24.png").getImage());
+                icons.add(IconManager.getIcon("/icon48_24.png").getImage());
+                icons.add(IconManager.getIcon("/icon128_24.png").getImage());
+                icons.add(IconManager.getIcon("/icon256_24.png").getImage());
+            }
+
+            setIconImages(icons);
+        }
+        else {      // Java 1.5 or lower
+            // Err on the safe side by assuming that 8-bit transparency is not supported.
+            // Any OS should support 16x16 icons with 1-bit transparency.
+            setIconImage(IconManager.getIcon("/icon16_8.png").getImage());
+        }
+    }
+
     private void init(FolderPanel leftFolderPanel, FolderPanel rightFolderPanel) {
-        // Set frame icon fetched in an image inside the JAR file
-        setIconImage(IconManager.getIcon("/icon16.gif").getImage());
+        // Set the window icon
+        setWindowIcon();
 
         // Enable window resize
         setResizable(true);
@@ -112,11 +163,14 @@ public class MainFrame extends JFrame implements LocationListener {
         rightTable = rightFolderPanel.getFileTable();
         activeTable  = leftTable;
 
-        // Create toolbar and show it only if it hasn't been disabled in the preferences
-        // Note: Toolbar.setVisible() has to be called no matter if Toolbar is visible or not, in order for it to be properly initialized
+        // Create the toolbar and corresponding panel wrapping it, and show it only if it hasn't been disabled in the
+        // preferences.
+        // Note: Toolbar.setVisible() has to be called no matter if Toolbar is visible or not, in order for it to be
+        // properly initialized
         this.toolbar = new ToolBar(this);
-        this.toolbar.setVisible(MuConfiguration.getVariable(MuConfiguration.TOOLBAR_VISIBLE, MuConfiguration.DEFAULT_TOOLBAR_VISIBLE));
-        contentPane.add(toolbar, BorderLayout.NORTH);
+        this.toolbarPanel = ToolbarMoreButton.wrapToolBar(toolbar);
+        this.toolbarPanel.setVisible(MuConfiguration.getVariable(MuConfiguration.TOOLBAR_VISIBLE, MuConfiguration.DEFAULT_TOOLBAR_VISIBLE));
+        contentPane.add(toolbarPanel, BorderLayout.NORTH);
 
         // Lister to location change events to display the current folder in the window's title
         leftFolderPanel.getLocationManager().addLocationListener(this);
@@ -174,7 +228,7 @@ public class MainFrame extends JFrame implements LocationListener {
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
-                ActionManager.performAction(CloseWindowAction.class, MainFrame.this);
+                ActionManager.performAction(CloseWindowAction.Descriptor.ACTION_ID, MainFrame.this);
             }
         });
 
@@ -331,8 +385,8 @@ public class MainFrame extends JFrame implements LocationListener {
 
 
     /**
-     * Returns the toolbar where shortcut buttons (go back, go forward, ...) are.
-     * Note that a non-null instance of ToolBar is returned even if it is currently hidden.
+     * Returns the {@link ToolBar} where shortcut buttons (go back, go forward, ...) are.
+     * Note that a non-null instance of {@link ToolBar} is returned even if it is currently hidden.
      *
      * @return the toolbar component
      */
@@ -340,11 +394,20 @@ public class MainFrame extends JFrame implements LocationListener {
         return toolbar;
     }
 
+    /**
+     * Returns the panel where the {@link ToolBar} component is.
+     * Note that a non-null instance of {@link ToolBar} is returned even if it is currently hidden.
+     *
+     * @return the toolbar component
+     */
+    public JPanel getToolBarPanel() {
+        return toolbarPanel;
+    }
 
     /**
-     * Returns the command bar, i.e. the component that contains shortcuts to certains actions such as View, Edit, Copy,
-     * Move, etc...
-     * Note that a non-null instance of CommandBar is returned even if it is currently hidden.
+     * Returns the {@link CommandBar}, i.e. the component that contains shortcuts to certains actions such as
+     * View, Edit, Copy, Move, etc...
+     * Note that a non-null instance of {@link CommandBar} is returned even if it is currently hidden.
      *
      * @return the command bar component
      */
@@ -355,6 +418,7 @@ public class MainFrame extends JFrame implements LocationListener {
 
     /**
      * Returns the status bar, where information about selected files and volume are displayed.
+     * Note that a non-null instance of {@link StatusBar} is returned even if it is currently hidden.
      *
      * @return the status bar
      */

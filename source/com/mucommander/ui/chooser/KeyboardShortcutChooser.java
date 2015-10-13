@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
 
 package com.mucommander.ui.chooser;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.combobox.ComboBoxListener;
 import com.mucommander.ui.combobox.SaneComboBox;
+import com.mucommander.ui.text.KeyStrokeUtils;
 
 import javax.swing.*;
 import javax.swing.text.AttributeSet;
@@ -136,15 +136,14 @@ public class KeyboardShortcutChooser extends JPanel implements ItemListener, Com
     }
 
     private void updateTextField() {
-if(Debug.ON) Debug.trace("currentKeyStroke="+currentKeyStroke);
-if(Debug.ON) Debug.trace("keyCode="+ (currentKeyStroke==null?"null":""+currentKeyStroke.getKeyCode()));
+        AppLogger.finest("currentKeyStroke="+currentKeyStroke+" keyCode="+ (currentKeyStroke==null?"null":""+currentKeyStroke.getKeyCode()));
 
         updatingTextField = true;
 
         if(currentKeyStroke==null || currentKeyStroke.getKeyCode()==0)
             textField.setText(noneString);
         else
-            textField.setText(MuAction.getKeyStrokeRepresentation(currentKeyStroke));
+            textField.setText(KeyStrokeUtils.getKeyStrokeDisplayableRepresentation(currentKeyStroke));
 
         updatingTextField = false;
     }
@@ -153,11 +152,11 @@ if(Debug.ON) Debug.trace("keyCode="+ (currentKeyStroke==null?"null":""+currentKe
         updatingComboBox = true;
         int keyCode = currentKeyStroke==null?0:currentKeyStroke.getKeyCode();
 
-if(Debug.ON) Debug.trace("keyCode="+ keyCode);
+        AppLogger.finest("keyCode="+ keyCode);
 
         int nbChoices = keyComboBox.getItemCount();
         for(int i=1; i<nbChoices; i++) {
-if(Debug.ON) Debug.trace("i="+i+" value="+((KeyChoice)keyComboBox.getItemAt(i)).getKeyValue()+" label="+((KeyChoice)keyComboBox.getItemAt(i)).getKeyLabel());
+            AppLogger.finest("i="+i+" value="+((KeyChoice)keyComboBox.getItemAt(i)).getKeyValue()+" label="+((KeyChoice)keyComboBox.getItemAt(i)).getKeyLabel());
             if(((KeyChoice)keyComboBox.getItemAt(i)).getKeyValue()== keyCode)
             {
                 keyComboBox.setSelectedIndex(i);
@@ -244,7 +243,7 @@ if(Debug.ON) Debug.trace("i="+i+" value="+((KeyChoice)keyComboBox.getItemAt(i)).
     ////////////////////////////////
 
     public void keyPressed(KeyEvent keyEvent) {
-if(Debug.ON) Debug.trace("keyModifiers="+keyEvent.getModifiers()+" keyCode="+keyEvent.getKeyCode());
+        AppLogger.finest("keyModifiers="+keyEvent.getModifiers()+" keyCode="+keyEvent.getKeyCode());
 
         int keyCode = keyEvent.getKeyCode();
         if(keyCode==KeyEvent.VK_SHIFT || keyCode==KeyEvent.VK_CONTROL || keyCode==KeyEvent.VK_ALT || keyCode==KeyEvent.VK_META)

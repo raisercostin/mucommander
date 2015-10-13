@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 
 package com.mucommander.ui.main;
 
+import com.mucommander.AppLogger;
 import com.mucommander.cache.LRUCache;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileProtocols;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.runtime.JavaVersions;
 import com.mucommander.text.SizeFormat;
@@ -47,7 +47,6 @@ import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 
 
 /**
@@ -93,9 +92,8 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
     /** Number of milliseconds between each volume info update by auto-update thread */
     private final static int AUTO_UPDATE_PERIOD = 6000;
 
-    /** Caches volume info strings (free/total space) for a while, since it is quite costly and we don't want
-     * to recalculate it each time this information is requested.
-     * Each cache item maps a path to a volume info string */
+    /** Caches volume info strings (free/total space) for a while, since this information is expensive to retrieve
+     * (I/O bound). This map uses folders' volume path as its key. */
     private static LRUCache volumeInfoCache = LRUCache.createInstance(VOLUME_INFO_CACHE_CAPACITY);
 	
     /** Icon that is displayed when folder is changing */
@@ -282,19 +280,19 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             return;
 
         final AbstractFile currentFolder = mainFrame.getActiveTable().getCurrentFolder();
+        // Resolve the current folder's volume and use its path as a key for the volume info cache
+        final String volumePath = currentFolder.getVolume().getAbsolutePath(true);
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called, currentFolder="+currentFolder);
-
-        long cachedVolumeInfo[] = (long[])volumeInfoCache.get(getVolumeInfoCacheKey(currentFolder));
+        long cachedVolumeInfo[] = (long[])volumeInfoCache.get(volumePath);
         if(cachedVolumeInfo!=null) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Cache hit!");
+            AppLogger.finer("Cache hit!");
             volumeSpaceLabel.setVolumeSpace(cachedVolumeInfo[0], cachedVolumeInfo[1]);
         }
         else {
             // Retrieves free and total volume space.
             // Perform volume info retrieval in a separate thread as this method may be called
             // by the event thread and it can take a while, we want to return as soon as possible
-            new Thread() {
+            new Thread("StatusBar.updateVolumeInfo") {
                 public void run() {
                     // Free space on current volume, -1 if this information is not available 
                     long volumeFree;
@@ -316,49 +314,11 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
                     volumeSpaceLabel.setVolumeSpace(volumeTotal, volumeFree);
 
-                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Adding to cache");
-                    volumeInfoCache.add(getVolumeInfoCacheKey(currentFolder), new long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
+                    AppLogger.finer("Adding to cache");
+                    volumeInfoCache.add(volumePath, new long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
                 }
             }.start();
         }
-    }
-
-    /**
-     * Returns the 'volume info cache' key for the specified folder.
-     *
-     * @param folder the folder for which to retrieve a key
-     * @return the 'volume info cache' key for the specified folder
-     */
-    private String getVolumeInfoCacheKey(AbstractFile folder) {
-        // - for archive entries or archive files on any file protocol, use the archive file as the key
-        // - for local file on platforms that use root drives (e.g. C:\), use the the drive's root
-        // - for local file on platforms that do not use root drives (Unix-based platforms), use the exact folder
-        //   as any folder could potentially be a mount point and have a different volume info
-        // - for non-local files, use the exact folder as any folder could have a different volume info
-
-        AbstractFile archive = folder.getParentArchive();
-        AbstractFile key;
-
-        if(archive!=null) {
-            key = archive;
-        }
-        else {
-            if(FileProtocols.FILE.equals(folder.getURL().getScheme())) {
-                try {
-                    key = LocalFile.hasRootDrives()?
-                        folder.getRoot():
-                        folder;
-                }
-                catch(IOException e) {
-                    key = folder;
-                }
-            }
-            else {
-                key = folder;
-            }
-        }
-
-        return key.getAbsolutePath(false);
     }
 
 
@@ -406,7 +366,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
     private synchronized void startAutoUpdate() {
         if(autoUpdateThread==null) {
             // Start volume info auto-update thread
-            autoUpdateThread = new Thread(this);
+            autoUpdateThread = new Thread(this, "StatusBar autoUpdateThread");
             // Set the thread as a daemon thread
             autoUpdateThread.setDaemon(true);
             autoUpdateThread.start();
@@ -473,13 +433,13 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
     public void selectedFileChanged(FileTable source) {
         // No need to update if the originating FileTable is not the currently active one
-        if(source==mainFrame.getActiveTable())
+        if(source==mainFrame.getActiveTable() && mainFrame.isForegroundActive())
             updateSelectedFilesInfo();
     }
 
     public void markedFilesChanged(FileTable source) {
         // No need to update if the originating FileTable is not the currently active one
-        if(source==mainFrame.getActiveTable())
+        if(source==mainFrame.getActiveTable() && mainFrame.isForegroundActive())
             updateSelectedFilesInfo();
     }
 
@@ -489,21 +449,23 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
     /////////////////////////////////////
 	
     public void locationChanged(LocationEvent e) {
+        dial.setAnimated(false);
         updateStatusInfo();
     }
 
     public void locationChanging(LocationEvent e) {
         // Show a message in the status bar saying that folder is being changed
-//        setStatusInfo(Translator.get("status_bar.connecting_to_folder"), IconManager.getIcon(IconManager.STATUS_BAR_ICON_SET, WAITING_ICON), true);
         setStatusInfo(Translator.get("status_bar.connecting_to_folder"), dial, true);
         dial.setAnimated(true);
     }
 	
     public void locationCancelled(LocationEvent e) {
+        dial.setAnimated(false);
         updateStatusInfo();
     }
 
     public void locationFailed(LocationEvent e) {
+        dial.setAnimated(false);
         updateStatusInfo();
     }
 
@@ -521,7 +483,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         if (DesktopManager.isRightMouseButton(e)) {
             //		if (e.isPopupTrigger()) {	// Doesn't work under Mac OS X (CTRL+click doesn't return true)
             JPopupMenu popupMenu = new JPopupMenu();
-            popupMenu.add(ActionManager.getActionInstance(com.mucommander.ui.action.ToggleStatusBarAction.class, mainFrame));
+            popupMenu.add(ActionManager.getActionInstance(com.mucommander.ui.action.impl.ToggleStatusBarAction.Descriptor.ACTION_ID, mainFrame));
             popupMenu.show(this, e.getX(), e.getY());
             popupMenu.setVisible(true);
         }
@@ -638,7 +600,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             else {
                 volumeInfo = "";
             }
-            setText(volumeInfo);
+                setText(volumeInfo);
 
             // Set tooltip
             if(freeSpace==-1 || totalSpace==-1)

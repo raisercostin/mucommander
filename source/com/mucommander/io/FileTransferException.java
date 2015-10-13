@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,16 +75,28 @@ public class FileTransferException extends IOException {
 
     protected int reason;
 
+	private long bytesWritten;
+
 
     public FileTransferException(int reason) {
         this.reason = reason;
     }
 
+    public FileTransferException(int reason, long bytesWritten) {
+        this.reason = reason;
+        this.bytesWritten = bytesWritten;
+    }
+    
     public int getReason() {
         return reason;
     }
 
-    public String toString() {
+	public long getBytesWritten() {
+		return bytesWritten;
+	}
+
+	public String toString() {
         return super.toString()+" reason="+reason;
     }
+
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 
 package com.mucommander.desktop;
+
+import com.mucommander.file.AbstractFile;
 
 import java.awt.event.MouseEvent;
 
@@ -45,7 +47,7 @@ import java.awt.event.MouseEvent;
  * {@link com.mucommander.command.Command commands},
  * {@link com.mucommander.command.CommandManager#registerDefaultAssociation(String,FileFilter) associations}...<br>
  * </p>
- * @author Nicolas Rinaudo
+ * @author Nicolas Rinaudo, Maxence Bernard
  */
 public interface DesktopAdapter {
     // - Detection / Initialisation --------------------------------------
@@ -121,6 +123,13 @@ public interface DesktopAdapter {
      */
     public boolean isMiddleMouseButton(MouseEvent e);
 
+    /**
+     * Returns the maximum interval in milliseconds between mouse clicks for them to be considered as 'multi-clicks'
+     * (e.g. double-clicks). The returned value should reflects the desktop's multi-click (or double-click) interval,
+     * which may or may not correspond to the one Java uses for double-clicks.
+     * @return the maximum interval in milliseconds between mouse clicks for them to be considered as 'multi-clicks'.
+     */
+    public int getMultiClickInterval();
 
 
     // - Misc. -----------------------------------------------------------
@@ -134,4 +143,15 @@ public interface DesktopAdapter {
      * @return the command used to start shell processes.
      */
     public String getDefaultShell();
+
+    /**
+     * Returns <code>true</code> if the given file is an application file. What an application file actually is
+     * is system-dependent and can take various forms.
+     * It can be a simple executable file, as in the case of Windows <code>.exe</code> files, or a directory 
+     * containing an executable and various meta-information files, like Mac OS X's <code>.app</code> files.
+     *
+     * @param file the file to test
+     * @return <code>true</code> if the given file is an application file
+     */
+    public boolean isApplication(AbstractFile file);
 }

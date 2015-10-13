@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -245,7 +245,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @return                        the requested <code>Class</code> if found, <code>null</code> otherwise.
      * @throws ClassNotFoundException if the requested class was not found.
      */
-    protected synchronized Class findClass(String name) throws ClassNotFoundException {
+    protected Class findClass(String name) throws ClassNotFoundException {
         AbstractFile file; // File containing the class' bytecode.
 
         // Tries to locate the specified class and, if found, load it.

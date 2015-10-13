@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ package com.mucommander.ui.dialog.about;
 import com.mucommander.RuntimeConstants;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.GoToWebsiteAction;
+import com.mucommander.ui.action.impl.ShowAboutAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.MainFrame;
@@ -72,22 +74,22 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
 
 
-    // - Initialisation ---------------------------------------------------------
+    // - Initialization ---------------------------------------------------------
     // --------------------------------------------------------------------------
     /**
      * Creates a new AboutDialog.
      * @param mainFrame frame this dialog is relative to.
      */
     public AboutDialog(MainFrame mainFrame) {
-        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.ShowAboutAction.class), mainFrame);
+        super(mainFrame, ActionProperties.getActionLabel(ShowAboutAction.Descriptor.ACTION_ID), mainFrame);
 
-        // Initialises the dialog's content.
+        // Initializes the dialog's content.
         Container contentPane = getContentPane();
         contentPane.add(createIconPanel(), BorderLayout.WEST);
         contentPane.add(createCreditsPanel(), BorderLayout.EAST);
         setResizable(false);
 
-        // Makes sure the scroll pane is properly initialised.
+        // Makes sure the scroll pane is properly initialized.
         SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
                     textPanel.getViewport().setViewPosition(new Point(0,0));
@@ -122,20 +124,23 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             // Core developers.
             insertHeader(doc,         "Core developers");
             insertNormalString(doc,   "Maxence Bernard");
-            insertNormalString(doc,   "Nicolas Rinaudo");
             insertNormalString(doc,   "Arik Hadas");
             insertNormalString(doc,   "Mariusz Jakubowski");
+            insertNormalString(doc,   "Nicolas Rinaudo");
             insertLineBreak(doc);
 
             // Contributors.
             insertHeader(doc,         "Contributors");
             insertNormalString(doc,   "Ivan Baidakov");
             insertNormalString(doc,   "Vassil Dichev");
-            insertNormalString(doc,   "David Kovar");
             insertNormalString(doc,   "Karel Klic");
+            insertNormalString(doc,   "David Kovar");
             insertNormalString(doc,   "Joshua Lebo");
+            insertNormalString(doc,   "LeO");
             insertNormalString(doc,   "Xavier Martin");
             insertNormalString(doc,   "Alejandro Scandroli");
+            insertNormalString(doc,   "Alexander Yerenkow");
+            insertNormalString(doc,   "Johann Schmitz");
             insertLineBreak(doc);
 
             // QA
@@ -149,6 +154,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedString(doc, "Roberto Angeletti",   "Italian");
             insertDetailedString(doc, "Tamás Balogh-Walder", "Hungarian");
             insertDetailedString(doc, "Mykola Bilovus",      "Ukrainian");
+            insertDetailedString(doc, "ChArLoK_16",          "Arabic");
             insertDetailedString(doc, "György Varga",        "Hungarian");
             insertDetailedString(doc, "Frank Berger",        "German");
             insertDetailedString(doc, "Tony Klüver",         "German");
@@ -172,7 +178,8 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
             // Special thanks.
             insertHeader(doc,         "Special thanks");
-            insertDetailedString(doc, "Stefano Perelli",    "muCommander icon");
+            insertDetailedString(doc, "Semyon Filippov",    "muCommander icon");
+            insertDetailedString(doc, "Stefano Perelli",    "Former muCommander icon");
             insertLineBreak(doc);
             insertLineBreak(doc);
 
@@ -184,13 +191,14 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertDetailedUrl(doc,    "Ant",                 "Apache License",                       "http://ant.apache.org");
             insertDetailedUrl(doc,    "Furbelow",            "LGPL",                                 "http://sourceforge.net/projects/furbelow");
             insertDetailedUrl(doc,    "ICU4J",               "ICU License",                          "http://www.icu-project.org");
-            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");
             insertDetailedUrl(doc,    "Jakarta Commons Net", "Apache License",                       "http://jakarta.apache.org/commons/net");
+            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");            insertDetailedUrl(doc,    "J7Zip",               "LGPL",                                 "http://freshmeat.net/projects/j7zip/");
             insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
             insertDetailedUrl(doc,    "JmDNS",               "LGPL",                                 "http://jmdns.sourceforge.net");
             insertDetailedUrl(doc,    "JNA",                 "LGPL",                                 "http://jna.dev.java.net");
             insertDetailedUrl(doc,    "JUnRar",              "Freeware",                             "http://sourceforge.net/projects/java-unrar");
             insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
+            insertDetailedUrl(doc,    "p7zip",               "LGPL",                             	 "http://sourceforge.net/projects/p7zip");
             insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
             insertLineBreak(doc);
 
@@ -216,10 +224,11 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertLineBreak(doc);
 
             // VM information.
-            insertHeader(doc,         "Java VM");
-            insertNormalString(doc,   "Name: " + System.getProperty("java.vm.name"));
-            insertNormalString(doc,   "Version: " + System.getProperty("java.vm.version"));
-            insertNormalString(doc,   "Vendor: " + System.getProperty("java.vm.vendor"));
+            insertHeader(doc,         "Java");
+            insertNormalString(doc,   "Runtime version: " + System.getProperty("java.version"));
+            insertNormalString(doc,   "VM name: " + System.getProperty("java.vm.name"));
+            insertNormalString(doc,   "VM version: " + System.getProperty("java.vm.version"));
+            insertNormalString(doc,   "VM vendor: " + System.getProperty("java.vm.vendor"));
             insertLineBreak(doc);
 
             // OS information.
@@ -259,7 +268,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
         tempPanel = new JPanel(new BorderLayout());
 
-        tempPanel.add(new JLabel(IconManager.getIcon("/about.png")), BorderLayout.NORTH);
+        tempPanel.add(new JLabel(IconManager.getIcon("/icon128_24.png")), BorderLayout.NORTH);
 
         flowPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         flowPanel.add(createBoldLabel(RuntimeConstants.APP_STRING));
@@ -272,7 +281,7 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
         tempPanel = new JPanel(new BorderLayout());
         if(DesktopManager.canBrowse()) {
-            tempPanel.add(homeButton = new JButton(MuAction.getStandardLabel(com.mucommander.ui.action.GoToWebsiteAction.class)), BorderLayout.NORTH);
+            tempPanel.add(homeButton = new JButton(ActionProperties.getActionLabel(GoToWebsiteAction.Descriptor.ACTION_ID)), BorderLayout.NORTH);
             homeButton.addActionListener(this);
         }
         else {
@@ -454,11 +463,11 @@ public class AboutDialog extends FocusDialog implements ActionListener {
     private String getFormatedDate() {
         StringBuffer buffer;
 
-        buffer = new StringBuffer(RuntimeConstants.RELEASE_DATE.substring(0, 4));
+        buffer = new StringBuffer(RuntimeConstants.BUILD_DATE.substring(0, 4));
         buffer.append('/');
-        buffer.append(RuntimeConstants.RELEASE_DATE.substring(4, 6));
+        buffer.append(RuntimeConstants.BUILD_DATE.substring(4, 6));
         buffer.append('/');
-        buffer.append(RuntimeConstants.RELEASE_DATE.substring(6, 8));
+        buffer.append(RuntimeConstants.BUILD_DATE.substring(6, 8));
 
         return buffer.toString();
     }

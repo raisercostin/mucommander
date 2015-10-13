@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,8 +53,8 @@ public abstract class PreferencesPanel extends JPanel {
     protected abstract void commit();
 
     /**
-     * Checks whether this panel's data can be commited or whether it contains an error.
-     * @return <code>true</code> if the panel's data can be commited, <code>false</code> otherwise.
+     * Checks whether this panel's data can be committed or whether it contains an error.
+     * @return <code>true</code> if the panel's data can be committed, <code>false</code> otherwise.
      */
     protected boolean checkCommit() {return true;}
 }

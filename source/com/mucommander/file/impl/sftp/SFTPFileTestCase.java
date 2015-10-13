@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package com.mucommander.file.impl.sftp;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractFileTestCase;
 import com.mucommander.file.FileFactory;
@@ -47,7 +46,6 @@ public class SFTPFileTestCase extends AbstractFileTestCase {
 //        SFTPFile.setAttributeCachingPeriod(5000);
 
         tempFolder = FileFactory.getFile(System.getProperty(TEMP_FOLDER_PROPERTY));
-        if(Debug.ON) Debug.trace("Temp folder="+tempFolder);
     }
 
 

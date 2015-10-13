@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@ import com.mucommander.conf.ConfigurationException;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.ValueList;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
-import com.mucommander.file.icon.CachedFileIconProvider;
+import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.ui.main.table.Columns;
@@ -59,8 +58,6 @@ public class MuConfiguration {
     public static final String  DEFAULT_TIME_FORMAT               = "hh:mm a";
     /** Language muCommander should use when looking for text.. */
     public static final String  LANGUAGE                          = "language";
-    /** muCommander's version at time of writing the configuration file. */
-    public static final String  VERSION                           = "conf_version";
     /** Whether or not to display compact file sizes. */
     public static final String  DISPLAY_COMPACT_FILE_SIZE         = "display_compact_file_size";
     /** Default file size display behavior. */
@@ -84,8 +81,25 @@ public class MuConfiguration {
     /** System notifications are enabled by default on platforms where a notifier is available and works well enough.
      * In particular, the system tray notifier is available under Linux+Java 1.6, but it doesn't work well so it is not
      * enabled by default. */
-    public static final boolean DEFAULT_ENABLE_SYSTEM_NOTIFICATIONS = com.mucommander.ui.notifier.AbstractNotifier.isAvailable()
-        && (OsFamilies.MAC_OS_X.isCurrent() || OsFamilies.WINDOWS.isCurrent());
+    public static final boolean DEFAULT_ENABLE_SYSTEM_NOTIFICATIONS = OsFamilies.MAC_OS_X.isCurrent() ||
+            (OsFamilies.WINDOWS.isCurrent() && JavaVersions.JAVA_1_6.isCurrentOrHigher());
+    /** List of encodings that are displayed in encoding selection components. */
+    public static final String  PREFERRED_ENCODINGS               = "preferred_encodings";
+
+
+    // - Log variables -------------------------------------------------------
+    // -----------------------------------------------------------------------
+    /** Section describing the log configuration. */
+    public static final String  LOG_SECTION                       = "log";
+    /** Log level. */
+    public static final String  LOG_LEVEL                         = LOG_SECTION + '.' + "level";
+    /** Default log level. */
+    public static final String  DEFAULT_LOG_LEVEL                 = "WARNING";
+    /** Log buffer size, in number of messages. */
+    public static final String  LOG_BUFFER_SIZE                   = LOG_SECTION + '.' + "buffer_size";
+    /** Default log buffer size. Should be set to a low value to minimize memory usage, yet high enough to have most of
+     * the recent log messages. */
+    public static final int     DEFAULT_LOG_BUFFER_SIZE           = 200;
 
 
     // - Shell variables -----------------------------------------------------
@@ -167,6 +181,13 @@ public class MuConfiguration {
     /** Default scale factor of toolbar icons. */
     public static final float   DEFAULT_TOOLBAR_ICON_SCALE        = 1.0f;
 
+
+    // - Volume list ---------------------------------------------------------
+    // -----------------------------------------------------------------------
+    /** Section describing the volume list configuration. */
+    public static final String VOLUME_LIST_SECTION                 = "volume_list";
+    /** Regexp that allows volumes to be excluded from the list. */
+    public static final String VOLUME_EXCLUDE_REGEXP               = VOLUME_LIST_SECTION + '.' + "exclude_regexp";
 
 
     // - FileTable variables ---------------------------------------------------
@@ -258,6 +279,10 @@ public class MuConfiguration {
         false   // Group
     };
 
+    /** Name of the root element's attribute that contains the version of muCommander used to write the configuration file. */
+    static final String VERSION_ATTRIBUTE = "version";
+
+
     /**
      * Returns the configuration section corresponding to the specified {@link com.mucommander.ui.main.table.FileTable},
      * left or right one.
@@ -335,7 +360,10 @@ public class MuConfiguration {
     /** Whether or not to use the brushed metal look. */
     public static final String  USE_BRUSHED_METAL                 = MAC_OSX_SECTION + '.' + "brushed_metal_look";
     /** Default brushed metal look behavior. */
-    public static final boolean DEFAULT_USE_BRUSHED_METAL         = true;
+    // At the time of writing, the 'brushed metal' look causes the JVM to crash randomly under Leopard (10.5)
+    // so we disable brushed metal on that OS version but leave it for earlier versions where it works fine.
+    // See http://www.mucommander.com/forums/viewtopic.php?f=4&t=746 for more info about this issue.
+    public static final boolean DEFAULT_USE_BRUSHED_METAL         = false;
     /** Whether or not to use a Mac OS X style menu bar. */
     public static final String  USE_SCREEN_MENU_BAR               = MAC_OSX_SECTION + '.' + "screen_menu_bar";
     /** Default menu bar type. */
@@ -409,7 +437,7 @@ public class MuConfiguration {
     // -----------------------------------------------------------------------
     /** Section describing the automatic folder refresh behavior. */
     public static final String REFRESH_SECTION                    = "auto_refresh";
-    /** Frequency at which the current folder is checked for updates. */
+    /** Frequency at which the current folder is checked for updates, -1 to disable auto refresh. */
     public static final String REFRESH_CHECK_PERIOD               = REFRESH_SECTION + '.' + "check_period";
     /** Default folder refresh frequency. */
     public static final long   DEFAULT_REFRESH_CHECK_PERIOD       = 3000;
@@ -432,21 +460,6 @@ public class MuConfiguration {
     public static final String PROGRESS_DIALOG_CLOSE_WHEN_FINISHED = PROGRESS_DIALOG_SECTION + '.' + "close_when_finished";
     /** Default progress dialog behavior when the job is finished. */
     public static final boolean DEFAULT_PROGRESS_DIALOG_CLOSE_WHEN_FINISHED  = true;
-
-
-
-    // - Variables used for caches -------------------------------------------
-    // -----------------------------------------------------------------------
-    /** Section controlling the caching mechanisms used throughout the application. */
-    public static final String  CACHE_SECTION                      = "cache";
-    /** Capacity of the AbstractFile instances cache. */
-    public static final String  FILE_CACHE_CAPACITY                = CACHE_SECTION + '.' + "file_cache_capacity";
-    /** Default capacity of the AbstractFile instances cache. */
-    public static final int     DEFAULT_FILE_CACHE_CAPACITY        = 1000;
-    /** Capacity of the system file icon cache. */
-    public static final String  SYSTEM_ICON_CACHE_CAPACITY         = CACHE_SECTION + '.' + "system_icon_cache_capacity";
-    /** Default capacity of the system file icon cache. */
-    public static final int     DEFAULT_SYSTEM_ICON_CACHE_CAPACITY = 100;
 
 
 
@@ -482,32 +495,6 @@ public class MuConfiguration {
 
 
 
-    // - Variables used for the custom editor --------------------------------
-    // -----------------------------------------------------------------------
-    /** Section describing the editor configuration. */
-    public static final String  EDITOR_SECTION                    = "editor";
-    /** Command to use as custom editor. */
-    public static final String  CUSTOM_EDITOR                     = EDITOR_SECTION + '.' + "custom_command";
-    /** Whether or not to use the custom editor. */
-    public static final String  USE_CUSTOM_EDITOR                 = EDITOR_SECTION + '.' + "use_custom";
-    /** Default value for {@link #USE_CUSTOM_EDITOR}. */
-    public static final boolean DEFAULT_USE_CUSTOM_EDITOR         = false;
-
-
-
-    // - Variables used for the custom viewer --------------------------------
-    // -----------------------------------------------------------------------
-    /** Section describing the viewer configuration. */
-    public static final String  VIEWER_SECTION                    = "viewer";
-    /** Command to use as custom viewer. */
-    public static final String  CUSTOM_VIEWER                     = VIEWER_SECTION + '.' + "custom_command";
-    /** Whether or not to use the custom viewer. */
-    public static final String  USE_CUSTOM_VIEWER                 = VIEWER_SECTION + '.' + "use_custom";
-    /** Default value for {@link #USE_CUSTOM_VIEWER}. */
-    public static final boolean DEFAULT_USE_CUSTOM_VIEWER         = false;
-
-
-
     // - Variables used for FTP ----------------------------------------------
     // -----------------------------------------------------------------------
     /** Section containing all FTP variables. */
@@ -517,6 +504,19 @@ public class MuConfiguration {
     /** Default value for {@link #LIST_HIDDEN_FILES}. */
     public static final boolean DEFAULT_LIST_HIDDEN_FILES         = false;
 
+
+    // - Variables used for SMB ----------------------------------------------
+    // -----------------------------------------------------------------------
+    /** Section containing all SMB variables. */
+    public static final String SMB_SECTION                        = "smb";
+    /** Controls the authentication protocol to use when connecting to SMB servers. */
+    public static final String SMB_LM_COMPATIBILITY               = SMB_SECTION + '.' + "lm_compatibility";
+    /** Default value for {@link #SMB_LM_COMPATIBILITY}. */
+    public static final int DEFAULT_SMB_LM_COMPATIBILITY          = 0;
+    /** Controls the authentication protocol to use when connecting to SMB servers. */
+    public static final String SMB_USE_EXTENDED_SECURITY          = SMB_SECTION + '.' + "use_extended_security";
+    /** Default value for {@link #SMB_USE_EXTENDED_SECURITY}. */
+    public static final boolean DEFAULT_SMB_USE_EXTENDED_SECURITY = false;
 
     // - Tree variables ------------------------------------------------------
     // -----------------------------------------------------------------------
@@ -553,26 +553,17 @@ public class MuConfiguration {
     public static void read() throws IOException, ConfigurationException {
         String configurationVersion;
 
-        try {configuration.read();}
+        VersionedXmlConfigurationReader reader = new VersionedXmlConfigurationReader();
+        try {configuration.read(reader);}
         finally {
-            configurationVersion = getVariable(VERSION);
+            configurationVersion = reader.getVersion();
             if(configurationVersion == null || !configurationVersion.equals(RuntimeConstants.VERSION)) {
                 renameVariable("show_hidden_files", SHOW_HIDDEN_FILES);
                 renameVariable("auto_size_columns", AUTO_SIZE_COLUMNS);
                 renameVariable("show_toolbar",      TOOLBAR_VISIBLE);
                 renameVariable("show_status_bar",   STATUS_BAR_VISIBLE);
                 renameVariable("show_command_bar",  COMMAND_BAR_VISIBLE);
-                setVariable(VERSION, RuntimeConstants.VERSION);
             }
-
-            // Initialises core API variables
-            FileFactory.setFileCacheCapacity(MuConfiguration.getVariable(
-                    MuConfiguration.FILE_CACHE_CAPACITY,
-                    MuConfiguration.DEFAULT_FILE_CACHE_CAPACITY));
-
-            CachedFileIconProvider.setCacheCapacity(MuConfiguration.getVariable(
-                    MuConfiguration.SYSTEM_ICON_CACHE_CAPACITY,
-                    MuConfiguration.DEFAULT_SYSTEM_ICON_CACHE_CAPACITY));
 
             // Initialises mac os x specific values
             if(OsFamilies.MAC_OS_X.isCurrent()) {
@@ -589,7 +580,7 @@ public class MuConfiguration {
      * @throws IOException            if an I/O error occurs.
      * @throws ConfigurationException if a configuration related error occurs.
      */
-    public static void write() throws IOException, ConfigurationException {configuration.write();}
+    public static void write() throws IOException, ConfigurationException {configuration.write(new VersionedXmlConfigurationWriter());}
 
 
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package com.mucommander.ui.icon;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.icon.FileIconProvider;
@@ -76,13 +75,12 @@ public class CustomFileIconProvider implements FileIconProvider {
      */
     final static String ICON_EXTENSIONS[][] = {
         {"archive_unsupported.png", "7z", "ace", "arj", "bin", "bz", "cab", "dmg", "hqx", "ipk", "lha", "lzh", "lzx", "msi", "mpkg", "pak", "pkg", "pq6", "rar", "rk", "rz", "sea", "sit", "sitx", "sqx", "z", "zoo"},	// Unsupported archive formats (no native support), see http://en.wikipedia.org/wiki/Archive_formats
-        {"audio.png", "aac", "aif", "aiff", "aifc", "amr", "ape", "au", "cda", "mp3", "mpa", "mp2", "mpc", "m3u", "m4a", "m4b", "m4p", "nap", "ogg", "pls", "ra", "ram", "wav", "wave", "flac", "wma", "mid", "midi", "smf", "mod", "mtm", "xm", "s3m"},	// Audio formats, see http://en.wikipedia.org/wiki/Audio_file_format
+        {"audio.png", "aac", "aif", "aiff", "aifc", "amr", "ape", "au", "cda", "mp3", "mpa", "mp2", "mpc", "m3u", "m4a", "m4b", "m4p", "nap", "ogg", "pls", "ra", "ram", "wav", "wave", "flac", "wma", "mid", "midi", "smf", "mod", "mtm", "xm", "s3m", "mka"},	// Audio formats, see http://en.wikipedia.org/wiki/Audio_file_format
         {"cd_image.png", "iso", "nrg"},	// CD/DVD image
         {"certificate.png", "cer", "crt", "key"},	// Certificate file
         {"configuration.png", "cnf", "conf", "config", "inf", "ini", "pif", "prefs", "prf"},	// Configuration file
-        {"database.png", "myi", "myd", "frm", "sql", "sqc", "sqr"},	// Database file
+        {"database.png", "myi", "myd", "frm", "sql", "sqc", "sqr", "mdb", "mde", "mdn", "mdt", "accdb", "accde", "accdr", "accdt"},	// Database file
         {"executable_windows.png", "bat", "com", "exe"},	// Windows executables
-        {"executable_osx.png", "app"},	// Mac OS X executables
         {"feed.png", "rdf", "rss"},	// RSS/RDF feed
         {"font.png", "fnt", "fon", "otf"},	// Non-TrueType font
         {"font_truetype.png", "ttc", "ttf"},	// TrueType font
@@ -93,9 +91,9 @@ public class CustomFileIconProvider implements FileIconProvider {
         {"macromedia_actionscript.png", "as"},	// Macromedia Actionscript
         {"macromedia_flash.png", "swf", "swd", "swa", "swc", "fla", "flv", "flp", "jsfl"},	// Macromedia Flash
         {"macromedia_freehand.png", "fh", "fhd"},	// Macromedia Freehand
-        {"ms_excel.png", "xls", "xla", "xlb", "xlc", "xld", "xlk", "xll", "xlm", "xlr", "xlt", "xlv", "xlw", "xlshtml", "xlsmhtml", "xlsx", "xlthtml"},	// Microsoft Excel
-        {"ms_word.png", "doc", "wbk", "wiz", "wpg", "wpk", "wpm", "wpt", "wrs", "wwl"},	// Microsoft Word
-        {"ms_powerpoint.png", "pcb", "pot", "ppa", "ppi", "pps", "ppt", "pwz"},	// Microsoft Office (Powerpoint)
+        {"ms_excel.png", "xls", "xla", "xlb", "xlc", "xld", "xlk", "xll", "xlm", "xlr", "xlt", "xlv", "xlw", "xlshtml", "xlsmhtml", "xlthtml", "xlsx", "xltx", "xlsm", "xltm", "xlam", "xlsb"},	// Microsoft Excel
+        {"ms_word.png", "doc", "wbk", "wiz", "wpg", "wpk", "wpm", "wpt", "wrs", "wwl", "docx", "dotx", "docm", "dotm"},	// Microsoft Word
+        {"ms_powerpoint.png", "pcb", "pot", "ppa", "ppi", "pps", "ppt", "pwz", "pptx", "potx", "ppsx", "pptm", "potm", "ppsm"},	// Microsoft Office (Powerpoint)
         {"ms_visualstudio.png",	"atp", "dbp", "hxc", "ncb", "pch", "pdb", "sln", "suo", "srf", "vaf", "vam", "vbg", "vbp", "vbproj", "vcproj", "vdp", "vdproj", "vip", "vmx", "vsdir", "vsmacros",	"vsmproj", "vup"},	// Microsoft Visual Studio
         {"ms_windows_shortcut.png", "lnk"},	// MS Windows .lnk shortcut files
         {"pdf.png", "pdf"},		// Adobe Acrobat / PDF
@@ -112,7 +110,7 @@ public class CustomFileIconProvider implements FileIconProvider {
         {"source_xml.png", "xml", "dtd", "xfd", "xfdl", "xmap", "xmi", "xsc", "xsd", "xsl", "xslt", "xtd", "xul", "rss", "jnlp", "plist"},	// XML-based formats
         {"text.png", "1st", "ans", "asc", "ascii", "diz", "err", "faq", "latex", "log", "man", "msg", "nfo", "readme", "rtf", "sig", "tex", "text", "txt"},	// Text formats
         {"vcard.png", "vcf"},	// vCard
-        {"video.png", "3g2", "3gp", "3gp2", "3gpp", "asf", "asx", "avi", "dir", "dv", "dxr", "m1v", "m4e", "m4u", "moov", "mov", "movie", "mp4", "mpe", "mpeg", "mpg", "mpv2", "qt", "rm", "rmvb", "rts", "vob", "wmv"}		// Video formats
+        {"video.png", "3g2", "3gp", "3gp2", "3gpp", "asf", "asx", "avi", "dir", "dv", "dxr", "m1v", "m4e", "m4u", "moov", "mov", "movie", "mp4", "mpe", "mpeg", "mpg", "mpv2", "qt", "rm", "rmvb", "rts", "vob", "wmv", "divx", "mkv"}		// Video formats
     };
 
 
@@ -130,7 +128,6 @@ public class CustomFileIconProvider implements FileIconProvider {
                  extensionMap.put(ICON_EXTENSIONS[i][j], iconName);
         }
 
-        if(Debug.ON) Debug.trace("done");
         initialized = true;
     }
 

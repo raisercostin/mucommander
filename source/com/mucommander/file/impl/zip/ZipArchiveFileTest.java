@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,9 +38,6 @@ public class ZipArchiveFileTest extends AbstractFileTestCase {
 
     /** id of the last temporary entry generated, to avoid collisions */
     private int entryNum;
-
-    /** Maximum size of a Zip32 file entry, i.e. (2^32)-1 */
-    private long MAX_ZIP32_ENTRY_SIZE = 4294967295l;
 
 
     /////////////////////////////////////////

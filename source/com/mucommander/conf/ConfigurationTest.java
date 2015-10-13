@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -72,7 +72,7 @@ public class ConfigurationTest extends TestCase implements ConfigurationListener
         conf   = new Configuration();
         events = new Stack();
 
-        conf.addConfigurationListener(this);
+        Configuration.addConfigurationListener(this);
     }
 
 
@@ -102,13 +102,13 @@ public class ConfigurationTest extends TestCase implements ConfigurationListener
     public void testListenerRegistration() {
         // Makes sure events are not received anymore after
         // removeConfigurationListener has been called.
-        conf.removeConfigurationListener(this);
+        Configuration.removeConfigurationListener(this);
         conf.setVariable("event.test", "value");
         assertFalse(hasEvents());
 
         // Makes sure events are received after addConfigurationListener
         // has been called.
-        conf.addConfigurationListener(this);
+        Configuration.addConfigurationListener(this);
         conf.setVariable("event.test", "new-value");
         assertNotNull(popEvent());
     }

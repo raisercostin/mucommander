@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import com.mucommander.file.AbstractFile;
  * before the trash is emptied. A trash implementation provides methods to access basic trash operations: move files
  * to the trash, empty the trash, ...
  *
- * <p>Since AbstractTrash implementations are system-dependent, they should not be instanciated directly.
+ * <p>Since AbstractTrash implementations are system-dependent, they should not be instantiated directly.
  * Use {@link DesktopManager#getTrash()} to retrieve an instance of a trash implementation that can
  * be used on the current platform.<br>
  * Also, some AbstractTrash subclasses may not be able to provide working implementations for all trash operations;

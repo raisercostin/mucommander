@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
     }	
 
     private synchronized void loadImage(AbstractFile file) throws IOException {
+        ViewerFrame frame = getFrame();
         frame.setCursor(new Cursor(Cursor.WAIT_CURSOR));
 		
         int read;
@@ -99,17 +100,19 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
 
 	
     private void waitForImage(Image image) {
-        //if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Waiting for image to load "+image);
+        //AppLogger.finest("Waiting for image to load "+image);
         MediaTracker tracker = new MediaTracker(this);
         tracker.addImage(image, 0);
         try { tracker.waitForID(0); }
         catch(InterruptedException e) {}
         tracker.removeImage(image);
-        //if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Image loaded "+image);
+        //AppLogger.finest("Image loaded "+image);
     }
 	
 	
     private synchronized void zoom(double factor) {
+        ViewerFrame frame = getFrame();
+
         frame.setCursor(new Cursor(Cursor.WAIT_CURSOR));
 
         this.scaledImage = image.getScaledInstance((int)(image.getWidth(null)*factor), (int)(image.getHeight(null)*factor), Image.SCALE_DEFAULT);
@@ -119,7 +122,10 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
     }
 
     private void updateFrame() {
+        ViewerFrame frame = getFrame();
+
         // Revalidate, pack and repaint should be called in this order
+        frame.setTitle(this.getTitle());
         revalidate();
         frame.pack();
         frame.getContentPane().repaint();
@@ -173,7 +179,8 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
             //		controlsMenu.add(new JSeparator());
             zoomInItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_in"), menuMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), this);
             zoomOutItem = MenuToolkit.addMenuItem(controlsMenu, Translator.get("image_viewer.zoom_out"), menuMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), this);
-            frame.getJMenuBar().add(controlsMenu);
+
+            getMenuBar().add(controlsMenu);
         }
 
         loadImage(file);
@@ -204,7 +211,7 @@ class ImageViewer extends FileViewer implements ActionListener, ThemeListener {
     ///////////////////////////////////
 
     public String getTitle() {
-        return file.getName()+" - "+image.getWidth(null)+"x"+image.getHeight(null)+" - "+((int)(zoomFactor*100))+"%";
+        return super.getTitle()+" - "+image.getWidth(null)+"x"+image.getHeight(null)+" - "+((int)(zoomFactor*100))+"%";
     }
 
     public synchronized Dimension getPreferredSize() {

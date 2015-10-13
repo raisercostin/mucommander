@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package com.mucommander.file.impl.http;
 
-import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.Credentials;
 import com.mucommander.file.*;
@@ -28,13 +27,9 @@ import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
 import com.mucommander.io.base64.Base64Encoder;
 
-import javax.net.ssl.*;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.Vector;
@@ -81,30 +76,32 @@ import java.util.regex.Pattern;
  *
  * @author Maxence Bernard
  */
-public class HTTPFile extends AbstractFile {
+public class HTTPFile extends ProtocolFile {
 
+    /** java.net.URL corresponding to this */
     private URL url;
 
-    private String absPath;
+    /** Contains the attributes of the remote HTTP resource. Contains default values until the file has been resolved */
+    private SimpleFileAttributes attributes;
 
-//    private String name;
-    private long date;
-    private long size;
-
-    private boolean parentValSet;
-    protected AbstractFile parent;
-	
-    /** True if the remote resource is parsable/browsable, i.e. is or seems to be an HTML/XHTML file */
-    private boolean isParsable;
+    /** True if the file should be resolved on the remote HTTP server to fetch attribute values, false if these are
+     * guessed. */
+    private boolean resolve;
 
     /** True if file has been resolved on the remote HTTP server, either successfully or unsuccessfully */
     private boolean fileResolved;
 
-    /** True if the file could be successfully resolved on the remote HTTP server */
-	private boolean exists;
-
+    private boolean parentValSet;
+    protected AbstractFile parent;
+	
     /** Permissions for HTTP files: r-- (400 octal). Only the 'user' permissions bits are supported. */
-    final static FilePermissions PERMISSIONS = new SimpleFilePermissions(256, 448);
+    private final static FilePermissions PERMISSIONS = new SimpleFilePermissions(256, 448);
+
+    /** User agent used for all HTTP connections made by HTTPFile */
+    // TODO: add file API version, like muCommander-file-API/1.0
+    public static final String USER_AGENT = "muCommander-file-API (Java "+System.getProperty("java.vm.version")
+                                            + "; " + System.getProperty("os.name") + " " +
+                                            System.getProperty("os.version") + " " + System.getProperty("os.arch") + ")";
 
     /** Matches HTML and XHTML attribute key/value pairs, where the value is surrounded by Single Quotes */
     private final static Pattern linkAttributePatternSQ = Pattern.compile("(src|href|SRC|HREF)=\\\'.*?\\\'");
@@ -113,17 +110,8 @@ public class HTTPFile extends AbstractFile {
     private final static Pattern linkAttributePatternDQ = Pattern.compile("(src|href|SRC|HREF)=\\\".*?\\\"");
 
 
-    static {
-        try {
-            disableCertificateVerifications();
-        }
-        catch(Exception e) {
-            if(Debug.ON) Debug.trace("Failed to install a custom TrustManager: "+e);
-        }
-    }
-
-
-    public HTTPFile(FileURL fileURL) throws IOException {
+    protected HTTPFile(FileURL fileURL) throws IOException {
+        // TODO: optimize this
         this(fileURL, new URL(fileURL.toString(false)), fileURL.toString(false));
     }
 
@@ -136,10 +124,7 @@ public class HTTPFile extends AbstractFile {
             throw new IOException();
 
         this.url = url;
-        this.absPath = absPath;
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(url.toExternalForm());
-		
 //        // Determine file name (URL-decoded)
 //        this.name = fileURL.getFilename(true);
 //        // Name may contain '/' or '\' characters once decoded, let's remove them
@@ -148,19 +133,33 @@ public class HTTPFile extends AbstractFile {
 //            name = name.replace('\\', ' ');
 //        }
 
+        attributes = getDefaultAttributes(absPath);
+
         String mimeType;
         // Test if based on the URL, the file looks like an HTML file :
         //  - URL contains no path after hostname (e.g. http://google.com)
         //  - URL points to dynamic content (e.g. http://lulu.superblog.com?param=hola&val=...), even though dynamic scripts do not always return HTML/XHTML
         //  - No filename with a known mime type can be extracted from the last part of the URL (e.g. NOT http://mucommander.com/download/mucommander-0_7.tgz)
         if(fileURL.getPath().equals("/")  || fileURL.getQuery()!=null || ((mimeType=MimeTypes.getMimeType(this))==null || isParsableMimeType(mimeType))) {
-            isParsable = true;
-            size = -1;
-            date = System.currentTimeMillis();
+            attributes.setDirectory(true);
+            resolve = false;
         }
         else {
-            resolveFile();
+            resolve = true;
         }
+    }
+
+
+    private SimpleFileAttributes getDefaultAttributes(String absPath) {
+        attributes = new SimpleFileAttributes();
+        attributes.setPath(absPath);
+        attributes.setDate(System.currentTimeMillis());
+        attributes.setSize(-1); // Unknown
+        attributes.setPermissions(PERMISSIONS);
+        // exist = false
+        // isDirectory = false
+
+        return attributes;
     }
 
 
@@ -177,52 +176,6 @@ public class HTTPFile extends AbstractFile {
 
 
     /**
-	 * Installs a custom <code>javax.net.ssl.X509TrustManager</code> and <code>javax.net.ssl.HostnameVerifier</code>
-     * to bypass the default SSL certificate verifications and blindly trust all SSL certificates, even if they are
-     * self-signed, expired, or do not match the requested hostname.
-     * As a result in such cases, <code>HttpsURLConnection#openConnection()</code> will succeed instead of throwing a
-     * <code>javax.net.ssl.SSLException</code>.
-     *
-     * <p>This method needs to be called only once in the JVM lifetime and will impact all HTTPS connections made,
-     * i.e. not only the ones made by this class.</p>
-     *
-     * <p>This clearly is unsecure for the user, but arguably better from a feature standpoint than systematically
-     * failing untrusted connections.</p>
-     *
-     * @throws Exception if an error occurred while installing the custom X509TrustManager.
-	 */
-	private static void disableCertificateVerifications() throws Exception {
-        // Todo: find a way to warn the user when the server cannot be trusted
-
-        // Create a custom X509 trust manager that does not validate certificate chains
-        TrustManager permissiveTrustManager = new X509TrustManager() {
-            public X509Certificate[] getAcceptedIssuers() {
-                return null;
-            }
-            public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
-            }
-
-            public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
-            }
-        };
-
-        // Install the permissive trust manager
-        SSLContext sc = SSLContext.getInstance("SSL");
-        sc.init(null, new TrustManager[]{permissiveTrustManager}, new SecureRandom());
-        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-
-        // Create and install a custom hostname verifier that allows hostname mismatches
-        HostnameVerifier permissiveHostnameVerifier = new HostnameVerifier() {
-           public boolean verify(String urlHostName, SSLSession session) {
-               return true;
-           }
-
-        };
-       HttpsURLConnection.setDefaultHostnameVerifier(permissiveHostnameVerifier);
-    }
-
-
-    /**
      * Performs a HEAD request on the HTTP server to retrieve the file's attributes.
      *
      * @throws IOException if the HEAD request failed, either because the resource doesn't exist (404) or for any other
@@ -230,9 +183,7 @@ public class HTTPFile extends AbstractFile {
      */
     private void resolveFile() throws IOException {
         try {
-            // Default values.
-            size = -1;
-            date = System.currentTimeMillis();
+            FileLogger.finer("Resolving "+url);
 
             // Get URLConnection instance
             HttpURLConnection conn = getHttpURLConnection(url);
@@ -247,23 +198,27 @@ public class HTTPFile extends AbstractFile {
             checkHTTPResponse(conn);
 
             // Resolve date: use last-modified header, if not set use date header, and if still not set use System.currentTimeMillis
-            date = conn.getLastModified();
+            long date = conn.getLastModified();
             if(date==0) {
                 date = conn.getDate();
                 if(date==0)
                     date = System.currentTimeMillis();
             }
+            attributes.setDate(date);
 
             // Resolve size with content-length header (-1 if not available)
-            size = conn.getContentLength();
+            attributes.setSize(conn.getContentLength());
 
             // Test if content is HTML
             String contentType = conn.getContentType();
             if(isParsableMimeType(contentType))
-                isParsable = true;
+                attributes.setDirectory(true);
 
             // File was successfully resolved on the remote HTTP server and thus exists
-            exists = true;
+            attributes.setExists(true);
+        }
+        catch(IOException e) {
+            FileLogger.fine("Failed to resolve file "+url, e);
         }
         finally {
             // Mark the file as resolved, even if the request failed
@@ -290,11 +245,11 @@ public class HTTPFile extends AbstractFile {
         if(credentials!=null)
             conn.setRequestProperty(
                 "Authorization",
-                "Basic "+ Base64Encoder.encode(credentials.getLogin()+":"+credentials.getPassword(), "UTF-8")
+                "Basic "+ Base64Encoder.encode(credentials.getLogin()+":"+credentials.getPassword())
             );
 
-        // Set user-agent header
-        conn.setRequestProperty("user-agent", com.mucommander.PlatformManager.USER_AGENT);
+        // Set user-agent header.
+        conn.setRequestProperty("User-Agent", USER_AGENT);
 
         return conn;
     }
@@ -313,7 +268,7 @@ public class HTTPFile extends AbstractFile {
      */
     private void checkHTTPResponse(HttpURLConnection conn) throws AuthException, IOException {
         int responseCode = conn.getResponseCode();
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("response code = "+responseCode);
+        FileLogger.finer("response code = "+responseCode);
 
         // If we got a 401 (Unauthorized) response, throw an AuthException to ask for credentials
         if(responseCode==401)
@@ -323,13 +278,27 @@ public class HTTPFile extends AbstractFile {
             throw new IOException(conn.getResponseMessage());
     }
 
+    private void checkResolveFile() {
+        if(resolve && !fileResolved) {
+            try {
+                resolveFile();
+            }
+            catch(IOException e) {
+                FileLogger.fine("Failed to resolve "+url, e);
+                // file will be considered as resolved
+            }
+        }
+    }
+
 	
     /////////////////////////////////////////
     // AbstractFile methods implementation //
     /////////////////////////////////////////
 	
     public long getDate() {
-        return date;
+        checkResolveFile();
+
+        return attributes.getDate();
     }
 
     public boolean canChangeDate() {
@@ -343,7 +312,9 @@ public class HTTPFile extends AbstractFile {
     }
 	
     public long getSize() {
-        return size;	// Size == -1 if not known
+        checkResolveFile();
+
+        return attributes.getSize();	// Size == -1 if not known
     }
 	
     public AbstractFile getParent() {
@@ -352,8 +323,12 @@ public class HTTPFile extends AbstractFile {
             if(parentURL==null)
                 this.parent = null;
             else {
-                try { this.parent = new HTTPFile(parentURL); }
-                catch(IOException e) {} // No problem, no parent that's all
+                try {
+                    this.parent = new HTTPFile(parentURL);
+                }
+                catch(IOException e) {
+                    // No parent, that's all
+                }
             }
             this.parentValSet = true;
         }
@@ -374,11 +349,11 @@ public class HTTPFile extends AbstractFile {
             catch(IOException e) {}
         }
 
-        return exists;
+        return attributes.exists();
     }
 
     public FilePermissions getPermissions() {
-        return PERMISSIONS;
+        return attributes.getPermissions();
     }
 
     public PermissionBits getChangeablePermissions() {
@@ -406,7 +381,9 @@ public class HTTPFile extends AbstractFile {
     }
 
     public boolean isDirectory() {
-        return false;
+        checkResolveFile();
+
+        return attributes.isDirectory();
     }
 	
     public boolean isSymlink() {
@@ -485,15 +462,6 @@ public class HTTPFile extends AbstractFile {
         return url;
     }
 
-    public boolean canRunProcess() {
-        return false;
-    }
-
-    public com.mucommander.process.AbstractProcess runProcess(String[] tokens) throws IOException {
-        throw new IOException();
-    }
-
-
     public AbstractFile[] ls() throws IOException {
         // Implementation note: javax.swing.text.html.HTMLEditorKit isn't quite powerful enough to be used
 
@@ -502,7 +470,6 @@ public class HTTPFile extends AbstractFile {
             URL contextURL = this.url;
             HttpURLConnection conn;
             do {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("contextURL="+contextURL+" hostname="+contextURL.getHost());
                 // Get a connection instance
                 conn = getHttpURLConnection(contextURL);
 
@@ -521,7 +488,7 @@ public class HTTPFile extends AbstractFile {
                 String locationHeader = conn.getHeaderField("Location");
                 if(responseCode>=300 && responseCode<400 && locationHeader!=null) {
                     // Redirect to Location field and remember context url
-                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Location header = "+conn.getHeaderField("Location"));
+                    FileLogger.finer("Location header = "+conn.getHeaderField("Location"));
                     contextURL = new URL(contextURL, locationHeader);
                     // One more time
                     continue;
@@ -595,7 +562,7 @@ public class HTTPFile extends AbstractFile {
                             continue;
 
                         try {
-                            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("creating child "+link+" context="+contextURL);
+                            FileLogger.finest("creating child "+link+" context="+contextURL);
                             childURL = new URL(contextURL, link);
 
                             // Extract the filename from the child URL
@@ -623,15 +590,13 @@ public class HTTPFile extends AbstractFile {
                             tempChildURL.setPath(parentPath+filename);
                             child = new HTTPFile(childFileURL, childURL, tempChildURL.toString());
 
-                            if(Debug.ON) Debug.trace("childFileURL="+child.getURL()+" absPath="+child.getAbsolutePath()+" parent="+child.getParent());
+                            FileLogger.finest("childFileURL="+child.getURL()+" absPath="+child.getAbsolutePath()+" parent="+child.getParent());
 
                             children.add(FileFactory.wrapArchive(child));
                             childrenURL.add(link);
                         }
                         catch(IOException e) {
-                            if (com.mucommander.Debug.ON) {
-                                com.mucommander.Debug.trace("Cannot create child : "+link+" "+e);
-                            }
+                            FileLogger.fine("Cannot create child: "+link, e);
                         }
                     }
 
@@ -645,7 +610,7 @@ public class HTTPFile extends AbstractFile {
             return childrenArray;
         }
         catch (Exception e) {
-            if (com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught while parsing HTML:"+e+", throwing IOException");
+            FileLogger.fine("Exception caught while parsing HTML, throwing IOException", e);
 
             if(e instanceof IOException)
                 throw (IOException)e;
@@ -653,8 +618,6 @@ public class HTTPFile extends AbstractFile {
             throw new IOException();
         }
         finally {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("ends");
-
             try {
                 // Try and close URL connection
                 if(br!=null)
@@ -670,7 +633,7 @@ public class HTTPFile extends AbstractFile {
     ////////////////////////
 
     public String getAbsolutePath() {
-        return absPath;
+        return attributes.getPath();
     }
 
     public String getCanonicalPath() {
@@ -679,10 +642,6 @@ public class HTTPFile extends AbstractFile {
 
     public boolean isHidden() {
         return false;
-    }
-
-    public boolean isBrowsable() {
-        return isParsable;
     }
 
     public String getName() {

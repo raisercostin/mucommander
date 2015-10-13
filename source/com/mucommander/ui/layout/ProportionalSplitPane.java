@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ import java.awt.event.MouseListener;
  * @author Maxence Bernard
  */
 public class ProportionalSplitPane extends JSplitPane implements ComponentListener, MouseListener {
+    /** Last known width of the window this split pane is attached to. */
+    private int windowWidth;
 
     /** Last known absolute divider location */
     private int lastDividerLocation = -1;
@@ -75,7 +77,6 @@ public class ProportionalSplitPane extends JSplitPane implements ComponentListen
         init(window, leftComponent, rightComponent);
     }
 
-
     private void init(Window window, JComponent leftComponent, JComponent rightComponent) {
         this.window = window;
         window.addComponentListener(this);
@@ -103,7 +104,8 @@ public class ProportionalSplitPane extends JSplitPane implements ComponentListen
         // Reset the last divider location to make sure that the next call to moveComponent doesn't
         // needlessly recalculate the split ratio.
         lastDividerLocation = -1;
-        setDividerLocation((int)(splitRatio*(getOrientation()==HORIZONTAL_SPLIT?getWidth():getHeight())));
+        //setDividerLocation((int)(splitRatio*(getOrientation()==HORIZONTAL_SPLIT?getWidth():getHeight())));
+        setDividerLocation(splitRatio);
     }
 
 
@@ -139,10 +141,8 @@ public class ProportionalSplitPane extends JSplitPane implements ComponentListen
      */
     public void disableAccessibilityShortcuts() {
         InputMap inputMap = getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        InputMap parentInputMap = inputMap.getParent();
-        KeyStroke ks[] = inputMap.allKeys();
-        for(int i=0; i<ks.length; i++)
-            parentInputMap.remove(ks[i]);
+        inputMap.clear();
+        inputMap.setParent(null);
     }
 
 
@@ -168,10 +168,12 @@ public class ProportionalSplitPane extends JSplitPane implements ComponentListen
     public void componentResized(ComponentEvent e) {
         Object source = e.getSource();
 
-        if(source==window) {
-//            if(Debug.ON) Debug.trace("called on MainFrame ratio="+splitRatio);
 
+        if(source==window) {
             // Note: the window/split pane may not be visible when this method is called for the first time
+
+            // Makes sure that windowWidth is never 0 in #componentMoved.
+            windowWidth = window.getWidth();
             updateDividerLocation();
         }
     }
@@ -187,11 +189,17 @@ public class ProportionalSplitPane extends JSplitPane implements ComponentListen
             else if(lastDividerLocation==getDividerLocation())
                 return;
 
+            // This is a bit tricky: we want to ignore events triggered by the divider moving because the window was
+            // resized in such a way that it didn't have a choice (window width smaller than current divider location).
+            // Such events are managed by the componentResized method.
+            if(windowWidth != window.getWidth()) {
+                windowWidth = window.getWidth();
+                return;
+            }
 
             // Divider has been moved, calculate new split ratio
             lastDividerLocation = getDividerLocation();
             splitRatio = lastDividerLocation / (float)(getOrientation()==HORIZONTAL_SPLIT?getWidth():getHeight());
-//            if(Debug.ON) Debug.trace("new ratio="+splitRatio);
         }
     }
 

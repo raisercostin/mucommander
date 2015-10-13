@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,6 +99,17 @@ public class Columns {
         return MINIMUM_COLUMN_WIDTHS[column];
     }
 
+    /**
+     * Returns the action IDs whose corresponding action allows the column to be shown/hidden.
+     * Caution: the {@link #NAME} column cannot be toggled, therefore the return action ID is <code>null</code>.
+     *
+     * @param column column index
+     * @return the action IDs whose corresponding action allows the column to be shown/hidden.
+     */
+    public static String getToggleColumnActionId(int column) {
+        return TOGGLE_COLUMN_ACTIONS[column];
+    }
+
     /** Minimum width of each column */
     private static final int MINIMUM_COLUMN_WIDTHS[] = {
         STANDARD_MINIMUM_WIDTH,         // Extension
@@ -108,6 +119,17 @@ public class Columns {
         STANDARD_MINIMUM_WIDTH,         // Permissions
         STANDARD_MINIMUM_WIDTH,         // Owner
         STANDARD_MINIMUM_WIDTH,         // Group 
+    };
+
+    /** Array of actions that allow columns to be shown/hidden, ordered by their identifier. */
+    private final static String TOGGLE_COLUMN_ACTIONS[] = {
+        "ToggleExtensionColumn",
+        null,
+        "ToggleSizeColumn",
+        "ToggleDateColumn",
+        "TogglePermissionsColumn",
+        "ToggleOwnerColumn",
+        "ToggleGroupColumn"
     };
 
     /**

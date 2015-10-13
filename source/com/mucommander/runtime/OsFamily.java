@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.runtime;
 
-import com.mucommander.Debug;
+import com.mucommander.commons.CommonsLogger;
 
 /**
  * This class represents a non-versioned family of operating system, like <code>Windows</code> or <code>Linux</code>. 
@@ -52,7 +52,7 @@ public class OsFamily extends RuntimeProperty implements OsFamilies {
         // Note: performing the initialization outside of the class static block avoids cyclic dependency problems.
         if(currentValue==null) {
             currentValue = parseSystemProperty(getRawSystemProperty());
-            if(Debug.ON) Debug.trace("Current OS family: "+ currentValue);
+            CommonsLogger.config("Current OS family: "+ currentValue);
         }
     }
 

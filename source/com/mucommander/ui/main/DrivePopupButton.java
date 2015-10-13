@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 package com.mucommander.ui.main;
 
+import com.mucommander.AppLogger;
 import com.mucommander.bonjour.BonjourMenu;
 import com.mucommander.bonjour.BonjourService;
 import com.mucommander.bookmark.Bookmark;
@@ -27,32 +28,39 @@ import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
-import com.mucommander.file.RootFolders;
+import com.mucommander.file.filter.FilenameFilter;
+import com.mucommander.file.filter.RegexpFilenameFilter;
+import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.MuAction;
-import com.mucommander.ui.action.OpenLocationAction;
+import com.mucommander.ui.action.impl.OpenLocationAction;
 import com.mucommander.ui.button.PopupButton;
 import com.mucommander.ui.dialog.server.*;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.helper.MnemonicHelper;
+import com.mucommander.ui.icon.CustomFileIconProvider;
 import com.mucommander.ui.icon.FileIcons;
+import com.mucommander.ui.icon.IconManager;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
+import java.util.regex.PatternSyntaxException;
 
 
 /**
- * DrivePopupButton is a button which when clicked pops up a menu with a list of drives and shortcuts which can be used
+ * <code>DrivePopupButton</code> is a button which, when clicked, pops up a menu with a list of volumes items that be used
  * to change the current folder.
  *
  * @author Maxence Bernard
@@ -62,14 +70,22 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     /** FolderPanel instance that contains this button */
     private FolderPanel folderPanel;
 	
-    /** Root folders array */
-    private static AbstractFile rootFolders[] = RootFolders.getRootFolders();
+    /** Current volumes */
+    private static AbstractFile volumes[];
 
     /** static FileSystemView instance, has a (non-null) value only under Windows */
     private static FileSystemView fileSystemView;
 
     /** Caches extended drive names, has a (non-null) value only under Windows */
     private static Hashtable extendedNameCache;
+    
+    /** Caches drive icons */
+    private static Hashtable iconCache = new Hashtable();
+    
+
+    /** Filters out volumes from the list based on the exclude regexp defined in the configuration, null if the regexp
+     * is not defined. */
+    private static FilenameFilter volumeFilter;
 
 
     static {
@@ -77,25 +93,40 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
             fileSystemView = FileSystemView.getFileSystemView();
             extendedNameCache = new Hashtable();
         }
+
+        try {
+            String excludeRegexp = MuConfiguration.getVariable(MuConfiguration.VOLUME_EXCLUDE_REGEXP);
+            if(excludeRegexp!=null) {
+                volumeFilter = new RegexpFilenameFilter(excludeRegexp, true);
+                volumeFilter.setInverted(true);
+                volumeFilter.setOperateOnPath(true);
+            }
+        }
+        catch(PatternSyntaxException e) {
+            AppLogger.info("Invalid regexp for conf variable "+MuConfiguration.VOLUME_EXCLUDE_REGEXP, e);
+        }
+
+        // Initialize the volumes list
+        volumes = getDisplayableVolumes();
     }
 
 
     /**
-     * Creates a new drive button which is to be added to the given FolderPanel.
+     * Creates a new <code>DrivePopupButton</code> which is to be added to the given FolderPanel.
      *
      * @param folderPanel the FolderPanel instance this button will be added to
      */
     public DrivePopupButton(FolderPanel folderPanel) {
         this.folderPanel = folderPanel;
 		
-        // Listen to location events to update drive button when folder changes
+        // Listen to location events to update the button when the current folder changes
         folderPanel.getLocationManager().addLocationListener(this);
 
-        // Listen to bookmark changes to update the drive button if a bookmark corresponding
-        // to the current folder has been added/edited/removed
+        // Listen to bookmark changes to update the button if a bookmark corresponding to the current folder
+        // has been added/edited/removed
         BookmarkManager.addBookmarkListener(this);
 
-        // Listen to configuration changes to update the drive if the system file icons policy has changed 
+        // Listen to configuration changes to update the button if the system file icons policy has changed
         MuConfiguration.addConfigurationListener(this);
 
         // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
@@ -106,20 +137,8 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         }
     }
 
-    public Dimension getPreferredSize() {
-        // Limit button's maximum width to something reasonable and leave enough space for location field, 
-        // as bookmarks name can be as long as users want them to be.
-        // Note: would be better to use JButton.setMaximumSize() but it doesn't seem to work
-        Dimension d = super.getPreferredSize();
-        if(d.width > 160)
-            d.width = 160;
-        return d;
-    }
-
-
     /**
-     * Updates this drive button's label and icon to reflect the current folder and match one of the drive button's
-     * shortcuts:
+     * Updates the button's label and icon to reflect the current folder and match one of the current volumes:
      * <<ul>
      *	<li>If the specified folder corresponds to a bookmark, the bookmark's name will be displayed
      *	<li>If the specified folder corresponds to a local file, the enclosing volume's name will be displayed
@@ -178,11 +197,11 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
                     int bestIndex = 0;
                     String temp;
                     int len;
-                    for(int i=0; i<rootFolders.length; i++) {
+                    for(int i=0; i< volumes.length; i++) {
                         if(OsFamilies.WINDOWS.isCurrent())
-                            temp = rootFolders[i].getAbsolutePath(false).toLowerCase();
+                            temp = volumes[i].getAbsolutePath(false).toLowerCase();
                         else
-                            temp = rootFolders[i].getCanonicalPath(false).toLowerCase();
+                            temp = volumes[i].getCanonicalPath(false).toLowerCase();
 
                         len = temp.length();
                         if (currentPath.startsWith(temp) && len>bestLength) {
@@ -190,11 +209,11 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
                             bestLength = len;
                         }
                     }
-                    newLabel = rootFolders[bestIndex].getName();
+                    newLabel = volumes[bestIndex].getName();
 
                     // Not used because the call to FileSystemView is slow
 //                    if(fileSystemView!=null)
-//                        newToolTip = getWindowsExtendedDriveName(rootFolders[bestIndex]);
+//                        newToolTip = getWindowsExtendedDriveName(volumes[bestIndex]);
                 }
             }
         }
@@ -225,70 +244,80 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     }
 
 
+    /**
+     * Returns the list of volumes to be displayed in the popup menu.
+     *
+     * <p>The raw list of volumes is fetched using {@link LocalFile#getVolumes()} and then
+     * filtered using the regexp defined in the {@link MuConfiguration#VOLUME_EXCLUDE_REGEXP} configuration variable
+     * (if defined).</p>
+     *
+     * @return the list of volumes to be displayed in the popup menu
+     */
+    public static AbstractFile[] getDisplayableVolumes() {
+        AbstractFile[] volumes = LocalFile.getVolumes();
+
+        if(volumeFilter!=null)
+            return volumeFilter.filter(volumes);
+
+        return volumes;
+    }
+
+
     ////////////////////////////////
     // PopupButton implementation //
     ////////////////////////////////
 
     public JPopupMenu getPopupMenu() {
-        final JPopupMenu popupMenu = new JPopupMenu();
+        JPopupMenu popupMenu = new JPopupMenu();
 
-        // Update root folders in case new volumes were mounted
-        rootFolders = RootFolders.getRootFolders();
+        // Update the list of volumes in case new ones were mounted
+        volumes = getDisplayableVolumes();
 
-        // Add root volumes
-        final int nbRoots = rootFolders.length;
+        // Add volumes
+        int nbVolumes = volumes.length;
         final MainFrame mainFrame = folderPanel.getMainFrame();
 
         MnemonicHelper mnemonicHelper = new MnemonicHelper();   // Provides mnemonics and ensures uniqueness
         JMenuItem item;
+        MuAction action;
+        String volumeName;
 
         boolean useExtendedDriveNames = fileSystemView!=null;
-        final Vector itemsV = useExtendedDriveNames?new Vector():null;
+        ArrayList itemsV = new ArrayList();
 
-        for(int i=0; i<nbRoots; i++) {
-            item = popupMenu.add(new CustomOpenLocationAction(mainFrame, new Hashtable(), rootFolders[i]));
+        for(int i=0; i<nbVolumes; i++) {
+            action = new CustomOpenLocationAction(mainFrame, new Hashtable(), volumes[i]);
+            volumeName = volumes[i].getName();
+
+            // If several volumes have the same filename, use the volume's path for the action's label instead of the
+            // volume's path, to disambiguate
+            for(int j=0; j<nbVolumes; j++) {
+                if(j!=i && volumes[j].getName().equalsIgnoreCase(volumeName)) {
+                    action.setLabel(volumes[i].getAbsolutePath());
+                    break;
+                }
+            }
+
+            item = popupMenu.add(action);
             setMnemonic(item, mnemonicHelper);
 
-            // Set system icon for volumes, only if system icons are available on the current platform
-            item.setIcon(FileIcons.hasProperSystemIcons()?FileIcons.getSystemFileIcon(rootFolders[i]):null);
+            // Set icon from cache
+            Icon icon = (Icon) iconCache.get(volumes[i]);
+            if (icon!=null) {
+                item.setIcon(icon);
+            }
 
             if(useExtendedDriveNames) {
                 // Use the last known value (if any) while we update it in a separate thread
-                String previousExtendedName = (String)extendedNameCache.get(rootFolders[i]);
+                String previousExtendedName = (String)extendedNameCache.get(volumes[i]);
                 if(previousExtendedName!=null)
                     item.setText(previousExtendedName);
 
-                itemsV.add(item);   // JMenu offers no way to retrieve a particular JMenuItem, so we have to keep them
             }
+            itemsV.add(item);   // JMenu offers no way to retrieve a particular JMenuItem, so we have to keep them
         }
 
-        if(useExtendedDriveNames) {
-            // Calls to getExtendedDriveName(String) are very slow, so they are performed in a separate thread so as
-            // to not lock the main even thread. The popup menu gets first displayed with the short drive names, and
-            // then refreshed with the extended names as they are retrieved.
-
-            new Thread() {
-                public void run() {
-                    for(int i=0; i<nbRoots; i++) {
-                        // Under Windows, show the extended drive name (e.g. "Local Disk (C:)" instead of just "C:") but use
-                        // the simple drive name for the mnemonic (i.e. 'C' instead of 'L').
-                        String extendedName = getExtendedDriveName(rootFolders[i]);
-                        ((JMenuItem)itemsV.elementAt(i)).setText(extendedName);
-
-                        // Keep the extended name for later (see above)
-                        extendedNameCache.put(rootFolders[i], extendedName);
-                    }
-
-                    // Re-calculate the popup menu's dimensions
-                    SwingUtilities.invokeLater(new Runnable() {
-                        public void run() {
-                                popupMenu.pack();
-                        }
-                    });
-                }
-
-            }.start();
-        }
+        new RefreshDriveNamesAndIcons(popupMenu, itemsV).start();
 
         popupMenu.add(new JSeparator());
 
@@ -311,6 +340,13 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 
         popupMenu.add(new JSeparator());
 
+        // Add 'Network shares' shortcut
+        if(FileFactory.isRegisteredProtocol(FileProtocols.SMB)) {
+            action = new CustomOpenLocationAction(mainFrame, new Hashtable(), new Bookmark("Network shares", "smb:///"));
+            action.setIcon(IconManager.getIcon(IconManager.FILE_ICON_SET, CustomFileIconProvider.NETWORK_ICON_NAME));
+            setMnemonic(popupMenu.add(action), mnemonicHelper);
+        }
+
         // Add Bonjour services menu
         setMnemonic(popupMenu.add(new BonjourMenu() {
             public MuAction getMenuItemAction(BonjourService bs) {
@@ -329,6 +365,68 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         setMnemonic(popupMenu.add(new ServerConnectAction("NFS...", NFSPanel.class)), mnemonicHelper);
 
         return popupMenu;
+    }
+    
+    /**
+     *  Calls to getExtendedDriveName(String) are very slow, so they are performed in a separate thread so as
+     *  to not lock the main even thread. The popup menu gets first displayed with the short drive names, and
+     * then refreshed with the extended names as they are retrieved.        
+     */
+    private class RefreshDriveNamesAndIcons extends Thread {
+        
+        private JPopupMenu popupMenu;
+        private ArrayList items;
+
+        public RefreshDriveNamesAndIcons(JPopupMenu popupMenu, ArrayList items) {
+            super("RefreshDriveNamesAndIcons");
+            this.popupMenu = popupMenu;
+            this.items = items;
+        }
+        
+        public void run() {
+            final boolean useExtendedDriveNames = fileSystemView!=null;
+            for(int i=0; i<items.size(); i++) {
+                final JMenuItem item = ((JMenuItem)items.get(i));
+
+                String extendedName = null;
+                if (useExtendedDriveNames) {
+                    // Under Windows, show the extended drive name (e.g. "Local Disk (C:)" instead of just "C:") but use
+                    // the simple drive name for the mnemonic (i.e. 'C' instead of 'L').
+                    extendedName = getExtendedDriveName(volumes[i]);
+
+                    // Keep the extended name for later (see above)
+                    extendedNameCache.put(volumes[i], extendedName);
+                }
+                final String extendedNameFinal = extendedName;
+
+                // Set system icon for volumes, only if system icons are available on the current platform
+                final Icon icon = FileIcons.hasProperSystemIcons()?FileIcons.getSystemFileIcon(volumes[i]):null;
+                if (icon!=null) {
+                    iconCache.put(volumes[i], icon);
+                }
+
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        if (useExtendedDriveNames) {
+                            item.setText(extendedNameFinal);
+                        }
+                        if (icon!=null) {
+                            item.setIcon(icon);
+                        }
+                    }
+                });
+                
+            }
+
+            // Re-calculate the popup menu's dimensions
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    popupMenu.invalidate();
+                    popupMenu.pack();
+                }
+            });
+        }
+        
     }
 
 
@@ -385,6 +483,21 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Update the button's icon if the system file icons policy has changed
         if (var.equals(MuConfiguration.USE_SYSTEM_FILE_ICONS))
             updateButton();
+    }
+
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    public Dimension getPreferredSize() {
+        // Limit button's maximum width to something reasonable and leave enough space for location field,
+        // as bookmarks name can be as long as users want them to be.
+        // Note: would be better to use JButton.setMaximumSize() but it doesn't seem to work
+        Dimension d = super.getPreferredSize();
+        if(d.width > 160)
+            d.width = 160;
+        return d;
     }
 
 

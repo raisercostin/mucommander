@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,18 @@ public class FileSet extends Vector {
     }
 
     /**
+     * Creates a new empty FileSet with the specified base folder.
+     *
+     * @param baseFolder the folder containing the files
+     * @param initialCapacity initial capacity of the vector
+     */
+    public FileSet(AbstractFile baseFolder, int initialCapacity) {
+        super(initialCapacity);
+
+        this.baseFolder = baseFolder;
+    }
+
+    /**
      * Creates a new empty FileSet with the specified base folder, and adds the given file.
      *
      * @param baseFolder the folder containing the files
@@ -93,5 +105,17 @@ public class FileSet extends Vector {
 
         for(int i=0; i<files.length; i++)
             add(files[i]);
+    }
+
+    /**
+     * Returns the files contained by this set as an {@link AbstractFile} array.
+     *
+     * @return the files contained by this set as an {@link AbstractFile} array.
+     */
+    public AbstractFile[] toFileArray() {
+        AbstractFile[] files = new AbstractFile[size()];
+        toArray(files);
+
+        return files;
     }
 }

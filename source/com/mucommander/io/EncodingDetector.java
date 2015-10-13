@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ package com.mucommander.io;
 
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
-import com.mucommander.Debug;
+import com.mucommander.commons.CommonsLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,10 +66,16 @@ import java.io.InputStream;
  * </p>
  *
  * @author Maxence Bernard
+ * @see <a href="http://philip.html5.org/data/charsets.html">ICU charset detection accuracy</a>
  */
 public class EncodingDetector {
 
-    /** Maximum number of bytes that the detectEncoding methods will process */
+    /** Maximum number of bytes that the detectEncoding methods will process.
+     * <p>
+     * See http://philip.html5.org/data/charsets.html and http://philip.html5.org/data/encoding-detection.svg
+     * for why 4096 is the recommended size.
+     * </p>
+     *  */
     public final static int MAX_RECOMMENDED_BYTE_SIZE = 4096;
 
 
@@ -103,19 +109,17 @@ public class EncodingDetector {
         if(len<4)
             return null;
 
+        // Trim the array if it is too long, detecting the charset is an expensive operation and past a certain point,
+        // having more bytes won't help any further        
+        if(len > MAX_RECOMMENDED_BYTE_SIZE)
+                len = MAX_RECOMMENDED_BYTE_SIZE;
+
         // CharsetDetector will process the array fully, so if the data does not start at 0 or ends before the array's
         // length, create a new array that fits the data exactly
         if(off>0 || len<bytes.length) {
             byte tmp[] = new byte[len];
             System.arraycopy(bytes, off, tmp, 0, len);
             bytes = tmp;
-        }
-
-        // Trim the array if it is too long, detecting the charset is an expensive operation and past a certain point,
-        // having more bytes won't help any further
-        if(bytes.length>MAX_RECOMMENDED_BYTE_SIZE) {
-            byte tmp[] = new byte[MAX_RECOMMENDED_BYTE_SIZE];
-            System.arraycopy(bytes, 0, tmp, 0, MAX_RECOMMENDED_BYTE_SIZE);
         }
         
         CharsetDetector cd = new CharsetDetector();
@@ -124,12 +128,10 @@ public class EncodingDetector {
         CharsetMatch cm = cd.detect();
 
         // Debug info
-        if(Debug.ON) Debug.trace("bestMatch getName()="+(cm==null?"null":cm.getName())+" getConfidence()="+(cm==null?"null":Integer.toString(cm.getConfidence())));
-//        if(Debug.ON) {
+        CommonsLogger.finer("bestMatch getName()="+(cm==null?"null":cm.getName())+" getConfidence()="+(cm==null?"null":Integer.toString(cm.getConfidence())));
 //            CharsetMatch cms[] = cd.detectAll();
 //            for(int i=0; i<cms.length; i++)
-//                Debug.trace("getName()="+cms[i].getName()+" getConfidence()="+cms[i].getConfidence());
-//        }
+//                CommonsLogger.finest("getName()="+cms[i].getName()+" getConfidence()="+cms[i].getConfidence());
 
         return cm==null?null:cm.getName();
     }
@@ -174,6 +176,7 @@ public class EncodingDetector {
 
     /**
      * Lists all detectable encodings as returned by {@link #getDetectableEncodings()} to the standard output.
+     * @param args command line arguments.
      */
     public static void main(String args[]) {
         String encodings[] = getDetectableEncodings();

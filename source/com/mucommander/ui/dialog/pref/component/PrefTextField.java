@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,6 @@
 
 package com.mucommander.ui.dialog.pref.component;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.ContainerEvent;
-import java.awt.event.ContainerListener;
-
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -32,7 +25,6 @@ import javax.swing.event.DocumentListener;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 
 /**
- * 
  * @author Arik Hadas
  */
 public abstract class PrefTextField extends JTextField implements PrefComponent {
@@ -46,19 +38,18 @@ public abstract class PrefTextField extends JTextField implements PrefComponent 
 	}
 	
 	public void addDialogListener(final PreferencesDialog dialog) {
-		final PrefComponent component = this;
 		getDocument().addDocumentListener(new DocumentListener() {
 
 			public void changedUpdate(DocumentEvent e) {
-				dialog.componentChanged(component);	
+				dialog.componentChanged(PrefTextField.this);	
 			}
 
 			public void insertUpdate(DocumentEvent e) {
-				dialog.componentChanged(component);
+				dialog.componentChanged(PrefTextField.this);
 			}
 
 			public void removeUpdate(DocumentEvent e) {
-				dialog.componentChanged(component);	
+				dialog.componentChanged(PrefTextField.this);	
 			}
 		});
 	}

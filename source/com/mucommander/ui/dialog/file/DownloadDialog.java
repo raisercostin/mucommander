@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.CopyJob;
+import com.mucommander.job.TransferFileJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.main.MainFrame;
 
@@ -40,20 +41,24 @@ public class DownloadDialog extends TransferDestinationDialog {
               Translator.get("download_dialog.description"),
               Translator.get("download_dialog.download"),
               Translator.get("download_dialog.error_title"));
+    }
 
+    
+    //////////////////////////////////////////////
+    // TransferDestinationDialog implementation //
+    //////////////////////////////////////////////
+
+    protected PathFieldContent computeInitialPath(FileSet files) {
         AbstractFile file = (AbstractFile)files.elementAt(0);
-		
+
         //		AbstractFile activeFolder = mainFrame.getActiveTable().getCurrentFolder();
         AbstractFile unactiveFolder = mainFrame.getInactiveTable().getCurrentFolder();
         // Fill text field with current folder's absolute path and file name
-        setTextField(unactiveFolder.getAbsolutePath(true)+file.getName());
-        showDialog();
+        return new PathFieldContent(unactiveFolder.getAbsolutePath(true)+file.getName());
     }
 
-    protected void startJob(PathUtils.ResolvedDestination resolvedDest, int defaultFileExistsAction, boolean verifyIntegrity) {
-        ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("download_dialog.downloading"));
-
-        CopyJob downloadJob = new CopyJob(
+    protected TransferFileJob createTransferFileJob(ProgressDialog progressDialog, PathUtils.ResolvedDestination resolvedDest, int defaultFileExistsAction) {
+        return new CopyJob(
                 progressDialog,
                 mainFrame,
                 files,
@@ -61,10 +66,9 @@ public class DownloadDialog extends TransferDestinationDialog {
                 resolvedDest.getDestinationType()==PathUtils.ResolvedDestination.EXISTING_FOLDER?null:resolvedDest.getDestinationFile().getName(),
                 CopyJob.DOWNLOAD_MODE,
                 defaultFileExistsAction);
-
-        downloadJob.setIntegrityCheckEnabled(verifyIntegrity);
-
-        progressDialog.start(downloadJob);
     }
-	
+
+    protected String getProgressDialogTitle() {
+        return Translator.get("download_dialog.downloading");
+    }
 }

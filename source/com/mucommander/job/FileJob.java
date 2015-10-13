@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,13 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.impl.CachedFile;
 import com.mucommander.file.util.FileSet;
+import com.mucommander.job.progress.JobProgress;
+import com.mucommander.job.ui.DialogResult;
+import com.mucommander.job.ui.UserInputHelper;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -32,6 +36,7 @@ import com.mucommander.ui.notifier.NotificationTypes;
 
 import java.util.Iterator;
 import java.util.WeakHashMap;
+
 
 
 /**
@@ -77,28 +82,28 @@ public abstract class FileJob implements Runnable {
     private long pauseStartDate;
 
     /** Associated dialog showing job progression */
-    protected ProgressDialog progressDialog;
+    private ProgressDialog progressDialog;
 
     /** Main frame on which the job is to be performed */ 
-    protected MainFrame mainFrame;
+    private MainFrame mainFrame;
 	
     /** Base source folder */
-    protected AbstractFile baseSourceFolder;
+    private AbstractFile baseSourceFolder;
 	
     /** Files which are going to be processed */
     protected FileSet files;
 
     /** Number of files that this job contains */
-    protected int nbFiles;
+    private int nbFiles;
 
     /** Index of file currently being processed, see {@link #getCurrentFileIndex()} */
-    protected int currentFileIndex = -1;
+    private int currentFileIndex = -1;
 
     /** File currently being processed */
-    protected AbstractFile currentFile;
+    private AbstractFile currentFile;
 
     /** Name of the file currently being processed */
-    protected String currentFilename = "";
+    private String currentFilename = "";
 
     /** If set to true, processed files will be unmarked from current table */
     private boolean autoUnmark = true;
@@ -128,21 +133,31 @@ public abstract class FileJob implements Runnable {
 
     /** List of registered FileJobListener stored as weak references */
     private WeakHashMap listeners = new WeakHashMap();
+    
+    /** Information about this job progress */
+    private JobProgress jobProgress;
+
+    /** True if the user asked to automatically skip errors */
+    private boolean autoSkipErrors;
 
 //    private int nbFilesProcessed;
 //    private int nbFilesDiscovered;
 
     protected final static int SKIP_ACTION = 0;
-    protected final static int RETRY_ACTION = 1;
-    protected final static int CANCEL_ACTION = 2;
-    protected final static int APPEND_ACTION = 3;
+    protected final static int SKIP_ALL_ACTION = 1;
+    protected final static int RETRY_ACTION = 2;
+    protected final static int CANCEL_ACTION = 3;
+    protected final static int APPEND_ACTION = 4;
+    protected final static int OK_ACTION = 5;
 
     protected final static String SKIP_TEXT = Translator.get("skip");
+    protected final static String SKIP_ALL_TEXT = Translator.get("skip_all");
     protected final static String RETRY_TEXT = Translator.get("retry");
     protected final static String CANCEL_TEXT = Translator.get("cancel");
     protected final static String APPEND_TEXT = Translator.get("resume");
-	
-	
+    protected final static String OK_TEXT = Translator.get("ok");
+
+
     /**
      * Creates a new FileJob without starting it.
      *
@@ -180,18 +195,31 @@ public abstract class FileJob implements Runnable {
             files.setElementAt((tempFile instanceof CachedFile)?tempFile:new CachedFile(tempFile, true), i);
         }
 
-        if(baseSourceFolder!=null)
-            baseSourceFolder = (baseSourceFolder instanceof CachedFile)?baseSourceFolder:new CachedFile(baseSourceFolder, true);
+        if (this.baseSourceFolder!=null)
+            this.baseSourceFolder = (getBaseSourceFolder() instanceof CachedFile)?getBaseSourceFolder():new CachedFile(getBaseSourceFolder(), true);
+
+    	this.jobProgress = new JobProgress(this);    
     }
 	
 	
     /**
      * Specifies whether or not files that have been processed should be unmarked from current table (enabled by default).
+     *
+     * @param autoUnmark <code>true</code> to automatically unmark files after they have been processed.
      */
     public void setAutoUnmark(boolean autoUnmark) {
         this.autoUnmark = autoUnmark;
     }
-	
+
+    /**
+     * Sets whether or not this file job should automatically skip errors when encountered (disabled by default).
+     *
+     * @param autoSkipErrors <code>true</code> to automatically skip errors, <code>false</code> to show an error dialog.
+     */
+    public void setAutoSkipErrors(boolean autoSkipErrors) {
+        this.autoSkipErrors = autoSkipErrors;
+    }
+
 	
     /**
      * Sets the given file to be selected in the active table after this job has finished.
@@ -200,7 +228,7 @@ public abstract class FileJob implements Runnable {
      *
      * @param file the file to be selected in the active table after this job has finished
      */
-    public void selectFileWhenFinished(AbstractFile file) {
+    protected void selectFileWhenFinished(AbstractFile file) {
         this.fileToSelect = file;
     }
 	
@@ -210,13 +238,13 @@ public abstract class FileJob implements Runnable {
      */
     public void start() {
         // Return if job has already been started
-        if(jobState!=NOT_STARTED)
+        if(getState()!=NOT_STARTED)
             return;
 
         // Pause auto-refresh during file job as it potentially modifies the current folders contents
         // and would potentially cause folder panel to auto-refresh
-        mainFrame.getLeftPanel().getFolderChangeMonitor().setPaused(true);
-        mainFrame.getRightPanel().getFolderChangeMonitor().setPaused(true);
+        getMainFrame().getLeftPanel().getFolderChangeMonitor().setPaused(true);
+        getMainFrame().getRightPanel().getFolderChangeMonitor().setPaused(true);
 
         setState(RUNNING);
         startDate = System.currentTimeMillis();
@@ -226,7 +254,25 @@ public abstract class FileJob implements Runnable {
     }
 
 
-    /**
+	/**
+	 * Returns the dialog showing progress of this job.
+	 * @return the progressDialog
+	 */
+	protected ProgressDialog getProgressDialog() {
+		return progressDialog;
+	}
+
+
+	/**
+	 * Returns the main frame.
+	 * @return the mainFrame
+	 */
+	protected MainFrame getMainFrame() {
+		return mainFrame;
+	}
+
+
+	/**
      * Returns the current state of this FileJob. See constant fields for possible return values.
      *
      * @return the current state of this FileJob. See constant fields for possible return values.
@@ -300,6 +346,13 @@ public abstract class FileJob implements Runnable {
     public long getPauseStartDate() {
         return pauseStartDate;
     }
+    
+    /**
+     * Sets the timestamp in miliseconds when this job is paused.
+     */
+    private void setPauseStartDate() {
+        this.pauseStartDate = System.currentTimeMillis();
+    }
 
     
     /**
@@ -313,6 +366,13 @@ public abstract class FileJob implements Runnable {
         return pausedTime;
     }
 
+    /**
+     * Adds a time of last pause to this job pause time counter. 
+     */
+    private void calcPausedTime() {
+        this.pausedTime += System.currentTimeMillis() - this.getPauseStartDate();
+    }
+
 
     /**
      * Returns the number of milliseconds this job effectively spent processing files, exclusing any pause time.
@@ -321,10 +381,10 @@ public abstract class FileJob implements Runnable {
      */
     public long getEffectiveJobTime() {
         // If job hasn't start yet, return 0
-        if(startDate==0)
+        if(getStartDate()==0)
             return 0;
         
-        return (endDate==0?System.currentTimeMillis():endDate)-startDate-pausedTime;
+        return (getEndDate()==0?System.currentTimeMillis():getEndDate())-getStartDate()-getPausedTime();
     }
 
     
@@ -332,10 +392,11 @@ public abstract class FileJob implements Runnable {
      * Interrupts this job, changes the job state to {@link #INTERRUPTED} and notifies listeners.
      */	
     public void interrupt() {
-        if(jobState==INTERRUPTED || jobState==FINISHED)
+        int state = getState();
+        if(state==INTERRUPTED || state==FINISHED)
             return;
 
-        if(jobState==PAUSED)
+        if(state==PAUSED)
             setPaused(false);
 
         // Set state before calling stop() so that state is INTERRUPTED when jobStopped() is called
@@ -369,9 +430,9 @@ public abstract class FileJob implements Runnable {
         // Lock the pause lock while updating paused status
         synchronized(pauseLock) {
             // Resume job if it was paused
-            if(!paused && jobState==PAUSED) {
+            if(!paused && getState()==PAUSED) {
                 // Calculate pause time
-                this.pausedTime += System.currentTimeMillis() - this.pauseStartDate;
+                calcPausedTime();                
                 // Call the jobResumed method to notify of the new job's state
                 jobResumed();
 
@@ -382,9 +443,9 @@ public abstract class FileJob implements Runnable {
                 setState(RUNNING);
             }
             // Pause job if it not paused already
-            else if(paused && jobState!=PAUSED) {
+            else if(paused && getState()!=PAUSED && getState()!=INTERRUPTED && getState()!=FINISHED) {
                 // Memorize pause time in order to calculate pause time when the job is resumed
-                this.pauseStartDate = System.currentTimeMillis();
+                setPauseStartDate();
                 // Call the jobPaused method to notify of the new job's state
                 jobPaused();
 
@@ -402,10 +463,7 @@ public abstract class FileJob implements Runnable {
      * ({#nextFile(AbstractFile) nextFile()} is automatically called for files in base folder).
      */
     protected void nextFile(AbstractFile file) {
-        this.currentFile = file;
-
-        // Update current file information returned by getCurrentFilename()
-        this.currentFilename = "'"+currentFile.getName()+"'";
+        this.setCurrentFile(file);
 
 //        // Notify ProgressDialog (if any) that a new file is being processed
 //        if(progressDialog!=null)
@@ -414,7 +472,7 @@ public abstract class FileJob implements Runnable {
         // Lock the pause lock
         synchronized(pauseLock) {
             // Loop while job is paused, there shouldn't normally be more than one loop
-            while(jobState==PAUSED) {
+            while(getState()==PAUSED) {
                 try {
                     // Wait for a call to notify()
                     pauseLock.wait();
@@ -455,14 +513,14 @@ public abstract class FileJob implements Runnable {
     protected String getCurrentFilename() {
         return currentFilename;
     }
-	
-	
+
+
     /**
      * This method is called when this job starts, before the first call to {@link #processFile(AbstractFile,Object)} is made.
      * This method implementation does nothing but it can be overriden by subclasses to perform some first-time initializations.
      */
     protected void jobStarted() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finer("called");
     }
 	
 
@@ -476,12 +534,12 @@ public abstract class FileJob implements Runnable {
      * <p>Note that this method will NOT be called if a call to {@link #interrupt()} was made before all files were processed.</p>
      */
     protected void jobCompleted() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finer("called");
 
         // Send a system notification if a notifier is available and enabled
         if(AbstractNotifier.isAvailable() && AbstractNotifier.getNotifier().isEnabled())
             AbstractNotifier.getNotifier().displayBackgroundNotification(NotificationTypes.NOTIFICATION_TYPE_JOB_COMPLETED,
-                    progressDialog==null?"":progressDialog.getTitle(),
+                    getProgressDialog()==null?"":getProgressDialog().getTitle(),
                     Translator.get("progress_dialog.job_finished"));
     }
 
@@ -493,7 +551,7 @@ public abstract class FileJob implements Runnable {
      * when the job has been paused.
      */
     protected void jobPaused() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finer("called");
     }
 
 
@@ -504,7 +562,7 @@ public abstract class FileJob implements Runnable {
      * when the job has returned from pause.
      */
     protected void jobResumed() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finer("called");
     }
 
 
@@ -518,7 +576,7 @@ public abstract class FileJob implements Runnable {
      * files were processed) or has been interrupted in the middle.</p>
      */
     protected void jobStopped() {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finer("called");
     }
 	
 	
@@ -529,13 +587,9 @@ public abstract class FileJob implements Runnable {
      * is returned.
      */
     protected int showErrorDialog(String title, String message) {
-        String actionTexts[] = new String[]{SKIP_TEXT, RETRY_TEXT, CANCEL_TEXT};
-        int actionValues[] = new int[]{SKIP_ACTION, RETRY_ACTION, CANCEL_ACTION};
+        String actionTexts[] = new String[]{SKIP_TEXT, SKIP_ALL_TEXT, RETRY_TEXT, CANCEL_TEXT};
+        int actionValues[] = new int[]{SKIP_ACTION, SKIP_ALL_ACTION, RETRY_ACTION, CANCEL_ACTION};
 
-        // Send a system notification if a notifier is available and enabled
-        if(AbstractNotifier.isAvailable() && AbstractNotifier.getNotifier().isEnabled())
-            AbstractNotifier.getNotifier().displayBackgroundNotification(NotificationTypes.NOTIFICATION_TYPE_JOB_ERROR, title, message);
-        
         return showErrorDialog(title, message, actionTexts, actionValues);
     }
 
@@ -545,21 +599,31 @@ public abstract class FileJob implements Runnable {
      * Displays an error dialog with the specified title and message and returns the selection action's value.
      */
     protected int showErrorDialog(String title, String message, String actionTexts[], int actionValues[]) {
+        // Return SKIP_ACTION if 'skip all' has previously been selected and 'skip' is in the list of actions.
+        if(autoSkipErrors) {
+            for(int i=0; i<actionValues.length; i++)
+                if(actionValues[i]==SKIP_ACTION)
+                    return SKIP_ACTION;
+        }
+
+        // Send a system notification if a notifier is available and enabled
+        if(AbstractNotifier.isAvailable() && AbstractNotifier.getNotifier().isEnabled())
+            AbstractNotifier.getNotifier().displayBackgroundNotification(NotificationTypes.NOTIFICATION_TYPE_JOB_ERROR, title, message);
+
         QuestionDialog dialog;
-		
-        if(progressDialog==null)
-            dialog = new QuestionDialog(mainFrame, 
+        if(getProgressDialog()==null)
+            dialog = new QuestionDialog(getMainFrame(), 
                                         title,
                                         message,
-                                        mainFrame,
+                                        getMainFrame(),
                                         actionTexts,
                                         actionValues,
                                         0);
         else
-            dialog = new QuestionDialog(progressDialog, 
+            dialog = new QuestionDialog(getProgressDialog(), 
                                         title,
                                         message,
-                                        mainFrame,
+                                        getMainFrame(),
                                         actionTexts,
                                         actionValues,
                                         0);
@@ -568,6 +632,11 @@ public abstract class FileJob implements Runnable {
         int userChoice = waitForUserResponse(dialog);
         if(userChoice==-1 || userChoice==CANCEL_ACTION)
             interrupt();
+        // Keep 'skip all' choice for further error and return SKIP_ACTION
+        else if(userChoice==SKIP_ALL_ACTION) {
+            autoSkipErrors = true;
+            return SKIP_ACTION;
+        }
 
         return userChoice;
     }
@@ -577,37 +646,49 @@ public abstract class FileJob implements Runnable {
      * Waits for the user's answer to the given question dialog, putting this
      * job in pause mode while waiting for the user.
      */
-    protected int waitForUserResponse(QuestionDialog dialog) {
+    protected int waitForUserResponse(DialogResult dialog) {
+        Object userInput = waitForUserResponseObject(dialog);
+        return ((Integer)userInput).intValue();
+    }
+    
+    protected Object waitForUserResponseObject(DialogResult dialog) {
         // Put this job in pause mode while waiting for user response
         setPaused(true);
-        int retValue = dialog.getActionValue();
+        
+        UserInputHelper jobUserInput = new UserInputHelper(this, dialog);
+        Object userInput = jobUserInput.getUserInput();
+        
         // Back to work
         setPaused(false);
-        return retValue;
+        return userInput;
     }
+    
 	
 	
     /**
      * Check and if needed, refreshes both file tables's current folders, based on the job's refresh policy.
      */
     protected void refreshTables() {
-        FileTable activeTable = mainFrame.getActiveTable();
-        FileTable inactiveTable = mainFrame.getInactiveTable();
+        FileTable activeTable = getMainFrame().getActiveTable();
+        FileTable inactiveTable = getMainFrame().getInactiveTable();
 
         if(hasFolderChanged(inactiveTable.getCurrentFolder()))
             inactiveTable.getFolderPanel().tryRefreshCurrentFolder();
 
         if(hasFolderChanged(activeTable.getCurrentFolder())) {
             // Select file specified by selectFileWhenFinished (if any) only if the file exists in the active table's folder
-            if(fileToSelect!=null && activeTable.getCurrentFolder().equals(fileToSelect.getParentSilently()) && fileToSelect.exists())
+            if(fileToSelect!=null && activeTable.getCurrentFolder().equalsCanonical(fileToSelect.getParent()) && fileToSelect.exists())
                 activeTable.getFolderPanel().tryRefreshCurrentFolder(fileToSelect);
             else
                 activeTable.getFolderPanel().tryRefreshCurrentFolder();
         }
 
+        // Repaint the status bar as marked files have changed
+        mainFrame.getStatusBar().updateSelectedFilesInfo();
+
         // Resume current folders auto-refresh
-        mainFrame.getLeftPanel().getFolderChangeMonitor().setPaused(false);
-        mainFrame.getRightPanel().getFolderChangeMonitor().setPaused(false);
+        getMainFrame().getLeftPanel().getFolderChangeMonitor().setPaused(false);
+        getMainFrame().getRightPanel().getFolderChangeMonitor().setPaused(false);
     }
 	
 
@@ -629,6 +710,24 @@ public abstract class FileJob implements Runnable {
     public int getCurrentFileIndex() {
         return currentFileIndex==-1?0:currentFileIndex;
     }
+    
+    /**
+     * Returns the file currently being processed.
+     * @return the file currently being processed.
+     */
+    public AbstractFile getCurrentFile() {
+    	return currentFile;
+    }
+    
+    /**
+     * Sets the file currently being processed.
+     * @param file the file currently being processed.
+     */
+    private void setCurrentFile(AbstractFile file) {
+        this.currentFile = file;
+        // Update current file information returned by getCurrentFilename()
+        this.currentFilename = "'" + file.getName() + "'";
+    }
 
     /**
      * Returns the number of file that this job contains.
@@ -637,6 +736,15 @@ public abstract class FileJob implements Runnable {
      */
     public int getNbFiles() {
         return nbFiles;
+    }
+    
+    /**
+     * Sets the number of files that this job contains.
+     * 
+     * @param nbFiles the number of files that this job contains.
+     */
+    protected void setNbFiles(int nbFiles) {
+    	this.nbFiles = nbFiles;
     }
 
     /**
@@ -650,7 +758,23 @@ public abstract class FileJob implements Runnable {
         return Translator.get("progress_dialog.processing_file", getCurrentFilename());
     }
 
+    /**
+     * Returns information about the job progress.
+     * @return the job progress
+     */
+	public JobProgress getJobProgress() {
+		return jobProgress;		
+	}
 
+    /**
+     * Returns the base source folder.
+     * @return the baseSourceFolder
+     */
+    protected AbstractFile getBaseSourceFolder() {
+        return baseSourceFolder;
+    }
+	
+	
     /////////////////////////////
     // Runnable implementation //
     /////////////////////////////
@@ -659,7 +783,7 @@ public abstract class FileJob implements Runnable {
      * This method is public as a side-effect of this class implementing <code>Runnable</code>.
      */
     public final void run() {
-        FileTable activeTable = mainFrame.getActiveTable();
+        FileTable activeTable = getMainFrame().getActiveTable();
         AbstractFile currentFile;
 
         // Notify that this job has started
@@ -685,7 +809,8 @@ public abstract class FileJob implements Runnable {
             // Unmark file in active table if 'auto unmark' is enabled
             // and file was processed successfully
             if(autoUnmark && success) {
-                activeTable.setFileMarked(currentFile, false);
+                // Do not repaint rows individually as it would be too expensive
+                activeTable.setFileMarked(currentFile, false, false);
             }
 
             // If last file was reached without any user interruption, all files have been processed with or
@@ -727,5 +852,6 @@ public abstract class FileJob implements Runnable {
      * @return <code>true</code> if the operation was sucessful
      */
     protected abstract boolean processFile(AbstractFile file, Object recurseParams);
+
 
 }

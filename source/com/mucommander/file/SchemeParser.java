@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ public interface SchemeParser {
      * path part.</p>
      *
      * @param url the URL to parse
-     * @param fileURL the FileURL instance to
+     * @param fileURL the FileURL instance in which to set the different parsed parts
      * @throws MalformedURLException if the specified string is not a valid URL and cannot be parsed
      */
     public void parse(String url, FileURL fileURL) throws MalformedURLException;

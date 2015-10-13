@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 package com.mucommander.job;
 
 import com.apple.eio.FileManager;
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FilePermissions;
 import com.mucommander.file.impl.local.LocalFile;
@@ -114,7 +114,7 @@ public abstract class TransferFileJob extends FileJob {
         isCheckingIntegrity = false;
 
         // Throw a specific FileTransferException if source and destination files are identical
-        if(sourceFile.equals(destFile))
+        if(sourceFile.equalsCanonical(destFile))
             throw new FileTransferException(FileTransferException.SOURCE_AND_DESTINATION_IDENTICAL);
 
         // Determine whether AbstractFile.copyTo() should be used to copy file or streams should be copied manually.
@@ -125,7 +125,6 @@ public abstract class TransferFileJob extends FileJob {
         // copyTo() should or must be used
         boolean copied = false;
         if(copyToHint==AbstractFile.SHOULD_HINT || copyToHint==AbstractFile.MUST_HINT) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("calling copyTo()");
             copied = sourceFile.copyTo(destFile);
         }
 
@@ -156,10 +155,7 @@ public abstract class TransferFileJob extends FileJob {
                     }
                 }
                 catch(Exception e) {
-                    if(com.mucommander.Debug.ON) {
-                        com.mucommander.Debug.trace("IOException caught: "+e+", throwing FileTransferException");
-                        e.printStackTrace();
-                    }
+                    AppLogger.fine("IOException caught, throwing FileTransferException", e);
                     throw new FileTransferException(FileTransferException.OPENING_SOURCE);
                 }
 
@@ -193,7 +189,7 @@ public abstract class TransferFileJob extends FileJob {
             }
             catch(IOException e) {
                 // Swallow the exception and do not interrupt the transfer
-                if(Debug.ON) Debug.trace("Error while setting Mac OS X file type and creator on destination: "+e);
+                AppLogger.fine("Error while setting Mac OS X file type and creator on destination", e);
             }
         }
 
@@ -221,7 +217,7 @@ public abstract class TransferFileJob extends FileJob {
                 }
             }
 
-            if(Debug.ON) Debug.trace("Source checksum= "+sourceChecksum);
+            AppLogger.finer("Source checksum= "+sourceChecksum);
 
             // Calculate the destination file's checksum
             try {
@@ -231,7 +227,7 @@ public abstract class TransferFileJob extends FileJob {
                 throw new FileTransferException(FileTransferException.READING_DESTINATION);
             }
 
-            if(Debug.ON) Debug.trace("Destination checksum= "+destinationChecksum);
+            AppLogger.finer("Destination checksum= "+destinationChecksum);
 
             // Compare both checksums and throw an exception if they don't match
             if(!sourceChecksum.equals(destinationChecksum)) {
@@ -274,11 +270,8 @@ public abstract class TransferFileJob extends FileJob {
                 if(getState()==INTERRUPTED || wasCurrentFileSkipped())
                     return false;
 
-                // Print the exception's stack trace when in debug mode
-                if(com.mucommander.Debug.ON) {
-                    com.mucommander.Debug.trace("Copy failed: "+e);
-                    e.printStackTrace();
-                }
+                // Print the exception's stack trace
+                AppLogger.fine("Copy failed", e);
 
                 int reason = e.getReason();
                 int choice;
@@ -289,7 +282,7 @@ public abstract class TransferFileJob extends FileJob {
                         break;
                     // Could not open destination file for write
                     case FileTransferException.OPENING_DESTINATION:
-                        choice = showErrorDialog(errorDialogTitle, Translator.get("cannot_write_file", sourceFile.getName()));
+                        choice = showErrorDialog(errorDialogTitle, Translator.get("cannot_write_file", destFile.getName()));
                         break;
                     // Source and destination files are identical
                     case FileTransferException.SOURCE_AND_DESTINATION_IDENTICAL:
@@ -302,8 +295,8 @@ public abstract class TransferFileJob extends FileJob {
                     default:
                         choice = showErrorDialog(errorDialogTitle,
                                                  Translator.get("error_while_transferring", sourceFile.getName()),
-                                                 new String[]{SKIP_TEXT, APPEND_TEXT, RETRY_TEXT, CANCEL_TEXT},
-                                                 new int[]{SKIP_ACTION, APPEND_ACTION, RETRY_ACTION, CANCEL_ACTION}
+                                                 new String[]{SKIP_TEXT, SKIP_ALL_TEXT, APPEND_TEXT, RETRY_TEXT, CANCEL_TEXT},
+                                                 new int[]{SKIP_ACTION, SKIP_ALL_ACTION, APPEND_ACTION, RETRY_ACTION, CANCEL_ACTION}
                                                  );
                     break;
                 }
@@ -396,7 +389,7 @@ public abstract class TransferFileJob extends FileJob {
      */
     public synchronized void skipCurrentFile() {
         if(tlin !=null) {
-            if(Debug.ON) Debug.trace("skipping current file, closing "+ tlin);
+            AppLogger.finer("skipping current file, closing "+ tlin);
 
             // Prevents an error from being reported when the current InputStream is closed
             currentFileSkipped = true;
@@ -458,7 +451,7 @@ public abstract class TransferFileJob extends FileJob {
      * @return the size of the file currently being processed, -1 if this information is not available.
      */
     public long getCurrentFileSize() {
-        return currentFile==null?-1:currentFile.getSize();
+        return getCurrentFile()==null?-1:getCurrentFile().getSize();
     }
 
 
@@ -527,7 +520,7 @@ public abstract class TransferFileJob extends FileJob {
 
         synchronized(this) {
             if(tlin !=null) {
-                if(Debug.ON) Debug.trace("closing current InputStream "+ tlin);
+                AppLogger.finer("closing current InputStream "+ tlin);
 
                 closeCurrentInputStream();
             }
@@ -587,9 +580,9 @@ public abstract class TransferFileJob extends FileJob {
         int nbFiles = getNbFiles();
 
         // If file is in base folder and is not a directory...
-        if(currentFile!=null && nbFilesProcessed!=nbFiles && files.indexOf(currentFile)!=-1 && !currentFile.isDirectory()) {
+        if(getCurrentFile()!=null && nbFilesProcessed!=nbFiles && files.indexOf(getCurrentFile())!=-1 && !getCurrentFile().isDirectory()) {
             // Add current file's progress
-            long currentFileSize = currentFile.getSize();
+            long currentFileSize = getCurrentFile().getSize();
             if(currentFileSize>0)
                 nbFilesProcessed += getCurrentFileByteCounter().getByteCount()/(float)currentFileSize;
         }
@@ -623,7 +616,7 @@ public abstract class TransferFileJob extends FileJob {
 //                nbFilesProcessed += getCurrentFileByteCounter().getByteCount()/(float)currentFileSize;
 //        }
 //
-////if(Debug.ON) Debug.trace("nbFilesProcessed="+(int)nbFilesProcessed+" nbFilesDiscovered="+getNbFilesDiscovered()+" %="+((int)100*nbFilesProcessed/getNbFilesDiscovered()));
+////AppLogger.finest("nbFilesProcessed="+(int)nbFilesProcessed+" nbFilesDiscovered="+getNbFilesDiscovered()+" %="+((int)100*nbFilesProcessed/getNbFilesDiscovered()));
 //
 //        return nbFilesProcessed/getNbFilesDiscovered();
 //    }

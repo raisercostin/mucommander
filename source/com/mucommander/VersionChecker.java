@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,14 +18,13 @@
 
 package com.mucommander;
 
+import com.mucommander.file.FileFactory;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParserFactory;
 import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 
 /**
  * Retrieves information about the latest release of muCommander.
@@ -58,7 +57,7 @@ import java.net.URLConnection;
  * muCommander is considered up to date if:<br>
  * - the {@link com.mucommander.RuntimeConstants#VERSION local version} is
  *   not smaller than the remote one.<br>
- * - the {@link com.mucommander.RuntimeConstants#RELEASE_DATE local release date} is
+ * - the {@link com.mucommander.RuntimeConstants#BUILD_DATE local release date} is
  *   not smaller than the remote one.<br>
  * While comparing release dates seems a bit odd - after all, if a new version is release,
  * a new version number should be created. However, it's possible to download development
@@ -127,22 +126,23 @@ public class VersionChecker extends DefaultHandler {
      * @exception Exception thrown if any error happens while retrieving the remote version.
      */
     public static VersionChecker getInstance() throws Exception {
-        URLConnection  conn;   // Connection to the remote XML file.
-        InputStream    in;     // Input stream on the remote XML file.
         VersionChecker instance;
+        InputStream    in;     // Input stream on the remote XML file.
 
-        if(Debug.ON)
-            Debug.trace("Opening connection to " + RuntimeConstants.VERSION_URL);
-
-        // Initialisation.
-        conn   = new URL(RuntimeConstants.VERSION_URL).openConnection();
-        conn.setRequestProperty("user-agent", PlatformManager.USER_AGENT);
+        AppLogger.fine("Opening connection to " + RuntimeConstants.VERSION_URL);
 
         // Parses the remote XML file using UTF-8 encoding.
-        conn.connect();
-        in = conn.getInputStream();
-        SAXParserFactory.newInstance().newSAXParser().parse(in, instance = new VersionChecker());
-        in.close();
+        in = FileFactory.getFile(RuntimeConstants.VERSION_URL).getInputStream();
+        try {
+            SAXParserFactory.newInstance().newSAXParser().parse(in, instance = new VersionChecker());
+        }
+        catch(Exception e) {
+            AppLogger.fine("Failed to read version XML file at "+RuntimeConstants.VERSION_URL, e);
+            throw e;
+        }
+        finally {
+            in.close();
+        }
 
         // Makes sure we retrieved the information we were looking for.
         // We're not checking the release date as older version of muCommander
@@ -171,7 +171,7 @@ public class VersionChecker extends DefaultHandler {
                 return true;
 
             // Checks whether the remote release date is later than the current release date.
-            return releaseDate.compareTo(RuntimeConstants.RELEASE_DATE) > 0;
+            return releaseDate.compareTo(RuntimeConstants.BUILD_DATE) > 0;
         }
         return true;
     }
@@ -266,11 +266,9 @@ public class VersionChecker extends DefaultHandler {
         releaseDate   = releaseDate.trim();
 
         // Logs the data if in debug mode.
-        if(com.mucommander.Debug.ON) {
-            com.mucommander.Debug.trace("download URL: "  + downloadURL);
-            com.mucommander.Debug.trace("jar URL: "       + jarURL);
-            com.mucommander.Debug.trace("latestVersion: " + latestVersion);
-            com.mucommander.Debug.trace("releaseDate:   " + releaseDate);
-        }
+        AppLogger.finer("download URL: "  + downloadURL);
+        AppLogger.finer("jar URL: "       + jarURL);
+        AppLogger.finer("latestVersion: " + latestVersion);
+        AppLogger.finer("releaseDate:   " + releaseDate);
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@ package com.mucommander.ui.main;
 import com.mucommander.desktop.AbstractTrash;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.ui.action.ActionManager;
-import com.mucommander.ui.action.EmptyTrashAction;
-import com.mucommander.ui.action.OpenTrashAction;
+import com.mucommander.ui.action.impl.EmptyTrashAction;
+import com.mucommander.ui.action.impl.OpenTrashAction;
 import com.mucommander.ui.button.PopupButton;
 import com.mucommander.ui.button.RolloverButtonAdapter;
 import com.mucommander.ui.icon.IconManager;
@@ -65,10 +65,10 @@ public class TrashPopupButton extends PopupButton {
         AbstractTrash trash = DesktopManager.getTrash();
         if(trash!=null) {
             if(trash.canOpen())
-                popupMenu.add(ActionManager.getActionInstance(OpenTrashAction.class, mainFrame));
+                popupMenu.add(ActionManager.getActionInstance(OpenTrashAction.Descriptor.ACTION_ID, mainFrame));
 
             if(trash.canEmpty()) {
-                JMenuItem emptyTrashItem = new JMenuItem(ActionManager.getActionInstance(EmptyTrashAction.class, mainFrame));
+                JMenuItem emptyTrashItem = new JMenuItem(ActionManager.getActionInstance(EmptyTrashAction.Descriptor.ACTION_ID, mainFrame));
 
                 // Retrieve the number of items that the trash contains, -1 if this information is not available.
                 int itemCount = trash.getItemCount();

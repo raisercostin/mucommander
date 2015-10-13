@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
  
 package com.mucommander.ui.viewer;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.helper.MenuToolkit;
 import com.mucommander.ui.helper.MnemonicHelper;
@@ -67,19 +69,6 @@ public class ViewerFrame extends JFrame implements ActionListener {
         setIconImage(icon);
         this.mainFrame = mainFrame;
         this.file = file;
-		
-        // Create default menu
-        MnemonicHelper menuMnemonicHelper = new MnemonicHelper();
-        MnemonicHelper menuItemMnemonicHelper = new MnemonicHelper();
-
-        // File menu
-        JMenuBar menuBar = new JMenuBar();
-        JMenu menu = MenuToolkit.addMenu(Translator.get("file_viewer.file_menu"), menuMnemonicHelper, null);
-        closeItem = MenuToolkit.addMenuItem(menu, Translator.get("file_viewer.close"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), this);
-        menu.add(closeItem);
-        menuBar.add(menu);
-
-        setJMenuBar(menuBar);
 
         // Call #dispose() on close (default is hide)
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -87,6 +76,25 @@ public class ViewerFrame extends JFrame implements ActionListener {
         setResizable(true);
 
         initContentPane();
+    }
+
+    /**
+     * Creates a minimalist menu bar that allows to close the frame, and returns it.
+     *
+     * @return a minimalist menu bar that allows to close the frame
+     */
+    private JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+        MnemonicHelper menuMnemonicHelper = new MnemonicHelper();
+        MnemonicHelper menuItemMnemonicHelper = new MnemonicHelper();
+
+        // File menu
+        JMenu menu = MenuToolkit.addMenu(Translator.get("file_viewer.file_menu"), menuMnemonicHelper, null);
+        closeItem = MenuToolkit.addMenuItem(menu, Translator.get("file_viewer.close"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), this);
+        menu.add(closeItem);
+        menuBar.add(menu);
+
+        return menuBar;
     }
 
     private void initContentPane() {
@@ -97,13 +105,20 @@ public class ViewerFrame extends JFrame implements ActionListener {
                     if(viewer==null)
                         throw new Exception("No suitable viewer found");
 
+                    // Set the viewer's fields
                     viewer.setFrame(ViewerFrame.this);
+                    JMenuBar menuBar = createMenuBar();
+                    viewer.setMenuBar(menuBar);
                     viewer.setCurrentFile(file);
 
+                    // Ask the viewer to view the file
                     viewer.view(file);
+
+                    // Set the menu bar, only when it has been fully populated (see ticket #243)
+                    ViewerFrame.this.setJMenuBar(menuBar);
                 }
                 catch(Exception e) {
-                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught: "+e);
+                    AppLogger.fine("Exception caught", e);
 
                     // May be a UserCancelledException if the user cancelled (refused to confirm the operation after a warning)
                     if(!(e instanceof UserCancelledException))
@@ -153,7 +168,7 @@ public class ViewerFrame extends JFrame implements ActionListener {
     }
 
     public void showGenericViewErrorDialog() {
-        JOptionPane.showMessageDialog(mainFrame, Translator.get("file_viewer.view_error"), Translator.get("file_viewer.view_error_title"), JOptionPane.ERROR_MESSAGE);
+        InformationDialog.showErrorDialog(mainFrame, Translator.get("file_viewer.view_error_title"), Translator.get("file_viewer.view_error"));
     }
 
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,11 +31,10 @@ import com.mucommander.ui.combobox.SaneComboBox;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.FocusRequester;
+import com.mucommander.ui.layout.InformationPane;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
-import com.mucommander.ui.text.FontUtils;
-import com.mucommander.ui.text.MultiLineLabel;
 import com.mucommander.util.StringUtils;
 
 import javax.swing.*;
@@ -87,16 +86,16 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
         Container contentPane = getContentPane();
         contentPane.setLayout(new BorderLayout());
 
-        YBoxPanel yPanel = new YBoxPanel(5);
+        YBoxPanel yPanel = new YBoxPanel();
 
         if(authFailed) {
-            JTextArea label = new MultiLineLabel(Translator.get("auth_dialog.authentication_failed")+(errorMessage==null||(errorMessage=errorMessage.trim()).equals("")?"":": "+errorMessage));
-            FontUtils.makeBold(label);
-
-            yPanel.add(label);
+            yPanel.add(new InformationPane(Translator.get("auth_dialog.authentication_failed"), errorMessage, errorMessage==null?Font.PLAIN:Font.BOLD, InformationPane.ERROR_ICON));
             yPanel.addSpace(5);
+            yPanel.add(new JSeparator());
         }
 
+        yPanel.addSpace(5);
+        
         this.fileURL = fileURL;
 
         // Retrieve guest credentials (if any)
@@ -124,14 +123,14 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
             buttonGroup.add(guestRadioButton);
             buttonGroup.add(userRadioButton);
         }
-        // If not display an introductive label ("please enter a login and password")
+        // If not, display an introduction label ("please enter a login and password")
         else {
-            yPanel.add(new JLabel(Translator.get("auth_dialog.desc")+" :"));
+            yPanel.add(new JLabel(Translator.get("auth_dialog.desc")));
             yPanel.addSpace(15);
         }
 
         // Server URL for which the user has to authenticate
-        compPanel.addRow(Translator.get("auth_dialog.server")+":", new JLabel(fileURL.toString(false)), 10);
+        compPanel.addRow(Translator.get("auth_dialog.server"), new JLabel(fileURL.toString(false)), 10);
 
         // Login field: create either a text field or an editable combo box, depending on whether
         // CredentialsManager returned matches (-> combo box) or not (-> text field).
@@ -156,12 +155,12 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
             loginComponent = loginField;
         }
 
-        compPanel.addRow(Translator.get("login")+":", loginComponent, 5);
+        compPanel.addRow(Translator.get("login"), loginComponent, 5);
 
         // Create password field
         this.passwordField = new JPasswordField();
         passwordField.addActionListener(this);
-        compPanel.addRow(Translator.get("password")+":", passwordField, 10);
+        compPanel.addRow(Translator.get("password"), passwordField, 10);
 
         // Contains the credentials to set in the login and password text fields
         Credentials selectedCredentials = null;
@@ -203,6 +202,9 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
                 userRadioButton.setSelected(true);
         }
         else {
+            // Prefill the login field with the current user's name (ticket #185)
+            loginField.setText(System.getProperty("user.name"));
+
             // Select the 'Connect as Guest' radio button if there is one
             if(guestRadioButton!=null) {
                 guestRadioButton.setSelected(true);
@@ -261,15 +263,21 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
         else {
             Credentials enteredCredentials = new Credentials(loginField.getText(), new String(passwordField.getPassword()));
             guestCredentialsSelected = false;
-            selectedCredentialsMapping = new CredentialsMapping(enteredCredentials, fileURL, saveCredentialsCheckBox.isSelected());
 
-            // Reuse any existing instance which may contain connection properties
+            boolean isPersistent = saveCredentialsCheckBox.isSelected();
+            selectedCredentialsMapping = new CredentialsMapping(enteredCredentials, fileURL, isPersistent);
+
+            // Look for an existing matching CredentialsMapping instance to re-use the realm which may contain
+            // connection properties.
             int nbCredentials = credentialsMappings.length;
             CredentialsMapping cm;
             for(int i=0; i<nbCredentials; i++) {
                 cm = credentialsMappings[i];
                 if(cm.getCredentials().equals(enteredCredentials, true)) {  // Comparison must be password-sensitive
-                    selectedCredentialsMapping = cm;
+                    // Create a new CredentialsMapping instance in case the 'isPersistent' flag has changed.
+                    // (original credentials may have originally been added as 'volatile' and then made persistent by
+                    // ticking the checkbox, or vice-versa)
+                    selectedCredentialsMapping = new CredentialsMapping(cm.getCredentials(), cm.getRealm(), isPersistent);
                     break;
                 }
             }

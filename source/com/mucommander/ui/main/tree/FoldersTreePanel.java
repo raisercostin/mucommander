@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,41 +18,34 @@
 
 package com.mucommander.ui.main.tree;
 
-import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.IOException;
+import com.mucommander.AppLogger;
+import com.mucommander.conf.ConfigurationEvent;
+import com.mucommander.conf.ConfigurationListener;
+import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.filter.AndFileFilter;
+import com.mucommander.file.filter.AttributeFileFilter;
+import com.mucommander.file.util.FileComparator;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.RefreshAction;
+import com.mucommander.ui.event.LocationEvent;
+import com.mucommander.ui.event.LocationListener;
+import com.mucommander.ui.main.ConfigurableFolderFilter;
+import com.mucommander.ui.main.FolderPanel;
+import com.mucommander.ui.theme.ColorChangedEvent;
+import com.mucommander.ui.theme.FontChangedEvent;
+import com.mucommander.ui.theme.ThemeCache;
+import com.mucommander.ui.theme.ThemeListener;
 
-import javax.swing.JMenuItem;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JScrollPane;
-import javax.swing.JTree;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
+import javax.swing.*;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
-
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.filter.AttributeFileFilter;
-import com.mucommander.file.util.FileComparator;
-import com.mucommander.text.Translator;
-import com.mucommander.ui.event.LocationEvent;
-import com.mucommander.ui.event.LocationListener;
-import com.mucommander.ui.main.FolderPanel;
-import com.mucommander.ui.theme.ColorChangedEvent;
-import com.mucommander.ui.theme.FontChangedEvent;
-import com.mucommander.ui.theme.ThemeCache;
-import com.mucommander.ui.theme.ThemeListener;
+import java.awt.*;
+import java.awt.event.*;
 
 /**
  * A panel which contains a directory tree. This panel is attached to the left
@@ -63,7 +56,7 @@ import com.mucommander.ui.theme.ThemeListener;
  * 
  */
 public class FoldersTreePanel extends JPanel implements TreeSelectionListener, 
-							LocationListener, FocusListener, ThemeListener, TreeModelListener {
+							LocationListener, FocusListener, ThemeListener, TreeModelListener, ConfigurationListener {
 
     /** Directory tree */
     private JTree tree;
@@ -77,6 +70,10 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
     /** A timer that fires a directory change */
     private ChangeTimer changeTimer = new ChangeTimer();
 
+    static {
+        TreeIOThreadManager.getInstance().start();
+    }
+
    
     /**
      * Creates a panel with directory tree attached to a specified folder panel.
@@ -88,9 +85,13 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
         
         setLayout(new BorderLayout());
 
-        AttributeFileFilter dirFilter = new AttributeFileFilter(AttributeFileFilter.DIRECTORY);
+        // Filters out the files that should not be displayed in the tree view
+        AndFileFilter treeFileFilter = new AndFileFilter();
+        treeFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.DIRECTORY));
+        treeFileFilter.addFileFilter(new ConfigurableFolderFilter());
+
         FileComparator sort = new FileComparator(FileComparator.NAME_CRITERION, true, true);
-        model = new FilesTreeModel(dirFilter, sort);
+        model = new FilesTreeModel(treeFileFilter, sort);
         tree = new JTree(model);
 		tree.setFont(ThemeCache.tableFont);
         tree.setBackground(ThemeCache.backgroundColors[ThemeCache.INACTIVE][ThemeCache.NORMAL]);
@@ -119,7 +120,7 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
         final JPopupMenu popup = new JPopupMenu();
         // refresh action
         JMenuItem item = new JMenuItem(
-        		Translator.get("com.mucommander.ui.action.RefreshAction.label"),
+        		ActionProperties.getActionLabel(RefreshAction.Descriptor.ACTION_ID),
                 KeyEvent.VK_R);
         item.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -144,7 +145,27 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
             }
         });
         
-        ThemeCache.addThemeListener(this);        
+        ThemeCache.addThemeListener(this);
+        
+        MuConfiguration.addConfigurationListener(this);
+    }
+
+    
+    
+    /** 
+     * Listens to certain configuration variables.
+     */
+    public void configurationChanged(ConfigurationEvent event) {
+        String var = event.getVariable();
+        if (var.equals(MuConfiguration.SHOW_HIDDEN_FILES) ||
+                var.equals(MuConfiguration.SHOW_DS_STORE_FILES) ||
+                var.equals(MuConfiguration.SHOW_SYSTEM_FOLDERS)) {
+            Object root = model.getRoot();
+            if (root != null) {
+                TreePath path = new TreePath(root);
+                model.refresh(path);
+            }
+        }
     }
 
     /**
@@ -175,7 +196,7 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
         AbstractFile tempFolder = currentFolder;
         AbstractFile tempParent;
         while (!tempFolder.isDirectory()) {
-            tempParent = currentFolder.getParentSilently();
+            tempParent = tempFolder.getParent();
             if(tempParent==null)
                 break;
 
@@ -189,28 +210,25 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
             if (selectionPath.getLastPathComponent() == currentFolder)
                 return;
         }
-        try {
-            // check if root has changed
-            final AbstractFile currentRoot = selectedFolder.getRoot();
-            if (!currentRoot.equals(model.getRoot())) {
-                model.setRoot(currentRoot);
-            }
-            // refresh selection on tree
-            SwingUtilities.invokeLater(new Runnable() {
-               public void run() {
-                   try {
-                       TreePath path = new TreePath(model.getPathToRoot(selectedFolder));
-                       tree.expandPath(path);
-                       tree.setSelectionPath(path);
-                       tree.scrollPathToVisible(path);
-                   } catch (Exception e) {
-                       e.printStackTrace();
-                   }
-                }
-            });
-        } catch (IOException e) {
-            e.printStackTrace();
+
+        // check if root has changed
+        final AbstractFile currentRoot = selectedFolder.getRoot();
+        if (!currentRoot.equals(model.getRoot())) {
+            model.setRoot(currentRoot);
         }
+        // refresh selection on tree
+        SwingUtilities.invokeLater(new Runnable() {
+           public void run() {
+               try {
+                   TreePath path = new TreePath(model.getPathToRoot(selectedFolder));
+                   tree.expandPath(path);
+                   tree.setSelectionPath(path);
+                   tree.scrollPathToVisible(path);
+               } catch (Exception e) {
+                   AppLogger.fine("Caught exception", e);
+               }
+            }
+        });
     }
 
     /**

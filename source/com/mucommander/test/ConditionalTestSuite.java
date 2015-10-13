@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.test;
 
-import com.mucommander.Debug;
+import com.mucommander.commons.CommonsLogger;
 import junit.framework.TestSuite;
 
 /**
@@ -37,11 +37,11 @@ public abstract class ConditionalTestSuite extends TestSuite {
 
     public ConditionalTestSuite() {
         if(isEnabled()) {
-            if(Debug.ON) Debug.trace("Test suite enabled, populating test suite.");
+            CommonsLogger.config("Test suite enabled, populating test suite.");
             populateTestSuite();
         }
         else {
-            if(Debug.ON) Debug.trace("Test suite disabled, tests not performed.");
+            CommonsLogger.config("Test suite disabled, tests not performed.");
         }
     }
 

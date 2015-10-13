@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 
 package com.mucommander.desktop;
 
-import com.mucommander.Debug;
-import com.mucommander.desktop.linux.ConfiguredGnomeDesktopAdapter;
-import com.mucommander.desktop.linux.ConfiguredKdeDesktopAdapter;
-import com.mucommander.desktop.linux.GuessedGnomeDesktopAdapter;
-import com.mucommander.desktop.linux.GuessedKdeDesktopAdapter;
+import com.mucommander.AppLogger;
+import com.mucommander.desktop.gnome.ConfiguredGnomeDesktopAdapter;
+import com.mucommander.desktop.gnome.GuessedGnomeDesktopAdapter;
+import com.mucommander.desktop.kde.ConfiguredKde3DesktopAdapter;
+import com.mucommander.desktop.kde.ConfiguredKde4DesktopAdapter;
+import com.mucommander.desktop.kde.GuessedKde3DesktopAdapter;
+import com.mucommander.desktop.kde.GuessedKde4DesktopAdapter;
+import com.mucommander.desktop.openvms.OpenVMSDesktopAdapter;
 import com.mucommander.desktop.osx.OSXDesktopAdapter;
 import com.mucommander.desktop.windows.Win9xDesktopAdapter;
 import com.mucommander.desktop.windows.WinNtDesktopAdapter;
@@ -142,12 +145,15 @@ public class DesktopManager {
         // Unix desktops:
         // - check for Gnome before KDE, as it seems to be more popular.
         // - check for 'configured' before 'guessed', as guesses are less reliable and more expensive.
-        registerAdapter(new GuessedKdeDesktopAdapter());
+        registerAdapter(new GuessedKde3DesktopAdapter());
+        registerAdapter(new GuessedKde4DesktopAdapter());
         registerAdapter(new GuessedGnomeDesktopAdapter());
-        registerAdapter(new ConfiguredKdeDesktopAdapter());
+        registerAdapter(new ConfiguredKde3DesktopAdapter());
+        registerAdapter(new ConfiguredKde4DesktopAdapter());
         registerAdapter(new ConfiguredGnomeDesktopAdapter());
 
         // Known OS adapters.
+        registerAdapter(new OpenVMSDesktopAdapter());
         registerAdapter(new OSXDesktopAdapter());
         registerAdapter(new Win9xDesktopAdapter());
         registerAdapter(new WinNtDesktopAdapter());
@@ -198,7 +204,7 @@ public class DesktopManager {
             current = (DesktopAdapter)desktops.elementAt(i);
             if(current.isAvailable()) {
                 desktop = current;
-                if(Debug.ON) Debug.trace("Using desktop: " + desktop);
+                AppLogger.fine("Using desktop: " + desktop);
                 desktop.init(install);
                 return;
             }
@@ -459,27 +465,96 @@ public class DesktopManager {
     public static void setTrashProvider(TrashProvider provider) {trashProvider = provider;}
 
 
-
-
-    // - Misc. -----------------------------------------------------------
+    // - Mouse management ------------------------------------------------
     // -------------------------------------------------------------------
-    public static String getDefaultShell() {
-        checkInit();
-        return desktop.getDefaultShell();
-    }
-
+    /**
+     * Checks whether the specified <code>MouseEvent</code> is a left-click for this destop.
+     * <p>
+     * There are some cases where Java doesn't detect mouse events properly - for example,
+     * <i>CONTROL + LEFT CLICK</i> is a <i>RIGHT CLICK</i> under Mac OS X.<br>
+     * The goal of this method is to allow desktop to check for such non-standard behaviours.
+     * </p>
+     * @param  e event to check.
+     * @return   <code>true</code> if the specified event is a left-click for this desktop, <code>false</code> otherwise.
+     * @see      #isRightMouseButton(MouseEvent)
+     * @see      #isMiddleMouseButton(MouseEvent)
+     */
     public static boolean isLeftMouseButton(MouseEvent e) {
         checkInit();
         return desktop.isLeftMouseButton(e);
     }
 
+    /**
+     * Checks whether the specified <code>MouseEvent</code> is a left-click for this destop.
+     * <p>
+     * There are some cases where Java doesn't detect mouse events properly - for example,
+     * <i>CONTROL + LEFT CLICK</i> is a <i>RIGHT CLICK</i> under Mac OS X.<br>
+     * The goal of this method is to allow desktop to check for such non-standard behaviours.
+     * </p>
+     * @param  e event to check.
+     * @return   <code>true</code> if the specified event is a left-click for this desktop, <code>false</code> otherwise.
+     * @see      #isMiddleMouseButton(MouseEvent)
+     * @see      #isLeftMouseButton(MouseEvent)
+     */
     public static boolean isRightMouseButton(MouseEvent e) {
         checkInit();
         return desktop.isRightMouseButton(e);
     }
 
+    /**
+     * Checks whether the specified <code>MouseEvent</code> is a left-click for this destop.
+     * <p>
+     * There are some cases where Java doesn't detect mouse events properly - for example,
+     * <i>CONTROL + LEFT CLICK</i> is a <i>RIGHT CLICK</i> under Mac OS X.<br>
+     * The goal of this method is to allow desktop to check for such non-standard behaviours.
+     * </p>
+     * @param  e event to check.
+     * @return   <code>true</code> if the specified event is a left-click for this desktop, <code>false</code> otherwise.
+     * @see      #isRightMouseButton(MouseEvent)
+     * @see      #isLeftMouseButton(MouseEvent)
+     */
     public static boolean isMiddleMouseButton(MouseEvent e) {
         checkInit();
         return desktop.isMiddleMouseButton(e);
+    }
+
+    /**
+     * Returns the maximum interval in milliseconds between mouse clicks for them to be considered as 'multi-clicks'
+     * (e.g. double-clicks). The returned value should reflects the desktop's multi-click (or double-click) interval,
+     * which may or may not correspond to the one Java uses for double-clicks.
+     * @return the maximum interval in milliseconds between mouse clicks for them to be considered as 'multi-clicks'.
+     */
+    public static int getMultiClickInterval() {
+        checkInit();
+        return desktop.getMultiClickInterval();
+    }
+
+
+    // - Misc. -----------------------------------------------------------
+    // -------------------------------------------------------------------
+    /**
+     * Returns the command used to start shell processes.
+     * <p>
+     * The returned command must set the shell in its 'run script' mode.
+     * For example, for bash, the returned command should be <code>/bin/bash -l -c"</code>.
+     * </p>
+     * @return the command used to start shell processes.
+     */
+    public static String getDefaultShell() {
+        checkInit();
+        return desktop.getDefaultShell();
+    }
+
+    /**
+     * Returns <code>true</code> if the given file is an application file. What an application file actually is
+     * is system-dependent and can take various forms.
+     * It can be a simple executable file, as in the case of Windows <code>.exe</code> files, or a directory
+     * containing an executable and various meta-information files, like Mac OS X's <code>.app</code> files.
+     *
+     * @param file the file to test
+     * @return <code>true</code> if the given file is an application file
+     */
+    public static boolean isApplication(AbstractFile file) {
+        return desktop.isApplication(file);
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@ import com.mucommander.file.util.FileSet;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.ArchiveJob;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.PackAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.layout.YBoxPanel;
@@ -72,7 +73,7 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
 
 
     public PackDialog(MainFrame mainFrame, FileSet files, boolean isShiftDown) {
-        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.PackAction.class), files);
+        super(mainFrame, ActionProperties.getActionLabel(PackAction.Descriptor.ACTION_ID), files);
 
         // Retrieve available formats for single file or many file archives
         int nbFiles = files.size();
@@ -104,7 +105,7 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
         // - if it contains more than one file, uses the FileSet's parent folder's name.
         if(files.size() == 1)
             fileName = files.fileAt(0).getNameWithoutExtension();
-        else if(files.getBaseFolder().getParentSilently() != null)
+        else if(files.getBaseFolder().getParent() != null)
             fileName = files.getBaseFolder().getName();
         else
             fileName = "";
@@ -164,8 +165,6 @@ public class PackDialog extends JobDialog implements ActionListener, ItemListene
         // Packs dialog
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
         setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
-	
-        showDialog();
     }
 	
 	

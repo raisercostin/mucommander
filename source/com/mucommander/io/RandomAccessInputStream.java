@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 
 package com.mucommander.io;
+
+import com.mucommander.commons.CommonsLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +44,7 @@ import java.io.InputStream;
 public abstract class RandomAccessInputStream extends InputStream implements RandomAccess {
 
     /** The last offset set by {@link #mark(int)} */
-    private int markOffset;
+    private long markOffset;
 
 
     /**
@@ -141,7 +143,11 @@ public abstract class RandomAccessInputStream extends InputStream implements Ran
      * @param readLimit this parameter has no effect and is simply ignored
      */
     public synchronized void mark(int readLimit) {
-        this.markOffset = readLimit;
+        try {
+			this.markOffset = getOffset();
+		} catch (IOException e) {
+			CommonsLogger.fine("Caught exception", e);
+		}
     }
 
     /**

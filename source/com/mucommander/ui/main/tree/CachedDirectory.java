@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.ui.main.tree;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.impl.ProxyFile;
 import com.mucommander.ui.icon.CustomFileIconProvider;
@@ -26,9 +27,6 @@ import com.mucommander.ui.icon.FileIcons;
 import com.mucommander.ui.icon.IconManager;
 
 import javax.swing.*;
-
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 
 /**
@@ -39,6 +37,8 @@ import java.util.Arrays;
  */
 public class CachedDirectory extends ProxyFile {
     
+    private static final ImageIcon NOT_ACCESSIBLE_ICON = IconManager.getIcon(IconManager.FILE_ICON_SET, CustomFileIconProvider.NOT_ACCESSIBLE_FILE);
+
     /** an array of cached children */
     private AbstractFile[] cachedChildren = null;
     
@@ -77,14 +77,13 @@ public class CachedDirectory extends ProxyFile {
         }
         // check if directory contents changed
         if (lsTimeStamp != file.getDate()) {
-            // start new caching thread
             setReadingChildren(true);
-            Thread lsThread = new Thread("CachedDirectory.lsAsync") {
+            // read children in caching thread
+            TreeIOThreadManager.getInstance().addTask(new Runnable() {
                 public void run() {
                     lsAsync();
                 }
-            };
-            lsThread.start();
+            });
             return false;
         }
         return true;
@@ -95,7 +94,7 @@ public class CachedDirectory extends ProxyFile {
      * method is executed in caching thread.
      */
     private void lsAsync() {
-        if (getCachedIcon() == null) {
+        if (getCachedIcon() == null || getCachedIcon() == NOT_ACCESSIBLE_ICON) {
             setCachedIcon(FileIcons.getFileIcon(getProxiedFile()));
         }
 
@@ -103,9 +102,9 @@ public class CachedDirectory extends ProxyFile {
         try {
             children = file.ls(cache.getFilter());
         } catch (Exception e) {
-            e.printStackTrace();
+            AppLogger.fine("Caught exception", e);
             children = new AbstractFile[0];
-            cachedIcon = IconManager.getIcon(IconManager.FILE_ICON_SET, CustomFileIconProvider.NOT_ACCESSIBLE_FILE);
+            setCachedIcon(NOT_ACCESSIBLE_ICON);
         }
 
         Arrays.sort(children, cache.getSort());
@@ -131,10 +130,8 @@ public class CachedDirectory extends ProxyFile {
                     setLsCache(children2, file.getDate());
                 }
             });
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            AppLogger.fine("Caught exception", e);
         }
     }
 

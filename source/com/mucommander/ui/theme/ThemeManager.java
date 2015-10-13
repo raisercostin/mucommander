@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.theme;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.PlatformManager;
 import com.mucommander.RuntimeConstants;
 import com.mucommander.conf.impl.MuConfiguration;
@@ -46,12 +46,18 @@ public class ThemeManager {
     /** Path to the user defined theme file. */
     private static       AbstractFile userThemeFile;
     /** Default user defined theme file name. */
-    private static final String       USER_THEME_FILE_NAME = "user_theme.xml";
+    private static final String       USER_THEME_FILE_NAME   = "user_theme.xml";
     /** Path to the custom themes repository. */
-    private static final String       CUSTOM_THEME_FOLDER  = "themes";
+    private static final String       CUSTOM_THEME_FOLDER    = "themes";
     /** List of all registered theme change listeners. */
-    private static final WeakHashMap  listeners            = new WeakHashMap();
-
+    private static final WeakHashMap  listeners              = new WeakHashMap();
+ /** List of all predefined theme names. */
+    private static final String[]     PREDEFINED_THEME_NAMES = {
+        "ClassicCommander",
+        "Native",
+        "RetroCommander",
+        "Striped"
+    };
 
 
     // - Instance variables --------------------------------------------------------------
@@ -98,7 +104,7 @@ public class ThemeManager {
         if(type != Theme.USER_THEME) {
             wasUserThemeLoaded = false;
             name               = MuConfiguration.getVariable(MuConfiguration.THEME_NAME, MuConfiguration.DEFAULT_THEME_NAME);
-	}
+        }
         else {
             name               = null;
             wasUserThemeLoaded = true;
@@ -136,7 +142,16 @@ public class ThemeManager {
     // - Themes access -------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     private static Iterator predefinedThemeNames() {
-        return getThemeNames(ResourceLoader.getResourceAsFile(RuntimeConstants.THEMES_PATH));
+        // The list of predefined themes is no longer dynamically created as this causes Webstart to retrieve and
+        // explore the application's JAR via HTTP, which is inefficient and prevents the application from being
+        // launched offline.
+
+//        try {
+//            return getThemeNames(ResourceLoader.getRootPackageAsFile(ThemeManager.class).getChild(PathUtils.removeLeadingSeparator(RuntimeConstants.THEMES_PATH, "/")));
+//        }
+//        catch(IOException e) {return Collections.emptyList().iterator();}
+
+        return Arrays.asList(PREDEFINED_THEME_NAMES).iterator();
     }
 
     private static Iterator customThemeNames() throws IOException {
@@ -154,9 +169,7 @@ public class ThemeManager {
                 names.add(getThemeName(files[i]));
             return names.iterator();
         }
-        catch(Exception e) {
-            return new Vector().iterator();
-        }
+        catch(Exception e) {return new Vector().iterator();}
     }
 
     public static Vector getAvailableThemes() {
@@ -175,7 +188,9 @@ public class ThemeManager {
         while(iterator.hasNext()) {
             name = (String)iterator.next();
             try {themes.add(readTheme(Theme.PREDEFINED_THEME, name));}
-            catch(Exception e) {if(Debug.ON) Debug.trace("Failed to load predefined theme " + name + ": " + e);}
+            catch(Exception e) {
+                AppLogger.warning("Failed to load predefined theme " + name, e);
+            }
         }
 
         // Loads custom themes.
@@ -184,10 +199,14 @@ public class ThemeManager {
             while(iterator.hasNext()) {
                 name = (String)iterator.next();
                 try {themes.add(readTheme(Theme.CUSTOM_THEME, name));}
-                catch(Exception e) {if(Debug.ON) Debug.trace("Failed to load custom theme " + name + ": " + e);}
+                catch(Exception e) {
+                    AppLogger.warning("Failed to load custom theme " + name, e);
+                }
             }
         }
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to load custom themes: " + e);}
+        catch(Exception e) {
+            AppLogger.warning("Failed to load custom themes", e);
+        }
 
         // Sorts the themes by name.
         Collections.sort(themes, new Comparator() {
@@ -217,7 +236,9 @@ public class ThemeManager {
             while(iterator.hasNext())
                 themes.add(iterator.next());
         }
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to load custom theme names: " + e);}
+        catch(Exception e) {
+            AppLogger.fine("Failed to load custom theme names", e);
+        }
 
         // Sorts the theme names.
         Collections.sort(themes);
@@ -864,7 +885,9 @@ public class ThemeManager {
 
         // Saves the current theme if necessary.
         try {saveCurrentTheme();}
-        catch(IOException e) {if(Debug.ON) Debug.trace("Couldn't save current theme: " + e);}
+        catch(IOException e) {
+            AppLogger.warning("Couldn't save current theme", e);
+        }
 
         // Updates muCommander's configuration.
         oldTheme = currentTheme;

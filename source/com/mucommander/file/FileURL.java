@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@ package com.mucommander.file;
 import com.mucommander.auth.AuthenticationTypes;
 import com.mucommander.auth.Credentials;
 import com.mucommander.file.compat.CompatURLStreamHandler;
+import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.util.StringUtils;
 
 import java.net.MalformedURLException;
@@ -38,7 +40,7 @@ import java.util.NoSuchElementException;
  *
  * <h3>Instanciation</h3>
  * <p>
- * FileURL cannot be instanciated directly, instances can be created using {@link #FileURL#getFileURL(String)}.
+ * FileURL cannot be instantiated directly, instances can be created using {@link #FileURL#getFileURL(String)}.
  * Unlike the <code>java.net.URL</code> and <code>java.net.URI</code> classes, FileURL instances are mutable --
  * all URL parts can be freely modified. FileURL instances can also be cloned using the standard {@link #clone()} method.
  * </p>
@@ -111,8 +113,6 @@ public class FileURL implements Cloneable {
 
     /** Scheme part */
     private String scheme;
-    /** Credentials (login and password parts), null if this URL has none */
-    private Credentials credentials;
     /** Port part, -1 if this URL has none */
     private int port = -1;
     /** Host part, null if this URL has none */
@@ -126,6 +126,11 @@ public class FileURL implements Cloneable {
 
     /** Properties, null if none have been set thus far */
     private Hashtable properties;
+    /** Credentials (login and password parts), null if this URL has none */
+    private Credentials credentials;
+
+    /** Caches the value returned by #hashCode() for as long as this instance is not modified */
+    private int hashCode;
 
     /** Default handler for schemes that do not have a specific handler */
     private final static SchemeHandler DEFAULT_HANDLER = new DefaultSchemeHandler();
@@ -136,22 +141,18 @@ public class FileURL implements Cloneable {
     /** String designating the localhost */
     public final static String LOCALHOST = "localhost";
 
-    /** Charset used to encode and decode special characters in URL */
-    private final static String URL_CHARSET = "UTF-8";
 
     static {
         // Register custom handlers for known schemes
 
-        String fileSeparator = System.getProperty("file.separator");
-        registerHandler(FileProtocols.FILE, new DefaultSchemeHandler(new DefaultSchemeParser(fileSeparator, false, System.getProperty("user.home")), -1, fileSeparator, AuthenticationTypes.NO_AUTHENTICATION, null));
-
+        registerHandler(FileProtocols.FILE, new DefaultSchemeHandler(new DefaultSchemeParser(new DefaultPathCanonizer(LocalFile.SEPARATOR, System.getProperty("user.home")), false), -1, System.getProperty("file.separator"), AuthenticationTypes.NO_AUTHENTICATION, null));
         registerHandler(FileProtocols.FTP, new DefaultSchemeHandler(new DefaultSchemeParser(), 21, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, new Credentials("anonymous", "someuser@mucommander.com")));
         registerHandler(FileProtocols.SFTP, new DefaultSchemeHandler(new DefaultSchemeParser(), 22, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
-        registerHandler(FileProtocols.HTTP, new DefaultSchemeHandler(new DefaultSchemeParser("/", true, null), 80, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
-        registerHandler(FileProtocols.S3, new DefaultSchemeHandler(new DefaultSchemeParser("/", true, null), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
-        registerHandler(FileProtocols.WEBDAV, new DefaultSchemeHandler(new DefaultSchemeParser("/", true, null), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
-        registerHandler(FileProtocols.HTTPS, new DefaultSchemeHandler(new DefaultSchemeParser("/", true, null), 443, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
-        registerHandler(FileProtocols.WEBDAVS, new DefaultSchemeHandler(new DefaultSchemeParser("/", true, null), 443, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
+        registerHandler(FileProtocols.HTTP, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
+        registerHandler(FileProtocols.S3, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
+        registerHandler(FileProtocols.WEBDAV, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
+        registerHandler(FileProtocols.HTTPS, new DefaultSchemeHandler(new DefaultSchemeParser(true), 443, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
+        registerHandler(FileProtocols.WEBDAVS, new DefaultSchemeHandler(new DefaultSchemeParser(true), 443, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
         registerHandler(FileProtocols.NFS, new DefaultSchemeHandler(new DefaultSchemeParser(), 2049, "/", AuthenticationTypes.NO_AUTHENTICATION, null));
 
         registerHandler(FileProtocols.SMB, new DefaultSchemeHandler(new DefaultSchemeParser(), -1, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, new Credentials("GUEST", "")) {
@@ -186,6 +187,12 @@ public class FileURL implements Cloneable {
         this.handler = handler;
     }
 
+    /**
+     * This method is called whenever this instance is modified to invalidate caches.
+     */
+    private void urlModified() {
+        hashCode = 0;
+    }
 
     /**
      * Creates and returns a new FileURL instance from the given location, throws a <code>MalformedURLException</code>
@@ -312,15 +319,22 @@ public class FileURL implements Cloneable {
      * @param separator the path separator
      * @return the filename extracted from the given path, <code>null</code> if the path doesn't contain any
      */
-    private static String getFilenameFromPath(String path, String separator) {
+    public static String getFilenameFromPath(String path, String separator) {
         if(path.equals("") || path.equals("/"))
             return null;
 
         // Remove any trailing separator
-        String filename = path.endsWith(separator)?path.substring(0, path.length()-separator.length()):path;
+        path = PathUtils.removeTrailingSeparator(path, separator);
+
+        if(!separator.equals("/"))
+            path = PathUtils.removeLeadingSeparator(path, "/");
 
         // Extract filename
-        return filename.substring(filename.lastIndexOf(separator)+1);
+        int pos = path.lastIndexOf(separator);
+        if(pos==-1)
+            return null;
+
+        return path.substring(pos+1);
     }
 
 
@@ -352,6 +366,8 @@ public class FileURL implements Cloneable {
             throw new IllegalArgumentException();
 
         this.scheme = scheme;
+
+        urlModified();
     }
 
     /**
@@ -372,6 +388,8 @@ public class FileURL implements Cloneable {
      */
     public void setHost(String host) {
         this.host = host;
+
+        urlModified();
     }
 
     /**
@@ -394,6 +412,8 @@ public class FileURL implements Cloneable {
      */
     public void setPort(int port) {
         this.port = port;
+
+        urlModified();
     }
 
     /**
@@ -486,6 +506,8 @@ public class FileURL implements Cloneable {
             this.credentials = null;
         else
             this.credentials = credentials;
+
+        urlModified();
     }
 
     /**
@@ -535,6 +557,8 @@ public class FileURL implements Cloneable {
         this.path = path;
         // Extract new filename from path
         this.filename = getFilenameFromPath(path, getPathSeparator());
+
+        urlModified();
     }
 
     /**
@@ -599,6 +623,7 @@ public class FileURL implements Cloneable {
     /**
      * Returns the authentication realm corresponding to this URL, i.e. the base location throughout which credentials
      * can be used. Any property contained by the specified FileURL will be carried over in the returned FileURL.
+     * On the contrary, credentials will not be copied, the returned URL always has no credentials.
      *
      * <p>Note: this method returns a new FileURL instance everytime it is called. Therefore the returned FileURL can
      * safely be modified without any risk of side effects.</p>
@@ -645,6 +670,8 @@ public class FileURL implements Cloneable {
      */
     public void setQuery(String query) {
         this.query = query;
+
+        urlModified();
     }
 
 	
@@ -676,6 +703,8 @@ public class FileURL implements Cloneable {
             properties.remove(name);
         else
             properties.put(name, value);
+
+        urlModified();
     }
 
 
@@ -731,35 +760,49 @@ public class FileURL implements Cloneable {
      * @return a string representation of this <code>FileURL</code>
      */
     public String toString(boolean includeCredentials, boolean maskPassword) {
-        String s = scheme + "://";
+        StringBuffer sb = new StringBuffer(scheme);
+        sb.append("://");
 
         if(includeCredentials && credentials!=null) {
-            s += credentials.getLogin();
+            sb.append(credentials.getLogin());
             String password = credentials.getPassword();
             if(!"".equals(password)) {
-                s += ":";
+                sb.append(':');
                 if(maskPassword)
-                    s += credentials.getMaskedPassword();
+                    sb.append(credentials.getMaskedPassword());
                 else
-                    s += password;
+                    sb.append(password);
             }
-            s += "@";
+            sb.append('@');
         }
 
         if(host!=null)
-            s += host;
+            sb.append(host);
 
         // Set the port only if it has a value that is different from the standard port
-        if(port!=-1 && port!=handler.getStandardPort())
-            s += ":"+port;
+        if(port!=-1 && port!=handler.getStandardPort()) {
+            sb.append(':');
+            sb.append(port);
+        }
 
-        if(host!=null || !path.equals("/"))	// Test to avoid URLs like 'smb:///'
-            s += path.startsWith("/")?path:"/"+path;    // Add a leading '/' if path doesn't already start with one, needed in particular for Windows paths
+        if(host!=null || !path.equals("/"))	{ // Test to avoid URLs like 'smb:///'
+            if(path.startsWith("/")) {
+                sb.append(path);
+            }
+            else {
+                // Add a leading '/' if path doesn't already start with one, needed for scheme paths that are not
+                // forward slash-separated
+                sb.append('/');
+                sb.append(path);
+            }
+        }
 
-        if(query!=null)
-            s += query;
+        if(query!=null) {
+            sb.append('?');
+            sb.append(query);
+        }
 
-        return s;
+        return sb.toString();
     }
 
     /**
@@ -836,8 +879,14 @@ public class FileURL implements Cloneable {
 
     /**
      * Returns <code>true</code> if the path of this URL and the given URL are equal. The comparison is case-sensitive.
-     * If the sole difference between two paths is a trailing path separator, they will be considered as equal.
-     * For example, <code>/path</code> and <code>/path/</code> are considered equal (assuming the path separator is '/').
+     * If the sole difference between two paths is a trailing path separator (and both URLs have the same path separator),
+     * they will be considered as equal.
+     * For example, <code>/path</code> and <code>/path/</code> are considered equal, assuming the path separator is '/'.
+     *
+     * <p>It is noteworthy that this method uses <code>java.lang.String#equals(Object)</code> to compare URL paths,
+     * which in some rare cases may return <code>false</code> for non-ascii/Unicode paths that have the same written
+     * representation but are not equal according to <code>java.lang.String#equals(Object)</code>. Handling such cases
+     * would require a locale-aware String comparison which is not an option here.</p>
      *
      * @param url the URL to test for path equality
      * @return <code>true</code> if the path of this URL and the given URL are equal
@@ -845,19 +894,25 @@ public class FileURL implements Cloneable {
     public boolean pathEquals(FileURL url) {
         String path1 = this.getPath();
         String path2 = url.getPath();
-        int len1 = path1.length();
-        int len2 = path2.length();
-        String separator = getPathSeparator();
-        int separatorLen = separator.length();
 
-        // If the difference between the 2 strings is just a trailing path separator, we consider the paths as equal
-        if(Math.abs(len1-len2)==separatorLen && (len1>len2 ? path1.startsWith(path2) : path2.startsWith(path1))) {
-            String diff = len1>len2 ? path1.substring(len1-separatorLen) : path2.substring(len2-separatorLen);
-            return separator.equals(diff);
+        if(path1.equals(path2))
+            return true;
+
+        String separator = getPathSeparator();
+
+        if(separator.equals(url.getPathSeparator())) {
+            int separatorLen = separator.length();
+            int len1 = path1.length();
+            int len2 = path2.length();
+
+            // If the difference between the 2 strings is just a trailing path separator, we consider the paths as equal
+            if(Math.abs(len1-len2)==separatorLen && (len1>len2 ? path1.startsWith(path2) : path2.startsWith(path1))) {
+                String diff = len1>len2 ? path1.substring(len1-separatorLen) : path2.substring(len2-separatorLen);
+                return separator.equals(diff);
+            }
         }
-        else {
-            return path1.equals(path2);
-        }
+
+        return false;
     }
 
     /**
@@ -935,18 +990,21 @@ public class FileURL implements Cloneable {
         if(properties!=null)    // Copy properties (if any)
             clonedURL.properties = new Hashtable(properties);
 
+        // Caches
+        clonedURL.hashCode = hashCode;
+
         return clonedURL;
     }
 
     /**
      * This method is equivalent to calling {@link #equals(Object, boolean, boolean)} with credentials and properties
-     * comparisons disabled.
+     * comparisons enabled.
      *
      * @param o object to compare against this FileURL instance.
      * @return true if both FileURL instances are equal.
      */
     public boolean equals(Object o) {
-        return equals(o, false, false);
+        return equals(o, true, true);
     }
 
     /**
@@ -975,7 +1033,6 @@ public class FileURL implements Cloneable {
      * @param o object to compare against this FileURL instance
      * @param compareCredentials if <code>true</code>, the login and password parts of both FileURL need to be
      * equal (case-sensitive) for the FileURL instances to be equal
-     * the FileURL instances to be equal
      * @param compareProperties if <code>true</code>, all properties need to be equal (case-sensitive) in both
      * FileURL for them to be equal
      * @return true if both FileURL instances are equal
@@ -986,12 +1043,45 @@ public class FileURL implements Cloneable {
 
         FileURL url = (FileURL)o;
 
-        return schemeEquals(url)
+        return pathEquals(url)      // Compare the path first as it is the most likely to be different
+            && schemeEquals(url)
             && hostEquals(url)
             && portEquals(url)
             && queryEquals(url)
-            && pathEquals(url)
             && (!compareCredentials || credentialsEquals(url))
             && (!compareProperties || propertiesEquals(url));
+    }
+
+    /**
+     * This method is overridden to return a hash code that takes into account the behavior of {@link FileURL#equals(Object)},
+     * so that <code>url1.equals(url2)</code> implies <code>url1.hashCode()==url2.hashCode()</code>.
+     */
+    public int hashCode() {
+        if(hashCode==0) {
+            String separator = handler.getPathSeparator();
+
+            // #equals(Object) is trailing separator insensitive, so the hashCode must be trailing separator invariant
+            int h = PathUtils.getPathHashCode(path, separator);
+
+            h = 31* h + scheme.toLowerCase().hashCode();
+            h = 31* h + (port==-1?handler.getStandardPort():port);
+
+            if(host!=null)
+                h = 31* h + host.toLowerCase().hashCode();
+
+            if(query!=null)
+                h = 31* h + query.hashCode();
+
+            if(credentials!=null)
+                h = 31* h + credentials.hashCode();
+
+            if(properties!=null)
+                h = 31* h + properties.hashCode();
+
+            // Cache the value until for as long as this instance is not modified
+            hashCode = h;
+        }
+
+        return hashCode;
     }
 }

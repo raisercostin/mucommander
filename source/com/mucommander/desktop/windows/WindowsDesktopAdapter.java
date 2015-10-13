@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ package com.mucommander.desktop.windows;
 import com.mucommander.desktop.DefaultDesktopAdapter;
 import com.mucommander.desktop.DesktopInitialisationException;
 import com.mucommander.desktop.DesktopManager;
-import com.mucommander.file.util.Shell32;
+import com.mucommander.file.AbstractFile;
 import com.mucommander.runtime.OsFamily;
 
 /**
@@ -35,9 +35,26 @@ class WindowsDesktopAdapter extends DefaultDesktopAdapter {
     public void init(boolean install) throws DesktopInitialisationException {
         // The Windows trash requires access to the Shell32 DLL, register the provider only if the Shell32 DLL
         // is available on the current runtime environment.
-        if(Shell32.isAvailable())
+        if(WindowsTrashProvider.isAvailable())
             DesktopManager.setTrashProvider(new WindowsTrashProvider());
     }
 
-    public boolean isAvailable() {return OsFamily.getCurrent().equals(OsFamily.WINDOWS);}
+    public boolean isAvailable() {
+        return OsFamily.getCurrent().equals(OsFamily.WINDOWS);
+    }
+
+    /**
+     * Returns <code>true</code> for regular files (not directories) with an <code>exe</code> extension
+     * (case-insensitive comparison).
+     *
+     * @param file the file to test
+     * @return <code>true</code> for regular files (not directories) with an <code>exe</code> extension
+     * (case-insensitive comparison).
+     */
+    public boolean isApplication(AbstractFile file) {
+        String extension = file.getExtension();
+
+        // the isDirectory() test comes last as it is I/O bound
+        return extension!=null && extension.equalsIgnoreCase("exe") && !file.isDirectory();
+    }
 }

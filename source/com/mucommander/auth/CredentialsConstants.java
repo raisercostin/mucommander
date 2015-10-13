@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,9 +28,6 @@ interface CredentialsConstants {
     /** Root element */
     static final String ELEMENT_ROOT     = "credentials_list";
 
-    /** Element containing the last muCommander version that was used to create the file */
-    static final String ELEMENT_VERSION  = "version";
-
     /** Element for each credential item, containg a URL, login and password */
     static final String ELEMENT_CREDENTIALS = "credentials";
 
@@ -51,6 +48,9 @@ interface CredentialsConstants {
 
     /** Value attribute of the property element */
     static final String ATTRIBUTE_VALUE = "value";
+
+    /** Name of the root element's attribute containing the muCommander version that was used to create the credentials file */
+    static final String ATTRIBUTE_VERSION = "version";
 
     /** Root element's attribute containing the encryption method used for passwords */
     static final String ATTRIBUTE_ENCRYPTION = "encryption";

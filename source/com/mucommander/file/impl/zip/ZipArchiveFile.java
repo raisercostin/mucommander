@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,12 @@ import com.mucommander.file.impl.zip.provider.ZipEntry;
 import com.mucommander.file.impl.zip.provider.ZipFile;
 import com.mucommander.io.FilteredOutputStream;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Enumeration;
-import java.util.Vector;
+import java.util.Iterator;
+import java.util.zip.ZipInputStream;
 
 
 /**
@@ -119,13 +120,14 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
     }
 
     /**
-     * Creates and return an {@link ArchiveEntry()} whose attributes are fetched from the given {@link com.mucommander.file.impl.zip.provider.ZipEntry}
+     * Creates and return an {@link ArchiveEntry()} whose attributes are fetched from the given {@link com.mucommander.file.impl.zip.provider.ZipEntry}.
+     * It is worth noting that the returned entry has the {@link ArchiveEntry#exists exists} flag set to <code>true</code>.
      *
      * @param zipEntry the object that serves to initialize the attributes of the returned ArchiveEntry
      * @return an ArchiveEntry whose attributes are fetched from the given ZipEntry
      */
-    private ArchiveEntry createArchiveEntry(ZipEntry zipEntry) {
-        ArchiveEntry entry = new ArchiveEntry(zipEntry.getName(), zipEntry.isDirectory(), zipEntry.getTime(), zipEntry.getSize());
+    static ArchiveEntry createArchiveEntry(ZipEntry zipEntry) {
+        ArchiveEntry entry = new ArchiveEntry(zipEntry.getName(), zipEntry.isDirectory(), zipEntry.getTime(), zipEntry.getSize(), true);
 
         if(zipEntry.hasUnixMode())
             entry.setPermissions(new SimpleFilePermissions(zipEntry.getUnixMode()));
@@ -154,51 +156,38 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
     //////////////////////////////////////////
     // AbstractROArchiveFile implementation //
     //////////////////////////////////////////
-	
-    public synchronized Vector getEntries() throws IOException {
-        Vector entries = new Vector();
 
+    public synchronized ArchiveEntryIterator getEntryIterator() throws IOException {
         // If the underlying AbstractFile has random read access, use our own ZipFile implementation to read entries
         if (file.hasRandomAccessInputStream()) {
             checkZipFile();
 
-            Enumeration entriesEnum = zipFile.getEntries();
-            while(entriesEnum.hasMoreElements())
-                entries.add(createArchiveEntry((ZipEntry)entriesEnum.nextElement()));
+            final Iterator iterator = zipFile.getEntries();
+
+            return new ArchiveEntryIterator() {
+                public ArchiveEntry nextEntry() throws IOException {
+                    ZipEntry entry;
+
+                    if(!iterator.hasNext() || (entry = (ZipEntry)iterator.next())==null)
+                        return null;
+
+                    return createArchiveEntry(entry);
+                }
+
+                public void close() throws IOException {
+                }
+            };
         }
-        // If the underlying AbstractFile doesn't have random read access, use java.util.InputStream to
-        // read the entries. This is much slower than the former method as the file cannot be seeked and needs
+        // If the underlying AbstractFile doesn't have random read access, use java.util.zip.ZipInputStream to
+        // read the entries. This is much slower than the former method as the file cannot be sought through and needs
         // to be traversed.
         else {
-            java.util.zip.ZipInputStream zin = null;
-            try {
-                zin = new java.util.zip.ZipInputStream(file.getInputStream());
-                java.util.zip.ZipEntry zipEntry;
-                while ((zipEntry=zin.getNextEntry())!=null)
-                    entries.add(createArchiveEntry(new ZipEntry(zipEntry)));
-            }
-            catch(Exception e) {
-                // java.util.zip.ZipInputStream can throw an IllegalArgumentException when the filename/comment encoding
-                // is not UTF-8 as expected (ZipInputStream always expects UTF-8). The more general Exception is caught
-                // (just to be safe) and an IOException thrown.
-                throw new IOException();
-            }
-            catch(Error e) {
-                // ZipInpustStream#getNextEntry() will throw a java.lang.InternalError ("invalid compression method")
-                // if the compression method is different from DEFLATED or STORED (happens with IMPLODED for example).
-                throw new IOException();
-            }
-            finally {
-                if(zin!=null)
-                    zin.close();
-            }
+            return new JavaUtilZipEntryIterator(new ZipInputStream(file.getInputStream()));
         }
-
-        return entries;
     }
 
 
-    public synchronized InputStream getEntryInputStream(ArchiveEntry entry) throws IOException {
+    public synchronized InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
         // If the underlying AbstractFile has random read access, use our own ZipFile implementation to read the entry
         if (file.hasRandomAccessInputStream()) {
             checkZipFile();
@@ -213,6 +202,25 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
         // read the entry. This is much slower than the former method as the file cannot be seeked and needs
         // to be traversed to locate the entry we're interested in.
         else {
+            // Optimization: first check if the specified iterator is positionned at the beginning of the entry.
+            // This will typically be the case if an iterator is being used to read all the archive's entries
+            // (unpack operation). In that case, we save the cost of looking for the entry in the archive.
+            if(entryIterator!=null && (entryIterator instanceof JavaUtilZipEntryIterator)) {
+                ArchiveEntry currentEntry = ((JavaUtilZipEntryIterator)entryIterator).getCurrentEntry();
+                if(currentEntry.getPath().equals(entry.getPath())) {
+                    // The entry/zip stream is wrapped in a FilterInputStream where #close is implemented as a no-op:
+                    // we don't want the ZipInputStream to be closed when the caller closes the entry's stream.
+                    return new FilterInputStream(((JavaUtilZipEntryIterator)entryIterator).getZipInputStream()) {
+                        public void close() throws IOException {
+                            // No-op
+                        }
+                    };
+                }
+
+                // This is not the one, look for the entry from the beginning of the archive
+            }
+
+            // Iterate through the archive until we've found the entry
             java.util.zip.ZipInputStream zin = new java.util.zip.ZipInputStream(file.getInputStream());
             java.util.zip.ZipEntry zipEntry;
             String entryPath = entry.getPath();
@@ -220,7 +228,8 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
             while ((zipEntry=zin.getNextEntry())!=null)
                 if (zipEntry.getName().equals(entryPath)) // That's the one, return it
                     return zin;
-            return null;
+
+            throw new IOException("Unknown Zip entry: "+entry.getName());
         }
     }
 
@@ -334,7 +343,7 @@ public class ZipArchiveFile extends AbstractRWArchiveFile {
      *
      * @return true only if the proxied archive file has random read and write access
      */
-    public boolean isWritableArchive() {
+    public boolean isWritable() {
         return file.hasRandomAccessInputStream() && file.hasRandomAccessOutputStream();
     }
 

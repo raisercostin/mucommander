@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +25,10 @@ package com.mucommander.file;
  * <p>
  * <code>AbstractROArchiveFile</code> implementations only have to provide two methods:
  * <ul>
- *  <li>{@link #getEntries()} to list the entries contained by the archive in a flat, non hierarchical way
- *  <li>{@link #getEntryInputStream(ArchiveEntry)} to retrieve a particular entry's content.
+ *  <li>{@link #getEntryIterator()} to list the entries contained by the archive in a flat, non hierarchical way
+ *  <li>{@link AbstractArchiveFile#getEntryInputStream(ArchiveEntry, ArchiveEntryIterator)} to retrieve a particular entry's content.
  * </ul>
- * The {@link #isWritableArchive()} method is implemented to always returns <code>false</code>.
+ * The {@link #isWritable()} method is implemented to always returns <code>false</code>.
  * </p>
  *
  * @author Maxence Bernard
@@ -55,7 +55,7 @@ public abstract class AbstractROArchiveFile extends AbstractArchiveFile {
      *
      * @return false
      */
-    public final boolean isWritableArchive() {
+    public final boolean isWritable() {
         return false;
     }
 }

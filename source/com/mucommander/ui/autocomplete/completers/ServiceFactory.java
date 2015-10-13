@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ public class ServiceFactory {
 		return new FilteredFilesService(new AttributeFileFilter(AttributeFileFilter.BROWSABLE));
 	}
 	
-	public static CompletionService getRootFoldersService() {
-		return new RootFoldersService();
+	public static CompletionService getVolumesService() {
+		return new VolumesService();
 	}
 	
 	public static CompletionService getBookmarksService() {

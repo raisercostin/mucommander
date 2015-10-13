@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.test;
 
-import com.mucommander.Debug;
+import com.mucommander.commons.CommonsLogger;
 
 /**
  * <code>SingleConditionalTestSuite</code> is a <code>ConditionalTestSuite</code> that operates on a single test case.
@@ -34,7 +34,7 @@ public abstract class SingleConditionalTestSuite extends ConditionalTestSuite {
     //////////////////////////////////
 
     protected void populateTestSuite() {
-        if(Debug.ON) Debug.trace("Adding "+getTestCaseClass().getName()+" to test suite");
+        CommonsLogger.fine("Adding "+getTestCaseClass().getName()+" to test suite");
         addTestSuite(getTestCaseClass());
     }
 

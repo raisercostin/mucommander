@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 package com.mucommander.ui.main.table;
 
 import com.mucommander.desktop.DesktopManager;
-import com.mucommander.text.Translator;
-import com.mucommander.ui.action.*;
+import com.mucommander.ui.action.ActionManager;
+import com.mucommander.ui.action.impl.ToggleAutoSizeAction;
+import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
 import javax.swing.table.JTableHeader;
@@ -70,34 +71,30 @@ public class FileTableHeader extends JTableHeader implements MouseListener {
         }
         // One of the table headers was right-clicked, popup a menu that offers to hide the column
         else if(DesktopManager.isRightMouseButton(e)) {
-            Class hideActionClass;
-            switch(colNum) {
-                case Columns.EXTENSION:
-                    hideActionClass = ToggleExtensionColumnAction.class;
-                    break;
-                case Columns.SIZE:
-                    hideActionClass = ToggleSizeColumnAction.class;
-                    break;
-                case Columns.DATE:
-                    hideActionClass = ToggleDateColumnAction.class;
-                    break;
-                case Columns.PERMISSIONS:
-                    hideActionClass = TogglePermissionsColumnAction.class;
-                    break;
-                case Columns.OWNER:
-                    hideActionClass = ToggleOwnerColumnAction.class;
-                    break;
-                case Columns.GROUP:
-                    hideActionClass = ToggleGroupColumnAction.class;
-                    break;
-                default:        // Name column cannot be hidden
-                    return;
+            JPopupMenu popupMenu = new JPopupMenu();
+            MainFrame mainFrame = table.getFolderPanel().getMainFrame();
+
+            JCheckBoxMenuItem checkboxMenuItem;
+            for(int i=0; i<Columns.COLUMN_COUNT; i++) {
+                if(i==Columns.NAME)
+                    continue;
+
+                checkboxMenuItem = new JCheckBoxMenuItem(ActionManager.getActionInstance(Columns.getToggleColumnActionId(i), mainFrame));
+
+                checkboxMenuItem.setSelected(table.isColumnEnabled(i));
+                checkboxMenuItem.setEnabled(table.isColumnDisplayable(i));
+                // Override the action's label to a shorter one
+                checkboxMenuItem.setText(Columns.getColumnLabel(i));
+
+                popupMenu.add(checkboxMenuItem);
             }
 
-            JPopupMenu popupMenu = new JPopupMenu();
-            JMenuItem item = new JMenuItem(ActionManager.getActionInstance(hideActionClass, table.getFolderPanel().getMainFrame()));
-            item.setText(Translator.get("table.hide_column"));
-            popupMenu.add(item);
+            popupMenu.add(new JSeparator());
+
+            checkboxMenuItem = new JCheckBoxMenuItem(ActionManager.getActionInstance(ToggleAutoSizeAction.Descriptor.ACTION_ID, mainFrame));
+            checkboxMenuItem.setSelected(mainFrame.isAutoSizeColumnsEnabled());
+            popupMenu.add(checkboxMenuItem);
+
             popupMenu.show(this, e.getX(), e.getY());
             popupMenu.setVisible(true);
         }

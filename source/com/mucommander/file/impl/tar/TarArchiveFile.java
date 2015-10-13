@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,16 @@
 package com.mucommander.file.impl.tar;
 
 import com.mucommander.file.*;
+import com.mucommander.file.impl.tar.provider.TarEntry;
+import com.mucommander.file.impl.tar.provider.TarInputStream;
 import com.mucommander.io.StreamUtils;
 import com.mucommander.util.StringUtils;
 import org.apache.tools.bzip2.CBZip2InputStream;
-import org.apache.tools.tar.TarInputStream;
 
 import java.io.BufferedInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Vector;
 import java.util.zip.GZIPInputStream;
 
 
@@ -55,10 +56,12 @@ public class TarArchiveFile extends AbstractROArchiveFile {
     /**
      * Returns a TarInputStream which can be used to read TAR entries.
      *
+     * @param entryOffset offset from the start of the archive to an entry. Must be a multiple of recordSize, or
+     * <code>0</code> to start at the first entry.
      * @return a TarInputStream which can be used to read TAR entries
      * @throws IOException if an error occurred while create the stream
      */
-    private TarInputStream createTarStream() throws IOException {
+    private TarInputStream createTarStream(long entryOffset) throws IOException {
         InputStream in = file.getInputStream();
 
         String name = getName();
@@ -85,63 +88,57 @@ public class TarArchiveFile extends AbstractROArchiveFile {
             catch(Exception e) {
                 // CBZip2InputStream is known to throw NullPointerException if file is not properly Bzip2-encoded
                 // so we need to catch those and throw them as IOException
-                if(com.mucommander.Debug.ON)
-                    com.mucommander.Debug.trace("Exception caught while creating CBZip2InputStream: "+e+", throwing IOException");
+                FileLogger.finer("Exception caught while creating CBZip2InputStream, throwing IOException", e);
 
                 throw new IOException();
             }
         }
 
-        return new TarInputStream(in);
-    }
-
-    /**
-     * Creates and return an {@link ArchiveEntry()} whose attributes are fetched from the given
-     * <code>org.apache.tools.tar.TarEntry</code>.
-     *
-     * @param tarEntry the object that serves to initialize the attributes of the returned ArchiveEntry
-     * @return an ArchiveEntry whose attributes are fetched from the given org.apache.tools.tar.TarEntry
-     */
-    private ArchiveEntry createArchiveEntry(org.apache.tools.tar.TarEntry tarEntry) {
-        ArchiveEntry entry = new ArchiveEntry(tarEntry.getName(), tarEntry.isDirectory(), tarEntry.getModTime().getTime(), tarEntry.getSize());
-        entry.setPermissions(new SimpleFilePermissions(tarEntry.getMode() & PermissionBits.FULL_PERMISSION_INT));
-        entry.setOwner(tarEntry.getUserName());
-        entry.setGroup(tarEntry.getGroupName());
-        return entry;
+        return new TarInputStream(in, entryOffset);
     }
 
 
     ////////////////////////////////////////
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////
-	
-    public Vector getEntries() throws IOException {
-        // Note: JavaTar's FastTarStream can unfortunately not be used
-        // because it fails on many tar files that TarInputStream can read
-        // without any problem.
-        TarInputStream tin = createTarStream();
 
-        // Load TAR entries
-        Vector entries = new Vector();
-        org.apache.tools.tar.TarEntry entry;
-        while ((entry=tin.getNextEntry())!=null) {
-            entries.add(createArchiveEntry(entry));
-        }
-        tin.close();
-
-        return entries;
+    public ArchiveEntryIterator getEntryIterator() throws IOException {
+        return new TarEntryIterator(createTarStream(0));
     }
 
 
-    public InputStream getEntryInputStream(ArchiveEntry entry) throws IOException {
-        TarInputStream tin = createTarStream();
-        org.apache.tools.tar.TarEntry tempEntry;
-        String entryPath = entry.getPath();
-        while ((tempEntry=tin.getNextEntry())!=null) {
-            if (tempEntry.getName().equals(entryPath))
-                return tin;
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
+        if(entry.isDirectory())
+            throw new IOException();
+
+        // Optimization: first check if the specified iterator is positionned at the beginning of the entry.
+        // This will typically be the case if an iterator is being used to read all the archive's entries
+        // (unpack operation). In that case, we save the cost of looking for the entry in the archive, which is all
+        // the more expensive if the TAR archive is GZipped.
+        if(entryIterator!=null && (entryIterator instanceof TarEntryIterator)) {
+            ArchiveEntry currentEntry = ((TarEntryIterator)entryIterator).getCurrentEntry();
+            if(currentEntry.getPath().equals(entry.getPath())) {
+                // The entry/tar stream is wrapped in a FilterInputStream where #close is implemented as a no-op:
+                // we don't want the TarInputStream to be closed when the caller closes the entry's stream.
+                return new FilterInputStream(((TarEntryIterator)entryIterator).getTarInputStream()) {
+                    public void close() throws IOException {
+                        // No-op
+                    }
+                };
+            }
+
+            // This is not the one, look for the entry from the beginning of the archive
         }
 
-        return null;
+        // Iterate through the archive until we've found the entry
+        TarEntry tarEntry = (TarEntry)entry.getEntryObject();
+        if(tarEntry!=null) {
+            TarInputStream tin = createTarStream(tarEntry.getOffset());
+            tin.getNextEntry();
+
+            return tin;
+        }
+
+        throw new IOException("Unknown TAR entry: "+entry.getName());
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ package com.mucommander.io.bom;
 import junit.framework.TestCase;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * A test case for the <code>com.mucommander.io.bom</code> package.
@@ -55,44 +57,110 @@ public class BOMTest extends TestCase implements BOMConstants {
      *
      * @throws IOException should normally not happen
      */
-    public void testBOMInputStreamDetection() throws IOException {
-        ByteArrayInputStream bais;
+    public void testBOMInputStream() throws IOException {
+        BOMInputStream bomIn;
         BOM bom;
+        byte[] b;
+
         for(int i=0; i<SUPPORTED_BOMS.length; i++) {
             bom = SUPPORTED_BOMS[i];
-            bais = new ByteArrayInputStream(bom.getSignature());
-            assertEquals(bom, new BOMInputStream(bais).getBOM());
+            bomIn = getBOMInputStream(bom.getSignature());
+            assertEquals(bom, bomIn.getBOM());
+            assertEOF(bomIn);
         }
 
-        // UTF-8 BOM plus one byte after
-        bais = new ByteArrayInputStream(new byte[]{(byte)0xEF, (byte)0xBB, (byte)0xBF, (byte)0x27});
-        assertEquals(UTF8_BOM, new BOMInputStream(bais).getBOM());
+        // UTF-8 BOM, plus one byte after
+        b = new byte[]{(byte)0xEF, (byte)0xBB, (byte)0xBF, (byte)0x27};
+        bomIn = getBOMInputStream(b);
+        assertEquals(UTF8_BOM, bomIn.getBOM());
+        assertStreamEquals(new byte[]{(byte)0x27}, bomIn);
+        assertEOF(bomIn);
 
         // Not a known BOM
-        bais = new ByteArrayInputStream(new byte[]{(byte)0xEF, (byte)0xBB, (byte)0x27});
-        assertNull(new BOMInputStream(bais).getBOM());
+        b = new byte[]{(byte)0xEF, (byte)0xBB, (byte)0x27};
+        bomIn = getBOMInputStream(b);
+        assertNull(bomIn.getBOM());
+        assertStreamEquals(b, bomIn);
+
+        // Empty stream, BOM should be null
+        b = new byte[]{};
+        bomIn = getBOMInputStream(b);
+        assertNull(bomIn.getBOM());
+        assertEOF(bomIn);
 
         // BOMs should not match
-        bais = new ByteArrayInputStream(UTF16_BE_BOM.getSignature());
-        assertNotSame(UTF8_BOM, new BOMInputStream(bais).getBOM());
+        b = UTF16_BE_BOM.getSignature();
+        bomIn = getBOMInputStream(b);
+        assertNotSame(UTF8_BOM, bomIn.getBOM());
+        assertEOF(bomIn);
     }
 
     /**
-     * Tests the integrity of {@link BOMInputStream}'s data.
-     *
-     * @throws IOException should normally not happen
+     * Tests {@link BOM#getInstance(String)}.
      */
-    public void testBOMInputStreamIntegrity() throws IOException {
-        // 3 first bytes corresponding to UTF-8 BOM should be discarded
-        BOMInputStream bomIn = new BOMInputStream(new ByteArrayInputStream(new byte[]{(byte)0xEF, (byte)0xBB, (byte)0xBF, (byte)0x27}));
-        assertEquals(0x27, bomIn.read()&0xFF);
-        assertEquals(-1, bomIn.read());
+    public void testBOMResolution() {
+        for(int i=0; i<SUPPORTED_BOMS.length; i++) {
+            // Test case variations
+            assertEquals(SUPPORTED_BOMS[i], BOM.getInstance(SUPPORTED_BOMS[i].getEncoding().toLowerCase()));
+            assertEquals(SUPPORTED_BOMS[i], BOM.getInstance(SUPPORTED_BOMS[i].getEncoding().toUpperCase()));
+        }
 
-        // Not a known BOM, the byte sequence should remain the same
-        bomIn = new BOMInputStream(new ByteArrayInputStream(new byte[]{(byte)0xEF, (byte)0xBB, (byte)0x27}));
-        assertEquals(0xEF, bomIn.read()&0xFF);
-        assertEquals(0xBB, bomIn.read()&0xFF);
-        assertEquals(0x27, bomIn.read()&0xFF);
-        assertEquals(-1, bomIn.read());
+        // Test non-UTF encodings
+        assertNull(BOM.getInstance("ISO-8859-1"));
+        assertNull(BOM.getInstance("Shift_JIS"));
+
+        // Test UTF aliases
+        assertEquals(BOMConstants.UTF16_BE_BOM, BOM.getInstance("UnicodeBig"));
+        assertEquals(BOMConstants.UTF16_BE_BOM, BOM.getInstance("UnicodeBigUnmarked"));
+        assertEquals(BOMConstants.UTF16_BE_BOM, BOM.getInstance("UTF-16"));
+        assertEquals(BOMConstants.UTF16_LE_BOM, BOM.getInstance("UnicodeLittle"));
+        assertEquals(BOMConstants.UTF16_LE_BOM, BOM.getInstance("UnicodeLittleUnmarked"));
+        assertEquals(BOMConstants.UTF32_BE_BOM, BOM.getInstance("UTF-32"));
+    }
+
+    /**
+     * Tests {@link BOMWriter}.
+     *
+     * @throws IOException should not happen
+     */
+    public void testBOMWriter() throws IOException {
+        String testString = "This is a test";
+        ByteArrayOutputStream baos;
+        BOMWriter bomWriter;
+        BOMInputStream bomIn;
+
+        for(int i=0; i<SUPPORTED_BOMS.length; i++) {
+            baos = new ByteArrayOutputStream();
+            bomWriter = new BOMWriter(baos, SUPPORTED_BOMS[i].getEncoding());
+            bomWriter.write(testString);
+            bomWriter.close();
+
+            bomIn = getBOMInputStream(baos.toByteArray());
+            assertEquals(SUPPORTED_BOMS[i], bomIn.getBOM());
+            assertStreamEquals(testString.getBytes(SUPPORTED_BOMS[i].getEncoding()), bomIn);
+            assertEOF(bomIn);
+        }
+    }
+
+
+    ////////////////////
+    // Helper methods //
+    ////////////////////
+
+    private BOMInputStream getBOMInputStream(byte b[]) throws IOException {
+        return new BOMInputStream(new ByteArrayInputStream(b));
+    }
+
+    private void assertEOF(InputStream in) throws IOException {
+        assertEquals(-1, in.read());
+        // Again
+        assertEquals(-1, in.read());
+    }
+
+    private void assertStreamEquals(byte b[], InputStream in) throws IOException {
+        for(int i=0; i<b.length; i++)
+            assertEquals(b[i], (byte)(in.read()&0xFF));
+
+        assertEOF(in);
     }
 }

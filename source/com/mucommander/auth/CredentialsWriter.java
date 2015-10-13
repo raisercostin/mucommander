@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 package com.mucommander.auth;
 
+import com.mucommander.RuntimeConstants;
+import com.mucommander.bookmark.XORCipher;
 import com.mucommander.file.FileURL;
 import com.mucommander.xml.XmlAttributes;
 import com.mucommander.xml.XmlWriter;
@@ -46,13 +48,10 @@ public class CredentialsWriter implements CredentialsConstants {
         // Root element, add the encryption method used
         XmlAttributes attributes = new XmlAttributes();
         attributes.add(ATTRIBUTE_ENCRYPTION, WEAK_ENCRYPTION_METHOD);
+        // Version the file
+        attributes.add(ATTRIBUTE_VERSION, RuntimeConstants.VERSION);
         out.startElement(ELEMENT_ROOT, attributes);
         out.println();
-
-        // Add muCommander version
-        out.startElement(ELEMENT_VERSION);
-        out.writeCData(com.mucommander.RuntimeConstants.VERSION);
-        out.endElement(ELEMENT_VERSION);
 
         Iterator iterator = CredentialsManager.getPersistentCredentialMappings().iterator();
         CredentialsMapping credentialsMapping;
@@ -80,9 +79,9 @@ public class CredentialsWriter implements CredentialsConstants {
             out.writeCData(credentials.getLogin());
             out.endElement(ELEMENT_LOGIN);
 
-            // Write password
+            // Write password (XOR encrypted)
             out.startElement(ELEMENT_PASSWORD);
-            out.writeCData(credentials.getEncryptedPassword());
+            out.writeCData(XORCipher.encryptXORBase64(credentials.getPassword()));
             out.endElement(ELEMENT_PASSWORD);
 
             // Write properties, each property is stored in a separate 'property' element

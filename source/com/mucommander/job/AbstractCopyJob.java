@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@ import com.mucommander.file.AbstractRWArchiveFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
+import com.mucommander.ui.dialog.file.FileCollisionRenameDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
-import com.mucommander.ui.dialog.file.RenameDialog;
 import com.mucommander.ui.main.MainFrame;
 
 import java.io.IOException;
@@ -93,7 +93,7 @@ public abstract class AbstractCopyJob extends TransferFileJob {
                 break;
             }
             catch(IOException e) {
-                // Destination file couldn't be instanciated
+                // Destination file couldn't be instantiated
 
                 int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_write_file", destFileName));
                 // Retry loops
@@ -145,7 +145,7 @@ public abstract class AbstractCopyJob extends TransferFileJob {
                 int choice;
                 // Use default action if one has been set, if not show up a dialog
                 if(defaultFileExistsAction==FileCollisionDialog.ASK_ACTION) {
-                    FileCollisionDialog dialog = new FileCollisionDialog(progressDialog, mainFrame, collision, file, destFile, true, true);
+                    FileCollisionDialog dialog = new FileCollisionDialog(getProgressDialog(), getMainFrame(), collision, file, destFile, true, true);
                     choice = waitForUserResponse(dialog);
                     // If 'apply to all' was selected, this choice will be used for any other files (user will not be asked again)
                     if(dialog.applyToAllSelected())
@@ -181,9 +181,9 @@ public abstract class AbstractCopyJob extends TransferFileJob {
                     break;
                 } else if (choice == FileCollisionDialog.RENAME_ACTION) {
                     setPaused(true);
-                    RenameDialog dlg = new RenameDialog(mainFrame, destFile);
+                    FileCollisionRenameDialog dlg = new FileCollisionRenameDialog(getMainFrame(), destFile);
+                    String destFileName = (String) waitForUserResponseObject(dlg);
                     setPaused(false);
-                    String destFileName = dlg.getNewName();
                     if (destFileName != null) {
                         destFile = createDestinationFile(destFolder, destFileName);
                     } else {

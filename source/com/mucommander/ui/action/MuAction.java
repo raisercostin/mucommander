@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,8 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.file.util.ResourceLoader;
-import com.mucommander.runtime.OsFamilies;
-import com.mucommander.text.Translator;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.MainFrame;
 
@@ -42,7 +40,7 @@ import java.util.Hashtable;
  * to provide a response to the action trigger, and must provide a constructor with the
  * {@link #MuAction(MainFrame, java.util.Hashtable)} signature.
  *
- * <p>MuAction subclasses should not be instanciated directly, {@link ActionManager}'s <code>getActionInstance</code>
+ * <p>MuAction subclasses should not be instantiated directly, {@link ActionManager}'s <code>getActionInstance</code>
  * methods should be used instead. Using {@link ActionManager} to retrieve a MuAction ensures that only one instance
  * exists for a given {@link com.mucommander.ui.main.MainFrame}. This is particularly important because actions are stateful and can be used
  * in several components of a MainFrame at the same time; if an action's state changes, the change must be reflected
@@ -68,60 +66,18 @@ public abstract class MuAction extends AbstractAction {
 
     /** Name of the alternate accelerator KeyStroke property */
     public final static String ALTERNATE_ACCELERATOR_PROPERTY_KEY = "alternate_accelerator";
-
-    private final static String SHIFT_MODIFIER_STRING = KeyEvent.getKeyModifiersText(KeyEvent.SHIFT_MASK);
-    private final static String CTRL_MODIFIER_STRING = KeyEvent.getKeyModifiersText(KeyEvent.CTRL_MASK);
-    private final static String ALT_MODIFIER_STRING = KeyEvent.getKeyModifiersText(KeyEvent.ALT_MASK);
-    private final static String META_MODIFIER_STRING = KeyEvent.getKeyModifiersText(KeyEvent.META_MASK);
     
-
     /**
-     * Convenience constructor which has the same effect as calling {@link #MuAction(MainFrame, Hashtable, boolean, boolean, boolean )}
-     * with standard labels, icon and accelerators enabled.
-     * 
+     * Creates a new <code>MuAction</code> associated with the specified {@link MainFrame}. The properties contained by
+     * the given {@link Hashtable} are used to initialize this action's property map.
+     *
      * @param mainFrame the MainFrame to associate with this new MuAction
      * @param properties the initial properties to use in this action. The Hashtable may simply be empty if no initial
      * properties are specified.
      */
     public MuAction(MainFrame mainFrame, Hashtable properties) {
-        this(mainFrame, properties, true, true, true);
-    }
-
-    /**
-     * Convenience constructor which has the same effect as calling {@link #MuAction(MainFrame, Hashtable, boolean, boolean, boolean)}
-     * with standard icon and accelerators enabled.
-     *
-     * @param mainFrame the MainFrame to associate with this new MuAction
-     * @param properties the initial properties to use in this action. The Hashtable may simply be empty if no initial
-     * properties are specified.
-     * @param useStandardLabels if <code>true</code>, standard label and tooltip (if any) will be retrieved with
-     * {@link #getStandardLabel(Class)} and {@link #getStandardTooltip(Class)} and used
-     */
-    public MuAction(MainFrame mainFrame, Hashtable properties, boolean useStandardLabels) {
-        this(mainFrame, properties, useStandardLabels, true, true);
-    }
-
-    /**
-     * Creates a new MuAction associated with the specified {@link MainFrame}. The properties contained by the given
-     * <code>Hashtable</code> are used to initialize this action's property map.
-     *
-     * <p>The <code>useStandardLabels</code>, <code>useStandardIcon</code> and <code>useStandardAccelerators</code>
-     * parameters control whether standard property values are automatically retrieved and used. These should
-     * be disabled if custom values are used.</p>
-     *
-     * @param mainFrame the MainFrame to associate with this new MuAction
-     * @param properties the initial properties to use in this action. The Hashtable may simply be empty if no initial
-     * properties are specified.
-     * @param useStandardLabels if <code>true</code>, standard label and tooltip (if any) will be retrieved with
-     * {@link #getStandardLabel()} and {@link #getStandardTooltip()} and used
-     * @param useStandardIcon if <code>true</code>, standard icon (if any) will be retrieved using {@link #getStandardIcon()}
-     * and used
-     * @param useStandardAccelerators if <code>true</code>, standard accelerator and alternate accelerator (if any) will
-     * be retrieved with {@link #getStandardAccelerator()} and {@link #getStandardAlternateAccelerator()} and used
-     */
-    public MuAction(MainFrame mainFrame, Hashtable properties, boolean useStandardLabels, boolean useStandardIcon, boolean useStandardAccelerators) {
         this.mainFrame = mainFrame;
-
+        
         // Add properties to this Action.
         // Property keys are expected to be String instances, those that are not will not be added.
         Enumeration keys = properties.keys();
@@ -131,45 +87,7 @@ public abstract class MuAction extends AbstractAction {
             if(key instanceof String)
                 putValue((String)key, properties.get(key));
             else
-                if(Debug.ON) Debug.trace("Key is not a String, property ignored for key="+key);
-        }
-
-        if(useStandardLabels) {
-            // Retrieve the standard label entry from the dictionary and use it as this action's label
-            String label = getStandardLabel();
-            // If the label is not defined in the dictionary, use the label key instead
-            if(label==null)
-                label = getStandardLabelKey();
-            
-            // Append '...' to the label if this action invokes a dialog when performed
-            if(this instanceof InvokesDialog)
-                label += "...";
-
-            setLabel(label);
-
-            // Looks for a standard label entry in the dictionary and if it is defined, use it as this action's tooltip
-            String tooltip = getStandardTooltip();
-            if(tooltip!=null)
-                setToolTipText(getStandardTooltip());
-        }
-
-        if(useStandardAccelerators) {
-            // Retrieve the standard accelerator (if any) and use it as this action's accelerator
-            KeyStroke accelerator = getStandardAccelerator();
-            if(accelerator!=null)
-                setAccelerator(accelerator);
-
-            // Retrieve the standard alternate accelerator (if any) and use it as this action's alternate accelerator
-            accelerator = getStandardAlternateAccelerator();
-            if(accelerator!=null)
-                setAlternateAccelerator(accelerator);
-        }
-
-        if(useStandardIcon) {
-            // Retrieve the standard icon image (if any) and use it as the action's icon
-            ImageIcon icon = getStandardIcon();
-            if(icon!=null)
-                setIcon(icon);
+                AppLogger.fine("Key is not a String, property ignored for key="+key);
         }
     }
 
@@ -181,7 +99,6 @@ public abstract class MuAction extends AbstractAction {
     public MainFrame getMainFrame() {
         return this.mainFrame;
     }
-
 
     /**
      * Returns the label of this action, <code>null</code> if this action has no label.
@@ -287,21 +204,37 @@ public abstract class MuAction extends AbstractAction {
         putValue(ALTERNATE_ACCELERATOR_PROPERTY_KEY, keyStroke);
     }
 
+    /**
+     * Returns <code>true</code> if both keystrokes' {@link KeyStroke#getKeyChar() char},
+     * {@link KeyStroke#getKeyCode() code} and {@link KeyStroke#getModifiers() modifiers} are equal.
+     * Unlike {@link KeyStroke#equals(Object)}, this method does not take into account the
+     * {@link KeyStroke#isOnKeyRelease() onKeyRelease} flag.
+     *
+     * @param ks1 first keystroke to test
+     * @param ks2 second keystroke to test
+     * @return <code>true</code> if both keystrokes' char, code and modifiers are equal
+     */
+    protected boolean acceleratorsEqual(KeyStroke ks1, KeyStroke ks2) {
+        return ks1.getKeyChar()==ks2.getKeyChar()
+            && ks1.getKeyCode()==ks2.getKeyCode()
+            && ks1.getModifiers()==ks2.getModifiers();
+    }
 
     /**
-     * Returns true if the given KeyStroke is one of this action's accelerators.
-     * This method always returns false if this method has no accelerator.
+     * Returns <code>true</code> if the given KeyStroke is one of this action's accelerators. Keystrokes are compared
+     * using {@link #acceleratorsEqual(KeyStroke, KeyStroke)}, so that the {@link KeyStroke#isOnKeyRelease()} flag
+     * is not taken into account. This method always returns <code>false</code> if this method has no accelerator.
      *
-     * @param keyStroke the KeyStroke to test against this action's acccelerators
+     * @param keyStroke the KeyStroke to test against this action's accelerators
      * @return true if the given KeyStroke is one of this action's accelerators
      */
     public boolean isAccelerator(KeyStroke keyStroke) {
         KeyStroke accelerator = getAccelerator();
-        if(accelerator!=null && accelerator.equals(keyStroke))
+        if(accelerator!=null && acceleratorsEqual(accelerator, keyStroke))
             return true;
 
         accelerator = getAlternateAccelerator();
-        return accelerator!=null && accelerator.equals(keyStroke);
+        return accelerator!=null && acceleratorsEqual(accelerator, keyStroke);
     }
 
 
@@ -381,61 +314,6 @@ public abstract class MuAction extends AbstractAction {
         this.performActionInSeparateThread = performActionInSeparateThread;
     }
 
-
-    /**
-     * Shorthand for {@link #getStandardLabel(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard label corresponding to this MuAction class, <code>null</code> if none was found
-     */
-    public String getStandardLabel() {
-        return getStandardLabel(getClass());
-    }
-
-    /**
-     * Shorthand for {@link #getStandardLabelKey(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard dictionary key for this action's label
-     */
-    public String getStandardLabelKey() {
-        return getStandardLabelKey(getClass());
-    }
-
-    /**
-     * Shorthand for {@link #getStandardTooltip(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard tooltip corresponding to this MuAction class, <code>null</code> if none was found
-     */
-    public String getStandardTooltip() {
-        return getStandardTooltip(getClass());
-    }
-
-    /**
-     * Shorthand for {@link #getStandardTooltipKey(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard dictionary key for this action's tooltip
-     */
-    public String getStandardTooltipKey() {
-        return getStandardTooltipKey(getClass());
-    }
-
-    /**
-     * Shorthand for {@link #getStandardAccelerator(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard accelerator corresponding to this MuAction class, <code>null</code> if none was found
-     */
-    public KeyStroke getStandardAccelerator() {
-        return getStandardAccelerator(getClass());
-    }
-
-    /**
-     * Shorthand for {@link #getStandardAlternateAccelerator(Class)} called with the Class instance returned by {@link #getClass()}.
-     *
-     * @return the standard alternate accelerator corresponding to this MuAction class, <code>null</code> if none was found
-     */
-    public KeyStroke getStandardAlternateAccelerator() {
-        return getStandardAlternateAccelerator(getClass());
-    }
-
     /**
      * Shorthand for {@link #getStandardIcon(Class)} called with the Class instance returned by {@link #getClass()}.
      *
@@ -458,86 +336,6 @@ public abstract class MuAction extends AbstractAction {
     ////////////////////
     // Static methods //
     ////////////////////
-
-    /**
-     * Queries {@link Translator} for a label corresponding to the specified action using standard naming conventions.
-     * Returns the label or <code>null</code> if no corresponding entry was found in the dictionary.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard label corresponding to the specified MuAction class, <code>null</code> if none was found
-     */
-    public static String getStandardLabel(Class action) {
-        String labelKey = getStandardLabelKey(action);
-        if(!Translator.entryExists(labelKey))
-            return null;
-
-        return Translator.get(labelKey);
-    }
-
-    /**
-     * Returns the dictionary key for the specified action's label, using the following standard naming convention:
-     * <pre>
-     *      action_classname.label
-     * </pre>
-     * where <code>action_classname</code> is the fully qualified action class's name, as returned by <code>Class.getName()</code>.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard dictionary key for the specified action's label
-     */
-    public static String getStandardLabelKey(Class action) {
-        return action.getName()+".label";
-    }
-
-    /**
-     * Queries {@link Translator} for a tooltip corresponding to the specified action using standard naming conventions.
-     * Returns the tooltip or <code>null</code> if no corresponding entry was found in the dictionary.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard tooltip corresponding to the specified MuAction class, <code>null</code> if none was found
-     */
-    public static String getStandardTooltip(Class action) {
-        String tooltipKey = getStandardTooltipKey(action);
-        if(!Translator.entryExists(tooltipKey))
-            return null;
-
-        return Translator.get(tooltipKey);
-    }
-
-    /**
-     * Returns the dictionary key for the specified action's tooltip, using the following standard naming convention:
-     * <pre>
-     *      action_classname.tooltip
-     * </pre>
-     * where <code>action_classname</code> is the fully qualified action class's name, as returned by <code>Class.getName()</code>.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard dictionary key for the specified action's tooltip
-     */
-    public static String getStandardTooltipKey(Class action) {
-        return action.getName()+".tooltip";
-    }
-
-    /**
-     * Queries {@link ActionKeymap} for an accelerator corresponding to the specified action.
-     * Returns the accelerator's KeyStroke or <code>null</code> if no corresponding accelerator was found.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard accelerator corresponding to the specified MuAction class, <code>null</code> if none was found
-     */
-    public static KeyStroke getStandardAccelerator(Class action) {
-        return ActionKeymap.getAccelerator(action);
-    }
-
-    /**
-     * Queries {@link ActionKeymap} for an alternate accelerator corresponding to the specified action.
-     * Returns the accelerator's KeyStroke or <code>null</code> if no corresponding accelerator was found.
-     *
-     * @param action a MuAction class descriptor
-     * @return the standard alternate accelerator corresponding to the specified MuAction class, <code>null</code> if none was found
-     */
-    public static KeyStroke getStandardAlternateAccelerator(Class action) {
-        return ActionKeymap.getAlternateAccelerator(action);
-    }
 
     /**
      * Queries {@link IconManager} for an image icon corresponding to the specified action using standard icon path
@@ -565,108 +363,6 @@ public abstract class MuAction extends AbstractAction {
      */
     public static String getStandardIconPath(Class action) {
         return IconManager.getIconSetFolder(IconManager.ACTION_ICON_SET) + action.getName() + ".png";
-    }
-
-    /**
-     * Returns a String representation for the given KeyStroke, in the following format:<br>
-     * <code>modifier+modifier+...+key</code>
-     *
-     * <p>For example, <code>KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_MASK|InputEvent.ALT_MASK)</code>
-     * will return <code>Ctrl+Alt+C</code>.</p>
-     *
-     * @param ks the KeyStroke for which to return a String representation
-     * @return a String representation of the given KeyStroke, in the <code>[modifier]+[modifier]+...+key</code> format
-     */
-    public static String getKeyStrokeRepresentation(KeyStroke ks) {
-        int modifiers = ks.getModifiers();
-        String keyText = KeyEvent.getKeyText(ks.getKeyCode());
-
-        if(modifiers!=0) {
-            return getModifiersRepresentation(modifiers)+"+"+keyText;
-        }
-
-        return keyText;
-    }
-
-    /**
-     * Returns a String representations of the given modifiers bitwise mask, in the following format:<br>
-     * <code>modifier+...+modifier
-     *
-     * <p>The modifiers' order in the returned String tries to mimick the keyboard layout of the current platform as
-     * much as possible:
-     * <ul>
-     *  <li>Under Mac OS X, the order is: <code>Shift, Ctrl, Alt, Meta</code>
-     *  <li>Under other platforms, the order is <code>Shift, Ctrl, Meta, Alt</code>
-     * </ul>
-     *
-     * @param modifiers a modifiers bitwise mask
-     * @return a String representations of the given modifiers bitwise mask
-     */
-    public static String getModifiersRepresentation(int modifiers) {
-        String modifiersString = "";
-
-        if((modifiers&KeyEvent.SHIFT_MASK)!=0)
-            modifiersString += SHIFT_MODIFIER_STRING;
-
-        if((modifiers&KeyEvent.CTRL_MASK)!=0)
-            modifiersString += (modifiersString.equals("")?"":"+")+CTRL_MODIFIER_STRING;
-
-        if(OsFamilies.MAC_OS_X.isCurrent()) {
-            if((modifiers&KeyEvent.ALT_MASK)!=0)
-                modifiersString += (modifiersString.equals("")?"":"+")+ALT_MODIFIER_STRING;
-
-            if((modifiers&KeyEvent.META_MASK)!=0)
-                modifiersString += (modifiersString.equals("")?"":"+")+META_MODIFIER_STRING;
-        }
-        else {
-            if((modifiers&KeyEvent.META_MASK)!=0)
-                modifiersString += (modifiersString.equals("")?"":"+")+META_MODIFIER_STRING;
-
-            if((modifiers&KeyEvent.ALT_MASK)!=0)
-                modifiersString += (modifiersString.equals("")?"":"+")+ALT_MODIFIER_STRING;
-        }
-
-        return modifiersString;
-    }
-
-
-    /////////////////////
-    // Error reporting //
-    /////////////////////
-
-    // Todo: remove those methods, they have nothing to do here
-
-    /**
-     * Opens a dialog with a generic error message.
-     * <p>
-     * This is a convenience method and is strictly equivalent to calling
-     * <code>{@link #reportError(String,String) reportError(}{@link Translator#get(String) Translator.get(}("error"),
-     * {@link Translator#get(String) Translator.get(}("generic_error"))<code>
-     * </p>
-     */
-    protected void reportGenericError() {
-        reportError(Translator.get("error"), Translator.get("generic_error"));
-    }
-
-    /**
-     * Opens a dialog with the specified error message.
-     * <p>
-     * This is a convenience method and is strictly equivalent to calling
-     * <code>{@link #reportError(String,String) reportError(}{@link Translator#get(String) Translator.get(}("error"), message)</code>
-     * </p>
-     * @param message error message to display.
-     */
-    protected void reportError(String message) {
-        reportError(Translator.get("error"), message);
-    }
-
-    /**
-     * Opens an error dialog with the specified title and message.
-     * @param title   title for the error dialog.
-     * @param message message contained by the error dialog.
-     */
-    protected void reportError(String title, String message) {
-        JOptionPane.showMessageDialog(mainFrame, message, title, JOptionPane.ERROR_MESSAGE);
     }
 
 

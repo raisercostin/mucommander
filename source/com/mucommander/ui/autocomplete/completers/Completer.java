@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ public abstract class Completer {
 
 				// in case the suggestions-list contains only one suggestion and it 
 				// match the typed path - do not show an auto-completion popup.
-				if (typedFilename.equalsIgnoreCase((String) list.getModel().getElementAt(0)))
+				if (typedFilename==null || typedFilename.equalsIgnoreCase((String) list.getModel().getElementAt(0)))
 					return false;
 			} catch (MalformedURLException e) { }
     	}

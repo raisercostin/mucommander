@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.auth;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.bookmark.XORCipher;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileURL;
@@ -50,6 +50,9 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
     private String password;
     private StringBuffer characters;
 
+    /** muCommander version that was used to write the credentials file */
+    private String version;
+
     /** Contains the encryption method used to encrypt/decrypt passwords */
     private String encryptionMethod;
 
@@ -78,6 +81,18 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
         }
     }
 
+    /**
+     * Returns the muCommander version that was used to write the credentials file, <code>null</code> if it is unknown.
+     * <p>
+     * Note: the version attribute was introduced in muCommander 0.8.4.
+     * </p>
+     *
+     * @return the muCommander version that was used to write the credentials file, <code>null</code> if it is unknown.
+     */
+    public String getVersion() {
+        return version;
+    }
+
 
     ///////////////////////////////////
     // ContentHandler implementation //
@@ -102,13 +117,14 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
         // Root element, the 'encryption' attribute specifies which encoding was used to encrypt passwords
         else if(qName.equals(ELEMENT_ROOT)) {
             encryptionMethod = attributes.getValue("encryption");
+            version = attributes.getValue(ATTRIBUTE_VERSION);
         }
     }
 
     public void endElement(String uri, String localName, String qName) throws SAXException {
         if(qName.equals(ELEMENT_CREDENTIALS)) {
             if(url ==null || login ==null || password ==null) {
-                if(Debug.ON) Debug.trace("Missing value, credentials ignored: url="+ url +" login="+ login +" password="+ password);
+                AppLogger.info("Missing value, credentials ignored: url="+ url +" login="+ login);
                 return;
             }
 
@@ -125,7 +141,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
             // Decrypt password
             try {password = XORCipher.decryptXORBase64(password);}
             catch(IOException e) {
-                if(Debug.ON) Debug.trace("Password could not be decrypted: "+ password +", credentials will be ignored");
+                AppLogger.info("Password could not be decrypted: "+ password +", credentials will be ignored");
                 return;
             }
 
@@ -134,7 +150,9 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
         }
         else if(qName.equals(ELEMENT_URL)) {
             try {url = FileURL.getFileURL(characters.toString().trim());}
-            catch(MalformedURLException e) {if(Debug.ON) Debug.trace("Malformed URL: "+characters+", location will be ignored");}
+            catch(MalformedURLException e) {
+                AppLogger.info("Malformed URL: "+characters+", location will be ignored");
+            }
         }
         else if(qName.equals(ELEMENT_LOGIN))
             login = characters.toString().trim();

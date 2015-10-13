@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,26 @@
 
 package com.mucommander.ui.dialog.auth;
 
-import com.mucommander.Debug;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+import com.mucommander.AppLogger;
 import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.EditCredentialsAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
@@ -33,13 +47,6 @@ import com.mucommander.ui.list.DynamicList;
 import com.mucommander.ui.list.SortableListPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.util.AlteredVector;
-
-import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 
 /**
@@ -74,7 +81,7 @@ public class EditCredentialsDialog extends FocusDialog implements ActionListener
 
 
     public EditCredentialsDialog(MainFrame mainFrame) {
-        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.EditCredentialsAction.class), mainFrame);
+        super(mainFrame, ActionProperties.getActionLabel(EditCredentialsAction.Descriptor.ACTION_ID), mainFrame);
 
         this.mainFrame = mainFrame;
 
@@ -240,7 +247,7 @@ public class EditCredentialsDialog extends FocusDialog implements ActionListener
     ///////////////////////////////////
 
     public void valueChanged(ListSelectionEvent e) {
-        if(Debug.ON) Debug.trace("called, e.getValueIsAdjusting="+e.getValueIsAdjusting()+" getSelectedIndex="+ credentialsList.getSelectedIndex());
+        AppLogger.finest("called, e.getValueIsAdjusting="+e.getValueIsAdjusting()+" getSelectedIndex="+ credentialsList.getSelectedIndex());
 
         if(e.getValueIsAdjusting())
             return;

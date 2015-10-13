@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ public abstract class AbstractFileTestCase extends TestCase {
     protected Vector filesToDelete;
 
     /**
-     * A temporary file instance automatically instanciated by {@link #setUp()} when a test is started. The file
+     * A temporary file instance automatically instantiated by {@link #setUp()} when a test is started. The file
      * is not physically created.
      */
     protected AbstractFile tempFile;
@@ -399,6 +399,29 @@ public abstract class AbstractFileTestCase extends TestCase {
             assertContentsEquals(file, resolvedFile);       // Deep equals (compares contents)
     }
 
+    /**
+     * Tests the given volume folder and assert certain properties that a volume folder should have.
+     *
+     * @param volume a volume folder
+     * @throws IOException should not happen
+     */
+    protected void testVolume(AbstractFile volume) throws IOException {
+        // Test basic volume properties
+        assertNotNull(volume);
+        assertEquals(volume, volume.getVolume());
+
+        // Volumes may not always exist -- for instance, removable drives under Windows.
+        if(volume.exists()) {
+            // If the volume exists, it must be a directory
+            assertTrue(volume.isDirectory());
+
+            // Assert that children of the volume are located on the volume (test the first children only)
+            AbstractFile[] children = volume.ls();
+            if(children.length>0)
+                assertEquals(volume, children[0].getVolume());
+        }
+    }
+
 
     //////////////////
     // Test methods //
@@ -494,12 +517,12 @@ public abstract class AbstractFileTestCase extends TestCase {
     public void testCanonicalPath() throws IOException, NoSuchAlgorithmException {
         // Regular file
         createFile(tempFile, 1);
-        testPathResolution(tempFile, tempFile.getCanonicalPath());
+        testPathResolution(tempFile.getCanonicalFile(), tempFile.getCanonicalPath());
 
         // Directory file
         tempFile.delete();
         tempFile.mkdir();
-        testPathResolution(tempFile, tempFile.getCanonicalPath());
+        testPathResolution(tempFile.getCanonicalFile(), tempFile.getCanonicalPath());
 
         // Test getCanonicalPath(boolean) on the directory file
         assertTrue(tempFile.getCanonicalPath(true).endsWith(tempFile.getSeparator()));
@@ -642,12 +665,14 @@ public abstract class AbstractFileTestCase extends TestCase {
     public void testRoot() throws IOException {
         AbstractFile root = tempFile.getRoot();
 
-        // Returned root file may not be null
+        // The returned root folder may not be null
         assertNotNull(root);
 
-        // Test basic properties of a root file
+        // Test basic root file properties
         assertTrue(root.isRoot());
         assertTrue(root.isParentOf(tempFile));
+        assertTrue(root.isBrowsable());
+        assertNull(root.getParent());
 
         if(!tempFile.equals(root))
             assertFalse(tempFile.isRoot());
@@ -656,6 +681,35 @@ public abstract class AbstractFileTestCase extends TestCase {
         AbstractFile rootRoot = root.getRoot();
         assertNotNull(rootRoot);
         assertTrue(rootRoot.equals(root));
+
+        // Assert that another temporary file yields the same root folder
+        assertEquals(root, getTemporaryFile().getRoot());
+
+        // Assert that children of the root folder yield the same root folder and are not root folder themselves
+        // (test the first children only)
+        AbstractFile[] children = root.ls();
+        if(children.length>0) {
+            assertEquals(root, children[0].getRoot());
+            assertFalse(children[0].isRoot());
+        }
+    }
+
+
+    /**
+     * Tests {@link AbstractFile#getVolume()}.
+     *
+     * @throws IOException should not happen
+     */
+    public void testVolume() throws IOException {
+        AbstractFile volume = tempFile.getVolume();
+
+        testVolume(volume);
+
+        // Test the relationship between the temporary file and its volume
+        assertTrue(volume.isParentOf(tempFile));
+        // Another temporary file should yield the same volume
+        assertEquals(volume, getTemporaryFile().getVolume());
+
     }
 
 
@@ -799,15 +853,27 @@ public abstract class AbstractFileTestCase extends TestCase {
         // Assert that a directory can be created when the file doesn't already exist (without throwing an IOException)
         AbstractFile dir1 = tempFile.getDirectChild("dir1");
         AbstractFile dir2 = dir1.getDirectChild("dir2");
+        AbstractFile dir2b = dir1.getChild("dir2"+dir1.getSeparator());     // Same file with a trailing separator
         dir2.mkdirs();
 
         // Assert that the file exists after the directory has been created
         assertTrue(dir2.exists());
+        assertTrue(dir2.isDirectory());
+        assertTrue(dir2b.exists());
+        assertTrue(dir2b.isDirectory());
 
         // Delete 'dir2' and perform the same test. The difference with the previous test is that 'temp' and 'dir1' exist.
         dir2.delete();
+        assertFalse(dir2.exists());
+        assertFalse(dir2.isDirectory());
+        assertFalse(dir2b.exists());
+        assertFalse(dir2b.isDirectory());
+
         dir2.mkdirs();
         assertTrue(dir2.exists());
+        assertTrue(dir2.isDirectory());
+        assertTrue(dir2b.exists());
+        assertTrue(dir2b.isDirectory());
 
         // Assert that an IOException is thrown when the directory already exists
         boolean ioExceptionThrown = false;
@@ -879,17 +945,36 @@ public abstract class AbstractFileTestCase extends TestCase {
      * @throws IOException should not happen
      */
     public void testIsDirectory() throws IOException {
+        // Same file with a trailing separator
+        FileURL tempFileURLB = (FileURL)tempFile.getURL().clone();
+        tempFileURLB.setPath(tempFile.addTrailingSeparator(tempFileURLB.getPath()));
+        AbstractFile tempFileB = FileFactory.getFile(tempFileURLB, true);
+
         // Assert that isDirectory() returns false when the file does not exist
+        assertFalse(tempFile.exists());
         assertFalse(tempFile.isDirectory());
+        assertFalse(tempFileB.exists());
+        assertFalse(tempFileB.isDirectory());
 
         // Assert that isDirectory() returns true for directories
         tempFile.mkdir();
+        assertTrue(tempFile.exists());
         assertTrue(tempFile.isDirectory());
+        assertTrue(tempFileB.exists());
+        assertTrue(tempFileB.isDirectory());
 
         // Assert that isDirectory() returns false for regular files
         tempFile.delete();
-        tempFile.mkfile();
+        assertFalse(tempFile.exists());
         assertFalse(tempFile.isDirectory());
+        assertFalse(tempFileB.exists());
+        assertFalse(tempFileB.isDirectory());
+
+        tempFile.mkfile();
+        assertTrue(tempFile.exists());
+        assertFalse(tempFile.isDirectory());
+        assertTrue(tempFile.exists());
+        assertFalse(tempFileB.isDirectory());
     }
 
     /**
@@ -1589,11 +1674,14 @@ public abstract class AbstractFileTestCase extends TestCase {
     //////////////////////
 
     /**
-     * Returns a temporary file that can be used for testing purposes.
-     * The implementation should return a file that does not exist, i.e. for which {@link AbstractFile#exists()}
-     * returns <code>false</code>.
+     * Returns a temporary file that can be used for testing purposes. Implementation of this method must guarantee that:
+     * <ul>
+     *   <li>the returned file does not exist, i.e. that {@link AbstractFile#exists()} returns <code>false</code>.</li>
+     *   <li>a new file is returned each time this method is called.</li>
+     *   <li>the return file's path does not end with a trailing path separator</li>
+     * </ul>
      *
-     * @return a temporary file that does not physically exist
+     * @return a temporary file that does not exist
      * @throws IOException if an error occurred while creating a temporary file
      */
     public abstract AbstractFile getTemporaryFile() throws IOException;

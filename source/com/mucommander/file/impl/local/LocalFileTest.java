@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import com.mucommander.file.FileFactory;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Matcher;
 
 /**
  * An {@link com.mucommander.file.AbstractFileTestCase} implementation for {@link LocalFile}.
@@ -71,13 +72,18 @@ public class LocalFileTest extends AbstractFileTestCase {
 
     /**
      * Asserts that {@link com.mucommander.file.impl.local.LocalFile#getUserHome()} returns a file that is not null,
-     * is a directory, and exists. 
+     * is a directory, and exists, and that '~' can be resolved as the user home folder.
+     *
+     * @throws IOException should not happen 
      */
-    public void testUserHome() {
+    public void testUserHome() throws IOException {
         AbstractFile homeFolder = LocalFile.getUserHome();
         assertNotNull(homeFolder);
         assertTrue(homeFolder.isDirectory());
         assertTrue(homeFolder.exists());
+
+        assertEquals(homeFolder, FileFactory.getFile("~"));
+        assertEquals(homeFolder.getChild("blah"), FileFactory.getFile("~").getChild("blah"));
     }
 
     /**
@@ -102,5 +108,40 @@ public class LocalFileTest extends AbstractFileTestCase {
         assertNotNull(volumeInfo);
         assertEquals(volumeInfo[0], tempFile.getTotalSpace());
         assertEquals(volumeInfo[1], tempFile.getFreeSpace());
+    }
+
+    /**
+     * Tests the volumes returned by {@link LocalFile#getVolumes()} by calling {@link #testVolume(AbstractFile)} for
+     * each of them.
+     *
+     * @throws IOException should not happen
+     */
+    public void testVolumes() throws IOException {
+        AbstractFile[] volumes = LocalFile.getVolumes();
+
+        assertNotNull(volumes);
+        assertTrue(volumes.length>0);
+
+        for(int i=0; i<volumes.length; i++)
+            testVolume(volumes[i]);
+    }
+
+    /**
+     * Tests the regex pattern
+     */
+    public void testDrivePattern() {
+        Matcher matcher = LocalFile.driveRootPattern.matcher("C:\\");
+        assertTrue(matcher.matches());
+
+        matcher = LocalFile.driveRootPattern.matcher("C:");
+        assertFalse(matcher.matches());
+
+        matcher = LocalFile.driveRootPattern.matcher("C:\\blah");
+        assertFalse(matcher.matches());
+        matcher.reset();
+        assertTrue(matcher.find());
+
+        matcher = LocalFile.driveRootPattern.matcher("/blah/C:\\");
+        assertFalse(matcher.matches());
     }
 }

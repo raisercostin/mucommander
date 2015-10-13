@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.archiver.Archiver;
 import com.mucommander.file.util.FileSet;
@@ -69,7 +70,7 @@ public class ArchiveJob extends TransferFileJob {
         this.archiveFormat = archiveFormat;
         this.archiveComment = archiveComment;
 
-        this.baseFolderPath = baseSourceFolder.getAbsolutePath(false);
+        this.baseFolderPath = getBaseSourceFolder().getAbsolutePath(false);
     }
 
 
@@ -123,7 +124,7 @@ public class ArchiveJob extends TransferFileJob {
                 if(getState()==INTERRUPTED)
                     return false;
 
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught IOException: "+e);
+                AppLogger.fine("Caught IOException", e);
                 
                 int ret = showErrorDialog(Translator.get("pack_dialog.error_title"), Translator.get("error_while_transferring", file.getAbsolutePath()));
                 // Retry loops
@@ -141,7 +142,7 @@ public class ArchiveJob extends TransferFileJob {
 
     protected boolean hasFolderChanged(AbstractFile folder) {
         // This job modifies the folder where the archive is
-        return folder.equals(destFile.getParentSilently());     // Note: parent may be null
+        return folder.equalsCanonical(destFile.getParent());     // Note: parent may be null
     }
 
 
@@ -160,7 +161,7 @@ public class ArchiveJob extends TransferFileJob {
         if(collision!=FileCollisionChecker.NO_COLLOSION) {
             // File already exists in destination, ask the user what to do (cancel, overwrite,...) but
             // do not offer the multiple files mode options such as 'skip' and 'apply to all'.
-            int choice = waitForUserResponse(new FileCollisionDialog(progressDialog, mainFrame, collision, null, destFile, false, false));
+            int choice = waitForUserResponse(new FileCollisionDialog(getProgressDialog(), getMainFrame(), collision, null, destFile, false, false));
 
             // Overwrite file
             if (choice== FileCollisionDialog.OVERWRITE_ACTION) {
@@ -216,18 +217,6 @@ public class ArchiveJob extends TransferFileJob {
             // Try to close the archiver which in turns closes the archive OutputStream and underlying file OutputStream
             if(archiver!=null) {
                 try { archiver.close(); }
-                catch(IOException e) {}
-            }
-
-            // Todo: the check below was made when using java.util.zip. Since java.util.zip is not used anymore,
-            // check if this is still necessary
-
-            // Makes sure the file OutputStream has been properly closed. Archive.close() normally closes the archive
-            // OutputStream which in turn should close the underlying file OutputStream, but for some strange reason,
-            // if no entry has been added to a Zip archive and the job is interrupted (e.g. the first file could not be read),
-            // ZipOutputStream.close() does not close the underlying OutputStream.
-            if(out!=null) {
-                try { out.close(); }
                 catch(IOException e) {}
             }
         }

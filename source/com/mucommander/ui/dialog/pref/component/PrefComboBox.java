@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import javax.swing.JComboBox;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 
 /**
- * 
  * @author Arik Hadas
  */
 public abstract class PrefComboBox extends JComboBox implements PrefComponent {
@@ -36,11 +35,10 @@ public abstract class PrefComboBox extends JComboBox implements PrefComponent {
 	}
 	
 	public void addDialogListener(final PreferencesDialog dialog) {
-		final PrefComponent component = this;
 		addItemListener(new ItemListener() {
 
 			public void itemStateChanged(ItemEvent e) {
-				dialog.componentChanged(component);
+				dialog.componentChanged(PrefComboBox.this);
 			}
 		});		
 	}

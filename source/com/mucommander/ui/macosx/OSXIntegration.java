@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 package com.mucommander.ui.macosx;
 
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.dialog.about.AboutDialog;
 import com.mucommander.ui.dialog.shutdown.QuitDialog;
@@ -41,20 +43,27 @@ import com.mucommander.ui.main.WindowManager;
 public class OSXIntegration {
 
     public OSXIntegration() {
-        // Turn on/off brush metal look (default is off because still buggy when scrolling and panning dialog windows) :
-        //  "Allows you to display your main windows with the 'textured' Aqua window appearance.
-        //   This property should be applied only to the primary application window,
-        //   and should not affect supporting windows like dialogs or preference windows."
-        System.setProperty("apple.awt.brushMetalLook", ""+MuConfiguration.getVariable(MuConfiguration.USE_BRUSHED_METAL,
-                                                                                           MuConfiguration.DEFAULT_USE_BRUSHED_METAL));
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
+            // At the time of writing, the 'brushed metal' look causes the JVM to crash randomly under Leopard (10.5)
+            // so we disable brushed metal on that OS version but leave it for earlier versions where it works fine.
+            // See http://www.mucommander.com/forums/viewtopic.php?f=4&t=746 for more info about this issue.
+            if(OsVersions.MAC_OS_X_10_4.isCurrentOrLower()) {
+                // Turn on/off brush metal look (default is off because still buggy when scrolling and panning dialog windows) :
+                //  "Allows you to display your main windows with the 'textured' Aqua window appearance.
+                //   This property should be applied only to the primary application window,
+                //   and should not affect supporting windows like dialogs or preference windows."
+                System.setProperty("apple.awt.brushMetalLook",
+                    ""+MuConfiguration.getVariable(MuConfiguration.USE_BRUSHED_METAL, MuConfiguration.DEFAULT_USE_BRUSHED_METAL));
+            }
 
-        // Enables/Disables screen menu bar (default is on) :
-        //  "if you are using the Aqua look and feel, this property puts Swing menus in the Mac OS X menu bar."
-        System.setProperty("apple.laf.useScreenMenuBar", ""+MuConfiguration.getVariable(MuConfiguration.USE_SCREEN_MENU_BAR,
-                                                                                             MuConfiguration.DEFAULT_USE_SCREEN_MENU_BAR));
+            // Enables/Disables screen menu bar (default is on) :
+            //  "if you are using the Aqua look and feel, this property puts Swing menus in the Mac OS X menu bar."
+            System.setProperty("apple.laf.useScreenMenuBar", ""+MuConfiguration.getVariable(MuConfiguration.USE_SCREEN_MENU_BAR,
+                                                                                                 MuConfiguration.DEFAULT_USE_SCREEN_MENU_BAR));
 
-        // Catch 'About', 'Preferences' and 'Quit' events
-        new EAWTHandler();
+            // Catch 'About', 'Preferences' and 'Quit' events
+            new EAWTHandler();
+        }
     }
 
     /**
@@ -80,7 +89,7 @@ public class OSXIntegration {
         if(mainFrame.getNoEventsMode())
             return;
 
-        ActionManager.performAction(com.mucommander.ui.action.ShowPreferencesAction.class, mainFrame);
+        ActionManager.performAction(com.mucommander.ui.action.impl.ShowPreferencesAction.Descriptor.ACTION_ID, mainFrame);
     }
 
     /**

@@ -1,7 +1,27 @@
+/*
+ * This file is part of muCommander, http://www.mucommander.com
+ * Copyright (C) 2002-2009 Maxence Bernard
+ *
+ * muCommander is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * muCommander is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package com.mucommander.ui.dialog.file;
 
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.BatchRenameAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.layout.InformationPane;
@@ -22,7 +42,7 @@ public class BatchRenameConfirmationDialog extends FocusDialog implements Action
     private boolean proceedWithRename = false;
  
     public BatchRenameConfirmationDialog(MainFrame mainFrame, FileSet files, int changed, int unchanged) {
-        super(mainFrame, Translator.get("batch_rename_dialog.title"), mainFrame);
+        super(mainFrame, ActionProperties.getActionLabel(BatchRenameAction.Descriptor.ACTION_ID), mainFrame);
 
         YBoxPanel mainPanel = new YBoxPanel();
         String msg = Translator.get("batch_rename_dialog.proceed_renaming", Integer.toString(changed), Integer.toString(unchanged));

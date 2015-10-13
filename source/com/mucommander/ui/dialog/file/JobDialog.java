@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.button.CollapseExpandButton;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.layout.AsyncPanel;
 import com.mucommander.ui.list.FileList;
 import com.mucommander.ui.main.MainFrame;
@@ -42,6 +43,8 @@ public abstract class JobDialog extends FocusDialog {
     protected MainFrame mainFrame;
     protected FileSet files;
 
+    protected CollapseExpandButton collapseExpandButton;
+
     public JobDialog(MainFrame mainFrame, String title, FileSet files) {
         super(mainFrame, title, mainFrame);
 
@@ -57,7 +60,7 @@ public abstract class JobDialog extends FocusDialog {
      * @param title the error title
      */
     protected void showErrorDialog(String message, String title) {
-        JOptionPane.showMessageDialog(mainFrame, message, title, JOptionPane.ERROR_MESSAGE);
+        InformationDialog.showErrorDialog(mainFrame, title, message);
     }
 
     /**
@@ -95,7 +98,8 @@ public abstract class JobDialog extends FocusDialog {
      * @return a button that expands/collapses the specified 'File details' panel
      */
     protected CollapseExpandButton createFileDetailsButton(JPanel detailsPanel) {
-        return new CollapseExpandButton(Translator.get("nb_files", ""+files.size()), detailsPanel, false);
+        collapseExpandButton = new CollapseExpandButton(Translator.get("nb_files", ""+files.size()), detailsPanel, false);
+        return collapseExpandButton;
     }
 
     /**
@@ -115,6 +119,17 @@ public abstract class JobDialog extends FocusDialog {
         panel.add(buttonsPanel);
 
         return panel;
+    }
+    
+    /**
+     * Sets the list of files used by this job.
+     * @param files
+     */
+    protected void setFiles(FileSet files) {
+        this.files = files;
+        if (collapseExpandButton != null) {
+            collapseExpandButton.setText(Translator.get("nb_files", Integer.toString(files.size())));
+        }
     }
 
 }

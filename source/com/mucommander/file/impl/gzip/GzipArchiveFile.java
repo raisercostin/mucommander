@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,10 @@
 
 package com.mucommander.file.impl.gzip;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractROArchiveFile;
-import com.mucommander.file.ArchiveEntry;
+import com.mucommander.file.*;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Vector;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -39,6 +36,8 @@ public class GzipArchiveFile extends AbstractROArchiveFile {
 
     /**
      * Creates a GzipArchiveFile on top of the given file.
+     *
+     * @param file the underlying file to wrap this archive file around
      */
     public GzipArchiveFile(AbstractFile file) {
         super(file);
@@ -48,8 +47,8 @@ public class GzipArchiveFile extends AbstractROArchiveFile {
     ////////////////////////////////////////
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////
-	
-    public Vector getEntries() throws IOException {
+
+    public ArchiveEntryIterator getEntryIterator() throws IOException {
         String extension = getExtension();
         String name = getName();
 		
@@ -63,13 +62,11 @@ public class GzipArchiveFile extends AbstractROArchiveFile {
                 name = name.substring(0, name.length()-3);
         }
 
-        Vector entries = new Vector();
-        entries.add(new ArchiveEntry("/"+name, false, getDate(), -1));
-        return entries;
+        return new SingleArchiveEntryIterator(new ArchiveEntry("/"+name, false, getDate(), -1, true));
     }
 
 
-    public InputStream getEntryInputStream(ArchiveEntry entry) throws IOException {
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
         return new GZIPInputStream(getInputStream());
     }
 }

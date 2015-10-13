@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,16 @@
 
 package com.mucommander.ui.dialog.pref.theme;
 
-import java.awt.Dialog;
-import java.awt.Dimension;
-import java.awt.Frame;
-
-import javax.swing.JOptionPane;
-
 import com.mucommander.text.Translator;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.dialog.pref.component.PrefComponent;
 import com.mucommander.ui.theme.Theme;
 import com.mucommander.ui.theme.ThemeData;
 import com.mucommander.ui.theme.ThemeManager;
+
+import java.awt.*;
 
 /**
  * Main dialog for the theme editor.
@@ -78,6 +75,7 @@ public class ThemeEditorDialog extends PreferencesDialog {
         addPreferencesPanel(new StatusBarPanel(this, data));
         addPreferencesPanel(new ShellPanel(this, data));
         addPreferencesPanel(new FileEditorPanel(this, data));
+        addPreferencesPanel(new QuickListPanel(this, data));
 
         // Sets the dialog's size.
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
@@ -135,8 +133,7 @@ public class ThemeEditorDialog extends PreferencesDialog {
             }
             catch(Exception exception) {
                 try {
-                    JOptionPane.showMessageDialog(this, Translator.get("cannot_write_file", ThemeManager.getUserThemeFile().getAbsolutePath()),
-                                                  Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+                    InformationDialog.showErrorDialog(this, Translator.get("write_error"), Translator.get("cannot_write_file", ThemeManager.getUserThemeFile().getAbsolutePath()));
                 }
                 catch(Exception e) {}
             }

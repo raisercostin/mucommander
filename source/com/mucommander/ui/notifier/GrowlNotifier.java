@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.notifier;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.macosx.AppleScript;
@@ -104,7 +104,7 @@ public class GrowlNotifier extends AbstractNotifier {
             // Test if Growl is currently running and abort if it is not
             StringBuffer outputBuffer = new StringBuffer();
             if(!(AppleScript.execute(IS_GROWL_RUNNING_APPLESCRIPT, outputBuffer) && outputBuffer.toString().equals("true"))) {
-                if(Debug.ON) Debug.trace("Growl is not running, aborting");
+                AppLogger.fine("Growl is not running, aborting");
 
                 return false;
             }
@@ -125,7 +125,7 @@ public class GrowlNotifier extends AbstractNotifier {
                 " default notifications "+notificationTypes+
                 " icon of application \""+APP_NAME+"\"");
 
-            if(Debug.ON) Debug.trace(isRegistered?
+            AppLogger.info(isRegistered?
                 "Successfully registered "+APP_NAME+" with Growl":
                 "Error while registering "+APP_NAME+" with Growl");
 
@@ -141,10 +141,10 @@ public class GrowlNotifier extends AbstractNotifier {
     }
 
     public boolean displayNotification(int notificationType, String title, String description) {
-        if(Debug.ON) Debug.trace("notificationType="+notificationType+" title="+title+" description="+description);
+        AppLogger.finer("notificationType="+notificationType+" title="+title+" description="+description);
 
         if(!isEnabled()) {
-            if(Debug.ON) Debug.trace("Ignoring notification, this notifier is not enabled");
+            AppLogger.finer("Ignoring notification, this notifier is not enabled");
 
             return false;
         }
@@ -156,7 +156,7 @@ public class GrowlNotifier extends AbstractNotifier {
             " description \""+description+"\""+
             " application name \""+APP_NAME+"\"");
 
-        if(Debug.ON) Debug.trace(success?
+        AppLogger.finer(success?
             "Notification sent successfully":
             "Error while sending notification");
 
@@ -196,16 +196,15 @@ public class GrowlNotifier extends AbstractNotifier {
 //                // Commit everything
 //                growl.register();
 //
-//                if(Debug.ON)
-//                    Debug.trace("Application registered OK");
+//                AppLogger.fine("Application registered OK");
 //
 //                return (isEnabled = true);
 //            }
 //            catch(Exception e) {
-//                if(Debug.ON) Debug.trace("Exception thrown while initializing Growl support (Growl not running?): "+e);
+//                AppLogger.fine("Exception thrown while initializing Growl support (Growl not running?)", e);
 //            }
 //            catch(Error e) {
-//                if(Debug.ON) Debug.trace("Error while initializing Growl support (cocoa-java not available?): "+e);
+//                AppLogger.fine("Error while initializing Growl support (cocoa-java not available?)", e);
 //            }
 //
 //            growl = null;
@@ -221,25 +220,22 @@ public class GrowlNotifier extends AbstractNotifier {
 //    }
 //
 //    public boolean displayNotification(int notificationType, String title, String description) {
-//        if(Debug.ON) Debug.trace("notificationType="+notificationType+" title="+title+" description="+description);
+//        AppLogger.finer("notificationType="+notificationType+" title="+title+" description="+description);
 //
 //        if(!isEnabled()) {
-//            if(Debug.ON) Debug.trace("Ignoring notification, this notifier is not enabled");
+//            AppLogger.fine("Ignoring notification, this notifier is not enabled");
 //
 //            return false;
 //        }
 //
 //        try {
 //            growl.notifyGrowlOf(Translator.get(NOTIFICATION_KEYS[notificationType]), title, description);
-//            if(Debug.ON) Debug.trace("Notification sent OK");
+//            AppLogger.finer("Notification sent OK");
 //
 //            return true;
 //        }
 //        catch(Exception e) {
-//            if(Debug.ON) {
-//                Debug.trace("Exception thrown while sending notification:");
-//                e.printStackTrace();
-//            }
+//            AppLogger.fine("Exception thrown while sending notification", e);
 //
 //            return false;
 //        }

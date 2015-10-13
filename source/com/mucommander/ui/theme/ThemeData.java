@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,8 +59,8 @@ import java.util.WeakHashMap;
  * @author Nicolas Rinaudo
  */
 public class ThemeData {
-    // - Dirty hack ----------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Dirty hack ----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     // This is an effort to make the ThemeData class a bit easier to maintain, but I'm the first
     // to admit it's rather dirty.
     // 
@@ -77,24 +77,24 @@ public class ThemeData {
      * Number of known fonts.
      * <p>
      * Since font identifiers are contiguous, it is possible to explore all fonts contained
-     * by an instance of theme data by looping from 0 to {@link #FONT_COUNT}.
+     * by an instance of theme data by looping from 0 to this value.
      * </p>
      */
-    public static final int FONT_COUNT  = 6;
+    public static final int FONT_COUNT  = 8;
 
     /**
      * Number of known colors.
      * <p>
      * Since color identifiers are contiguous, it is possible to explore all colors contained
-     * by an instance of theme data by looping from 0 to {@link #COLOR_COUNT}.
+     * by an instance of theme data by looping from 0 to this color.
      * </p>
      */
-    public static final int COLOR_COUNT = 61;
+    public static final int COLOR_COUNT = 68;
 
 
 
-    // - Font definitions ----------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Font definitions ----------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Font used in the folder panels.
      * <p>
@@ -143,10 +143,25 @@ public class ThemeData {
      */
     public static final int STATUS_BAR_FONT = 5;
 
+    /**
+     * Font used in the quick list header.
+     * <p>
+     * This defaults to a similar font of the current <code>JTable</code> font, but a little bigger.
+     * </p>
+     */
+    public static final int QUICK_LIST_HEADER_FONT = 6;
+    
+    /**
+     * Font used in the quick list item.
+     * <p>
+     * This defaults to the current <code>JTable</code> font.
+     * </p>
+     */
+    public static final int QUICK_LIST_ITEM_FONT = 7;
 
 
-    // - Color definitions ---------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Color definitions ---------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Color used to paint the folder panels' borders.
      * <p>
@@ -628,11 +643,47 @@ public class ThemeData {
      * Color used to paint the outline of selected files in an inactive table.
      */
     public static final int FILE_TABLE_INACTIVE_SELECTED_OUTLINE_COLOR = 58;
+    
+    /**
+     * Color used to paint the main background of a quick list header.
+     */
+    public static final int QUICK_LIST_HEADER_BACKGROUND_COLOR = 61;
+    
+    /**
+     * Color used to paint the secondary background of a quick list header.
+     */
+    public static final int QUICK_LIST_HEADER_SECONDARY_BACKGROUND_COLOR = 62;
+    
+    /**
+     * Color used to paint the text of a quick list header.
+     */
+    public static final int QUICK_LIST_HEADER_FOREGROUND_COLOR = 63;
+    
+    /**
+     * Color used to paint the background of a quick list item.
+     */
+    public static final int QUICK_LIST_ITEM_BACKGROUND_COLOR = 64;
+    
+    /**
+     * Color used to paint the text of a quick list item.
+     */
+    public static final int QUICK_LIST_ITEM_FOREGROUND_COLOR = 65;
+
+    /**
+     * Color used to paint the background of a selected quick list item.
+     */
+    public static final int QUICK_LIST_SELECTED_ITEM_BACKGROUND_COLOR = 66;
+    
+    /**
+     * Color used to paint the text of a selected quick list item.
+     */
+    public static final int QUICK_LIST_SELECTED_ITEM_FOREGROUND_COLOR = 67;
 
 
 
-    // - Default fonts -------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+
+    // - Default fonts -------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     // The following fields are look&feel dependant values for the fonts that are used by
     // themes. We need to monitor them, as they are prone to change through UIManager.
 
@@ -644,11 +695,13 @@ public class ThemeData {
     private static Font  DEFAULT_LABEL_FONT;
     /** Default font for table components. */
     private static Font  DEFAULT_TABLE_FONT;
+    /** Default font for menu headers. */
+    private static Font  DEFAULT_MENU_HEADER_FONT;
 
 
 
-    // - Default colors ------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Default colors ------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     // The following fields are look&feel dependant values for the colors that are used by
     // themes. We need to monitor them, as they are prone to change through UIManager.
 
@@ -682,18 +735,22 @@ public class ThemeData {
     private static Color DEFAULT_TABLE_UNMATCHED_COLOR;
     /** Default 'unmatched' background color for table components. */
     private static Color DEFAULT_TABLE_UNMATCHED_BACKGROUND_COLOR;
+    /** Default background color for menu headers. */
+    private static Color DEFAULT_MENU_HEADER_BACKGROUND_COLOR;
+    /** Default foreground color for menu headers. */
+    private static Color DEFAULT_MENU_HEADER_FOREGROUND_COLOR;
 
 
 
-    // - Listeners -----------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Listeners -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /** Listeners on the default font and colors. */
     private static WeakHashMap listeners = new WeakHashMap();
 
 
 
-    // - Instance variables --------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Instance variables --------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /** All the colors contained by the theme. */
     private Color[] colors;
     /** All the fonts contained by the theme. */
@@ -701,8 +758,8 @@ public class ThemeData {
 
 
 
-    // - Initialisation ------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Initialisation ------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Starts listening on default colors and fonts.
      */
@@ -746,8 +803,8 @@ public class ThemeData {
 
 
 
-    // - Data import / export ------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Data import / export ------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Clones the current theme data.
      * <p>
@@ -816,8 +873,8 @@ public class ThemeData {
 
 
 
-    // - Items setting --------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Items setting -------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Sets the specified color to the specified value.
      * <p>
@@ -880,8 +937,8 @@ public class ThemeData {
     }
 
 
-    // - Items retrieval -----------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Items retrieval -----------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Returns the requested color.
      * <p>
@@ -936,9 +993,10 @@ public class ThemeData {
      * life time.<br/>
      * Classes that need to monitor such changes can register themselves using {@link #addDefaultValuesListener(ThemeListener)}.
      * </p>
-     * @param  id identifier of the color whose default value should be retrieved.
-     * @return    the default value for the specified color.
-     * @see       #addDefaultValuesListener(ThemeListener)
+     * @param  id   identifier of the color whose default value should be retrieved.
+     * @param  data theme data from which to retrieve default values.
+     * @return      the default value for the specified color.
+     * @see         #addDefaultValuesListener(ThemeListener)
      */
     private static Color getDefaultColor(int id, ThemeData data) {
         // Makes sure id is a legal color identifier.
@@ -946,135 +1004,157 @@ public class ThemeData {
 
         switch(id) {
             // File table background colors.
-        case FILE_TABLE_BACKGROUND_COLOR:
-        case FILE_TABLE_INACTIVE_BACKGROUND_COLOR:
-        case FILE_TABLE_ALTERNATE_BACKGROUND_COLOR:
-        case FILE_TABLE_INACTIVE_ALTERNATE_BACKGROUND_COLOR:
-	    return getTableBackgroundColor();
+            case FILE_TABLE_BACKGROUND_COLOR:
+            case FILE_TABLE_INACTIVE_BACKGROUND_COLOR:
+            case FILE_TABLE_ALTERNATE_BACKGROUND_COLOR:
+            case FILE_TABLE_INACTIVE_ALTERNATE_BACKGROUND_COLOR:
+                return getTableBackgroundColor();
+
+            case QUICK_LIST_ITEM_BACKGROUND_COLOR:
+                return data.getColor(FILE_TABLE_BACKGROUND_COLOR);
+
 
             // File table foreground colors (everything except marked
             // defaults to the l&f specific table foreground color).
-        case HIDDEN_FILE_FOREGROUND_COLOR:
-        case FOLDER_FOREGROUND_COLOR:
-        case ARCHIVE_FOREGROUND_COLOR:
-        case SYMLINK_FOREGROUND_COLOR:
-        case FILE_INACTIVE_FOREGROUND_COLOR:
-        case HIDDEN_FILE_INACTIVE_FOREGROUND_COLOR:
-        case FOLDER_INACTIVE_FOREGROUND_COLOR:
-        case ARCHIVE_INACTIVE_FOREGROUND_COLOR:
-        case SYMLINK_INACTIVE_FOREGROUND_COLOR:
-        case FILE_FOREGROUND_COLOR:
-	    return getTableColor();
+            case HIDDEN_FILE_FOREGROUND_COLOR:
+            case FOLDER_FOREGROUND_COLOR:
+            case ARCHIVE_FOREGROUND_COLOR:
+            case SYMLINK_FOREGROUND_COLOR:
+            case FILE_INACTIVE_FOREGROUND_COLOR:
+            case HIDDEN_FILE_INACTIVE_FOREGROUND_COLOR:
+            case FOLDER_INACTIVE_FOREGROUND_COLOR:
+            case ARCHIVE_INACTIVE_FOREGROUND_COLOR:
+            case SYMLINK_INACTIVE_FOREGROUND_COLOR:
+            case FILE_FOREGROUND_COLOR:
+                return getTableColor();
+
+            case QUICK_LIST_ITEM_FOREGROUND_COLOR:
+                return data.getColor(FILE_FOREGROUND_COLOR);
 
             // Marked files foreground colors (they have to be different
             // of the standard file foreground colors).
-        case MARKED_FOREGROUND_COLOR:
-        case MARKED_INACTIVE_FOREGROUND_COLOR:
-        case MARKED_SELECTED_FOREGROUND_COLOR:
-        case MARKED_INACTIVE_SELECTED_FOREGROUND_COLOR:
-            return Color.RED;
+            case MARKED_FOREGROUND_COLOR:
+            case MARKED_INACTIVE_FOREGROUND_COLOR:
+            case MARKED_SELECTED_FOREGROUND_COLOR:
+            case MARKED_INACTIVE_SELECTED_FOREGROUND_COLOR:
+                return Color.RED;
 
             // Text areas default foreground colors.
-        case SHELL_FOREGROUND_COLOR:
-        case EDITOR_FOREGROUND_COLOR:
-            return getTextAreaColor();
+            case SHELL_FOREGROUND_COLOR:
+            case EDITOR_FOREGROUND_COLOR:
+                return getTextAreaColor();
 
             // Text areas default background colors.
-        case SHELL_BACKGROUND_COLOR:
-        case EDITOR_BACKGROUND_COLOR:
-            return getTextAreaBackgroundColor();
+            case SHELL_BACKGROUND_COLOR:
+            case EDITOR_BACKGROUND_COLOR:
+                return getTextAreaBackgroundColor();
 
             // Text fields default foreground colors.
-        case SHELL_HISTORY_FOREGROUND_COLOR:
-        case LOCATION_BAR_FOREGROUND_COLOR:
-        case STATUS_BAR_FOREGROUND_COLOR:
-            return getTextFieldColor();
+            case SHELL_HISTORY_FOREGROUND_COLOR:
+            case LOCATION_BAR_FOREGROUND_COLOR:
+            case STATUS_BAR_FOREGROUND_COLOR:
+                return getTextFieldColor();
 
             // Text fields default background colors.
-        case LOCATION_BAR_BACKGROUND_COLOR:
-        case SHELL_HISTORY_BACKGROUND_COLOR:
-            return getTextFieldBackgroundColor();
+            case LOCATION_BAR_BACKGROUND_COLOR:
+            case SHELL_HISTORY_BACKGROUND_COLOR:
+                return getTextFieldBackgroundColor();
 
             // The location bar progress color is a bit of a special case,
             // as it requires alpha transparency.
-        case LOCATION_BAR_PROGRESS_COLOR:
-            return getTextFieldProgressColor();
+            case LOCATION_BAR_PROGRESS_COLOR:
+                return getTextFieldProgressColor();
 
             // Selected table background colors.
-        case FILE_TABLE_SELECTED_BACKGROUND_COLOR:
-        case FILE_TABLE_INACTIVE_SELECTED_BACKGROUND_COLOR:
-	    return getTableSelectionBackgroundColor();
+
+            case QUICK_LIST_HEADER_SECONDARY_BACKGROUND_COLOR:
+            case QUICK_LIST_HEADER_BACKGROUND_COLOR:
+                return getMenuHeaderBackgroundColor();
+
+            case FILE_TABLE_SELECTED_BACKGROUND_COLOR:
+            case FILE_TABLE_INACTIVE_SELECTED_BACKGROUND_COLOR:
+                return getTableSelectionBackgroundColor();
+
+            case QUICK_LIST_SELECTED_ITEM_BACKGROUND_COLOR:
+                return data.getColor(FILE_TABLE_SELECTED_BACKGROUND_COLOR);
 
             // The secondary background and outline colors default to the current
             // value of 'selected background'.
-        case FILE_TABLE_SELECTED_SECONDARY_BACKGROUND_COLOR:
-        case FILE_TABLE_SELECTED_OUTLINE_COLOR:
-            return data.getColor(FILE_TABLE_SELECTED_BACKGROUND_COLOR);
+            case FILE_TABLE_SELECTED_SECONDARY_BACKGROUND_COLOR:
+            case FILE_TABLE_SELECTED_OUTLINE_COLOR:
+                return data.getColor(FILE_TABLE_SELECTED_BACKGROUND_COLOR);
 
-        case FILE_TABLE_INACTIVE_SELECTED_SECONDARY_BACKGROUND_COLOR:
-        case FILE_TABLE_INACTIVE_SELECTED_OUTLINE_COLOR:
-            return data.getColor(FILE_TABLE_INACTIVE_SELECTED_BACKGROUND_COLOR);
+            case FILE_TABLE_INACTIVE_SELECTED_SECONDARY_BACKGROUND_COLOR:
+            case FILE_TABLE_INACTIVE_SELECTED_OUTLINE_COLOR:
+                return data.getColor(FILE_TABLE_INACTIVE_SELECTED_BACKGROUND_COLOR);
 
             // Border colors.
-        case FILE_TABLE_BORDER_COLOR:
-        case FILE_TABLE_INACTIVE_BORDER_COLOR:
-        case STATUS_BAR_BORDER_COLOR:
-            return Color.GRAY;
+            case FILE_TABLE_BORDER_COLOR:
+            case FILE_TABLE_INACTIVE_BORDER_COLOR:
+            case STATUS_BAR_BORDER_COLOR:
+                return Color.GRAY;
 
             // Foreground color for selected elements in the file table.
-        case HIDDEN_FILE_SELECTED_FOREGROUND_COLOR:
-        case FOLDER_SELECTED_FOREGROUND_COLOR:
-        case ARCHIVE_SELECTED_FOREGROUND_COLOR:
-        case SYMLINK_SELECTED_FOREGROUND_COLOR:
-        case HIDDEN_FILE_INACTIVE_SELECTED_FOREGROUND_COLOR:
-        case FOLDER_INACTIVE_SELECTED_FOREGROUND_COLOR:
-        case ARCHIVE_INACTIVE_SELECTED_FOREGROUND_COLOR:
-        case SYMLINK_INACTIVE_SELECTED_FOREGROUND_COLOR:
-        case FILE_INACTIVE_SELECTED_FOREGROUND_COLOR:
-        case FILE_SELECTED_FOREGROUND_COLOR:
-	    return getTableSelectionColor();
+            case HIDDEN_FILE_SELECTED_FOREGROUND_COLOR:
+            case FOLDER_SELECTED_FOREGROUND_COLOR:
+            case ARCHIVE_SELECTED_FOREGROUND_COLOR:
+            case SYMLINK_SELECTED_FOREGROUND_COLOR:
+            case HIDDEN_FILE_INACTIVE_SELECTED_FOREGROUND_COLOR:
+            case FOLDER_INACTIVE_SELECTED_FOREGROUND_COLOR:
+            case ARCHIVE_INACTIVE_SELECTED_FOREGROUND_COLOR:
+            case SYMLINK_INACTIVE_SELECTED_FOREGROUND_COLOR:
+            case FILE_INACTIVE_SELECTED_FOREGROUND_COLOR:
+            case FILE_SELECTED_FOREGROUND_COLOR:
+                return getTableSelectionColor();
+
+            case QUICK_LIST_SELECTED_ITEM_FOREGROUND_COLOR:
+                return data.getColor(FILE_SELECTED_FOREGROUND_COLOR);
 
             // Foreground color for selected text area elements.
-        case SHELL_SELECTED_FOREGROUND_COLOR:
-        case EDITOR_SELECTED_FOREGROUND_COLOR:
-            return getTextAreaSelectionColor();
+            case SHELL_SELECTED_FOREGROUND_COLOR:
+            case EDITOR_SELECTED_FOREGROUND_COLOR:
+                return getTextAreaSelectionColor();
 
             // Background color for selected text area elements.
-        case SHELL_SELECTED_BACKGROUND_COLOR:
-        case EDITOR_SELECTED_BACKGROUND_COLOR:
-            return getTextAreaSelectionBackgroundColor();
+            case SHELL_SELECTED_BACKGROUND_COLOR:
+            case EDITOR_SELECTED_BACKGROUND_COLOR:
+                return getTextAreaSelectionBackgroundColor();
 
             // Foreground color for selected text fields elements.
-        case LOCATION_BAR_SELECTED_FOREGROUND_COLOR:
-        case SHELL_HISTORY_SELECTED_FOREGROUND_COLOR:
-            return getTextFieldSelectionColor();
+            case LOCATION_BAR_SELECTED_FOREGROUND_COLOR:
+            case SHELL_HISTORY_SELECTED_FOREGROUND_COLOR:
+                return getTextFieldSelectionColor();
 
             // Background color for selected text fields elements.
-        case SHELL_HISTORY_SELECTED_BACKGROUND_COLOR:
-        case LOCATION_BAR_SELECTED_BACKGROUND_COLOR:
-            return getTextFieldSelectionBackgroundColor();
+            case SHELL_HISTORY_SELECTED_BACKGROUND_COLOR:
+            case LOCATION_BAR_SELECTED_BACKGROUND_COLOR:
+                return getTextFieldSelectionBackgroundColor();
 
             // Status bar defaults.
-        case STATUS_BAR_BACKGROUND_COLOR:
-            return new Color(0xD5D5D5);
+            case STATUS_BAR_BACKGROUND_COLOR:
+                return new Color(0xD5D5D5);
 
             // Status bar 'ok' color.
-        case STATUS_BAR_OK_COLOR:
-            return new Color(0x70EC2B);
+            case STATUS_BAR_OK_COLOR:
+                return new Color(0x70EC2B);
 
             // Status bar 'warning' color.
-        case STATUS_BAR_WARNING_COLOR:
-            return new Color(0xFF7F00);
+            case STATUS_BAR_WARNING_COLOR:
+                return new Color(0xFF7F00);
 
             // Status bar 'critical' color.
-        case STATUS_BAR_CRITICAL_COLOR:
-            return Color.RED;
+            case STATUS_BAR_CRITICAL_COLOR:
+                return Color.RED;
 
             // Unmatched colors.
-        case FILE_TABLE_UNMATCHED_BACKGROUND_COLOR:
-            return getTableUnmatchedBackgroundColor();
-        case FILE_TABLE_UNMATCHED_FOREGROUND_COLOR:
-            return getTableUnmatchedColor();
+            case FILE_TABLE_UNMATCHED_BACKGROUND_COLOR:
+                return getTableUnmatchedBackgroundColor();
+            case FILE_TABLE_UNMATCHED_FOREGROUND_COLOR:
+                return getTableUnmatchedColor();
+
+
+            case QUICK_LIST_HEADER_FOREGROUND_COLOR:
+                return getMenuHeaderForegroundColor();
         }
 
         // This should never happen.
@@ -1098,6 +1178,7 @@ public class ThemeData {
 	switch(id) {
             // Table font.
         case FILE_TABLE_FONT:
+        case QUICK_LIST_ITEM_FONT:
             return getTableFont();
 
 	    // Text Area font.
@@ -1110,9 +1191,13 @@ public class ThemeData {
         case SHELL_HISTORY_FONT:
 	    return getTextFieldFont();
 
-            // Label fonts.
+        // Label fonts.
         case STATUS_BAR_FONT:
 	    return getLabelFont();
+	    
+	    // Quick list header font.
+        case QUICK_LIST_HEADER_FONT:
+    	return getMenuHeaderFont();
         }
 
         // This should never happen.
@@ -1121,8 +1206,8 @@ public class ThemeData {
 
 
 
-    // - Comparison ----------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Comparison ----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Returns <code>true</code> if the specified data and the current one are identical.
      * <p>
@@ -1254,8 +1339,8 @@ public class ThemeData {
 
 
 
-    // - Theme events --------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Theme events --------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Registers the specified theme listener.
      * <p>
@@ -1326,8 +1411,8 @@ public class ThemeData {
 
 
 
-    // - Helper methods ------------------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Helper methods ------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Escapes the specified color.
      * <p>
@@ -1361,8 +1446,8 @@ public class ThemeData {
 
 
 
-    // - L&F dependant defaults ----------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - L&F dependant defaults ----------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Returns the current look and feel's table font.
      * <p>
@@ -1376,7 +1461,18 @@ public class ThemeData {
             if((DEFAULT_TABLE_FONT = UIManager.getDefaults().getFont("Table.font")) == null)
                 DEFAULT_TABLE_FONT = new JTable().getFont();
         }
-	return DEFAULT_TABLE_FONT;
+        return DEFAULT_TABLE_FONT;
+    }
+    
+    /**
+     * @return the default quick list header font.
+     */
+    private static Font getMenuHeaderFont() {
+    	if(DEFAULT_MENU_HEADER_FONT == null) {
+            if((DEFAULT_MENU_HEADER_FONT = UIManager.getDefaults().getFont("InternalFrame.font")) == null)
+                DEFAULT_MENU_HEADER_FONT = new JTable().getFont();
+    	}
+        return DEFAULT_MENU_HEADER_FONT;
     }
 
     /**
@@ -1392,13 +1488,13 @@ public class ThemeData {
             if((DEFAULT_TEXT_AREA_FONT = UIManager.getDefaults().getFont("TextArea.font")) == null)
                 DEFAULT_TEXT_AREA_FONT = new JTable().getFont();
         }
-	return DEFAULT_TEXT_AREA_FONT;
+        return DEFAULT_TEXT_AREA_FONT;
     }
 
     /**
      * Returns the current look and feel's text field font.
      * <p>
-     * If {@link #DEFAULT_FIELD_AREA_FONT} is not <code>null</code>, this method returns its value.
+     * If {@link #DEFAULT_TEXT_FIELD_FONT} is not <code>null</code>, this method returns its value.
      * Otherwise, it will be set to the current default font before being returned.
      * </p>
      * @return the current look and feel's text field font.
@@ -1408,7 +1504,7 @@ public class ThemeData {
             if((DEFAULT_TEXT_FIELD_FONT = UIManager.getDefaults().getFont("TextField.font")) == null)
                 DEFAULT_TEXT_FIELD_FONT = new JTable().getFont();
         }
-	return DEFAULT_TEXT_FIELD_FONT;
+        return DEFAULT_TEXT_FIELD_FONT;
     }
 
     /**
@@ -1424,7 +1520,7 @@ public class ThemeData {
             if((DEFAULT_LABEL_FONT = UIManager.getDefaults().getFont("Label.font")) == null)
                 DEFAULT_LABEL_FONT = new JTable().getFont();
         }
-	return DEFAULT_LABEL_FONT;
+        return DEFAULT_LABEL_FONT;
     }
 
     /**
@@ -1443,7 +1539,7 @@ public class ThemeData {
             DEFAULT_TEXT_FIELD_PROGRESS_COLOR = escapeColor(new Color(buffer.getRed(), buffer.getGreen(), buffer.getBlue(), 64));
         }
 
-	return DEFAULT_TEXT_FIELD_PROGRESS_COLOR;
+        return DEFAULT_TEXT_FIELD_PROGRESS_COLOR;
     }
 
     /**
@@ -1460,7 +1556,7 @@ public class ThemeData {
                 DEFAULT_TEXT_AREA_COLOR = new JTextArea().getForeground();
             DEFAULT_TEXT_AREA_COLOR = escapeColor(DEFAULT_TEXT_AREA_COLOR);
         }
-	return DEFAULT_TEXT_AREA_COLOR;
+        return DEFAULT_TEXT_AREA_COLOR;
     }
 
     /**
@@ -1477,7 +1573,7 @@ public class ThemeData {
                 DEFAULT_TEXT_AREA_BACKGROUND_COLOR = new JTextArea().getBackground();
             DEFAULT_TEXT_AREA_BACKGROUND_COLOR = escapeColor(DEFAULT_TEXT_AREA_BACKGROUND_COLOR);
         }
-	return DEFAULT_TEXT_AREA_BACKGROUND_COLOR;
+        return DEFAULT_TEXT_AREA_BACKGROUND_COLOR;
     }
 
     /**
@@ -1494,7 +1590,7 @@ public class ThemeData {
                 DEFAULT_TEXT_AREA_SELECTION_COLOR = new JTextArea().getSelectionColor();
             DEFAULT_TEXT_AREA_SELECTION_COLOR = escapeColor(DEFAULT_TEXT_AREA_SELECTION_COLOR);
         }
-	return DEFAULT_TEXT_AREA_SELECTION_COLOR;
+        return DEFAULT_TEXT_AREA_SELECTION_COLOR;
     }
 
     /**
@@ -1511,7 +1607,7 @@ public class ThemeData {
             DEFAULT_TEXT_AREA_SELECTION_BACKGROUND_COLOR = new JTextArea().getSelectedTextColor();
             DEFAULT_TEXT_AREA_SELECTION_BACKGROUND_COLOR = escapeColor(DEFAULT_TEXT_AREA_SELECTION_BACKGROUND_COLOR);
         }
-	return DEFAULT_TEXT_AREA_SELECTION_BACKGROUND_COLOR;
+        return DEFAULT_TEXT_AREA_SELECTION_BACKGROUND_COLOR;
     }
 
     /**
@@ -1528,7 +1624,7 @@ public class ThemeData {
                 DEFAULT_TEXT_FIELD_COLOR = new JTextField().getForeground();
             DEFAULT_TEXT_FIELD_COLOR = escapeColor(DEFAULT_TEXT_FIELD_COLOR);
         }
-	return DEFAULT_TEXT_FIELD_COLOR;
+        return DEFAULT_TEXT_FIELD_COLOR;
     }
 
     /**
@@ -1545,7 +1641,7 @@ public class ThemeData {
                 DEFAULT_TEXT_FIELD_BACKGROUND_COLOR = new JTextField().getBackground();
             DEFAULT_TEXT_FIELD_BACKGROUND_COLOR = escapeColor(DEFAULT_TEXT_FIELD_BACKGROUND_COLOR);
         }
-	return DEFAULT_TEXT_FIELD_BACKGROUND_COLOR;
+        return DEFAULT_TEXT_FIELD_BACKGROUND_COLOR;
     }
 
     /**
@@ -1562,7 +1658,7 @@ public class ThemeData {
                 DEFAULT_TEXT_FIELD_SELECTION_COLOR = new JTextField().getSelectionColor();
             DEFAULT_TEXT_FIELD_SELECTION_COLOR = escapeColor(DEFAULT_TEXT_FIELD_SELECTION_COLOR);
         }
-	return DEFAULT_TEXT_FIELD_SELECTION_COLOR;
+        return DEFAULT_TEXT_FIELD_SELECTION_COLOR;
     }
 
     /**
@@ -1579,7 +1675,7 @@ public class ThemeData {
                 DEFAULT_TEXT_FIELD_SELECTION_BACKGROUND_COLOR = new JTextField().getSelectedTextColor();
             DEFAULT_TEXT_FIELD_SELECTION_BACKGROUND_COLOR = escapeColor(DEFAULT_TEXT_FIELD_SELECTION_BACKGROUND_COLOR);
         }
-	return DEFAULT_TEXT_FIELD_SELECTION_BACKGROUND_COLOR;
+        return DEFAULT_TEXT_FIELD_SELECTION_BACKGROUND_COLOR;
     }
 
     /**
@@ -1596,7 +1692,7 @@ public class ThemeData {
                 DEFAULT_TABLE_COLOR = new JTable().getForeground();
             DEFAULT_TABLE_COLOR = escapeColor(DEFAULT_TABLE_COLOR);
         }
-	return DEFAULT_TABLE_COLOR;
+        return DEFAULT_TABLE_COLOR;
     }
 
     /**
@@ -1627,7 +1723,7 @@ public class ThemeData {
     private static synchronized Color getTableUnmatchedColor() {
         if(DEFAULT_TABLE_UNMATCHED_COLOR == null)
             DEFAULT_TABLE_UNMATCHED_COLOR = escapeColor(getTableColor().darker());
-	return DEFAULT_TABLE_UNMATCHED_COLOR;
+        return DEFAULT_TABLE_UNMATCHED_COLOR;
     }
 
     /**
@@ -1641,7 +1737,7 @@ public class ThemeData {
     private static synchronized Color getTableUnmatchedBackgroundColor() {
         if(DEFAULT_TABLE_UNMATCHED_BACKGROUND_COLOR == null)
             DEFAULT_TABLE_UNMATCHED_BACKGROUND_COLOR = escapeColor(getTableBackgroundColor().darker());
-	return DEFAULT_TABLE_UNMATCHED_BACKGROUND_COLOR;
+        return DEFAULT_TABLE_UNMATCHED_BACKGROUND_COLOR;
     }
 
     /**
@@ -1658,7 +1754,7 @@ public class ThemeData {
                 DEFAULT_TABLE_SELECTION_COLOR = new JTable().getSelectionForeground();
             DEFAULT_TABLE_SELECTION_COLOR = escapeColor(DEFAULT_TABLE_SELECTION_COLOR);
         }
-	return DEFAULT_TABLE_SELECTION_COLOR;
+        return DEFAULT_TABLE_SELECTION_COLOR;
     }
 
     /**
@@ -1675,7 +1771,48 @@ public class ThemeData {
                 DEFAULT_TABLE_SELECTION_BACKGROUND_COLOR = new JTable().getSelectionBackground();
             DEFAULT_TABLE_SELECTION_BACKGROUND_COLOR = escapeColor(DEFAULT_TABLE_SELECTION_BACKGROUND_COLOR);
         }
-	return DEFAULT_TABLE_SELECTION_BACKGROUND_COLOR;
+        return DEFAULT_TABLE_SELECTION_BACKGROUND_COLOR;
+    }
+
+    private static synchronized Color getMenuHeaderBackgroundColor() {
+        if(DEFAULT_MENU_HEADER_BACKGROUND_COLOR == null) {
+            if((DEFAULT_MENU_HEADER_BACKGROUND_COLOR = UIManager.getDefaults().getColor("InternalFrame.activeTitleBackground")) == null)
+                DEFAULT_MENU_HEADER_BACKGROUND_COLOR = new JInternalFrame().getBackground();
+            DEFAULT_MENU_HEADER_BACKGROUND_COLOR = escapeColor(DEFAULT_MENU_HEADER_BACKGROUND_COLOR);
+        }
+        return DEFAULT_MENU_HEADER_BACKGROUND_COLOR;
+    }
+
+    private static synchronized Color getMenuHeaderForegroundColor() {
+        if(DEFAULT_MENU_HEADER_FOREGROUND_COLOR == null) {
+            if((DEFAULT_MENU_HEADER_FOREGROUND_COLOR = UIManager.getDefaults().getColor("InternalFrame.activeTitleForeground")) == null)
+                DEFAULT_MENU_HEADER_FOREGROUND_COLOR = new JInternalFrame().getBackground();
+            DEFAULT_MENU_HEADER_FOREGROUND_COLOR = escapeColor(DEFAULT_MENU_HEADER_FOREGROUND_COLOR);
+        }
+        return DEFAULT_MENU_HEADER_FOREGROUND_COLOR;
+    }
+
+    private static synchronized void resetMenuHeaderBackgroundColor() {
+        Color buffer;
+
+        buffer = DEFAULT_MENU_HEADER_BACKGROUND_COLOR;
+        DEFAULT_MENU_HEADER_BACKGROUND_COLOR = null;
+
+        if(!getMenuHeaderBackgroundColor().equals(buffer)) {
+            triggerColorEvent(QUICK_LIST_HEADER_BACKGROUND_COLOR, getMenuHeaderBackgroundColor());
+            triggerColorEvent(QUICK_LIST_HEADER_SECONDARY_BACKGROUND_COLOR, getMenuHeaderBackgroundColor());
+        }
+    }
+
+    private static synchronized void resetMenuHeaderForegroundColor() {
+        Color buffer;
+
+        buffer = DEFAULT_MENU_HEADER_FOREGROUND_COLOR;
+        DEFAULT_MENU_HEADER_FOREGROUND_COLOR = null;
+
+        if(!getMenuHeaderForegroundColor().equals(buffer)) {
+            triggerColorEvent(QUICK_LIST_HEADER_FOREGROUND_COLOR, getMenuHeaderForegroundColor());
+        }
     }
 
     /**
@@ -1990,6 +2127,17 @@ public class ThemeData {
         }
     }
 
+    private static synchronized void resetMenuHeaderFont() {
+        Font buffer;
+
+        buffer = DEFAULT_MENU_HEADER_FONT;
+        DEFAULT_MENU_HEADER_FONT = null;
+
+        if(!getMenuHeaderFont().equals(buffer)) {
+            triggerFontEvent(QUICK_LIST_HEADER_FONT, getMenuHeaderFont());
+        }
+    }
+
     /**
      * Resets the default label font.
      * <p>
@@ -2007,10 +2155,8 @@ public class ThemeData {
             triggerFontEvent(STATUS_BAR_FONT, getLabelFont());
     }
 
-
-
-    // - Default values listener ---------------------------------------------------------
-    // -----------------------------------------------------------------------------------
+    // - Default values listener ---------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
     /**
      * Listens on changes to the default colors.
      * @author Nicolas Rinaudo
@@ -2036,6 +2182,9 @@ public class ThemeData {
                 resetTextAreaFont();
                 resetTextFieldFont();
                 resetLabelFont();
+                resetMenuHeaderFont();
+                resetMenuHeaderForegroundColor();
+                resetMenuHeaderBackgroundColor();
             }
             else if(property.equals("TextArea.foreground"))
                 resetTextAreaColor();
@@ -2069,6 +2218,12 @@ public class ThemeData {
                 resetTextFieldFont();
             else if(property.equals("Label.font"))
                 resetLabelFont();
+            else if(property.equals("InternalFrame.font"))
+                resetMenuHeaderFont();
+            else if(property.equals("InternalFrame.activeTitleForeground"))
+                resetMenuHeaderForegroundColor();
+            else if(property.equals("InternalFrame.activeTitleBackground"))
+                resetMenuHeaderBackgroundColor();
         }
     }
 }

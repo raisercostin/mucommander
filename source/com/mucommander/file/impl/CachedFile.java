@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.file.impl;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.FilePermissions;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.filter.FileFilter;
@@ -63,17 +63,14 @@ public class CachedFile extends ProxyFile {
     private long getDate;
     private boolean getDateSet;
 
-    private boolean canRunProcess;
-    private boolean canRunProcessSet;
-
     private boolean isSymlink;
     private boolean isSymlinkSet;
 
     private boolean isDirectory;
     private boolean isDirectorySet;
 
-    private boolean isBrowsable;
-    private boolean isBrowsableSet;
+    private boolean isArchive;
+    private boolean isArchiveSet;
 
     private boolean isHidden;
     private boolean isHiddenSet;
@@ -166,10 +163,10 @@ public class CachedFile extends ProxyFile {
             fs = fFs.get(null);
 
             getFileAttributesAvailable = true;
-            if(Debug.ON) Debug.trace("Access to java.io.FileSystem granted");
+            FileLogger.finest("Access to java.io.FileSystem granted");
         }
         catch(Exception e) {
-            if(Debug.ON) Debug.trace("Error while allowing access to java.io.FileSystem: "+e);
+            FileLogger.fine("Error while allowing access to java.io.FileSystem", e);
         }
     }
 
@@ -224,7 +221,7 @@ public class CachedFile extends ProxyFile {
                 isHiddenSet = true;
             }
             catch(Exception e) {
-                if(Debug.ON) Debug.trace("Could not retrieve file attributes for "+file+": "+e);
+                FileLogger.fine("Could not retrieve file attributes for "+file, e);
             }
         }
     }
@@ -252,15 +249,6 @@ public class CachedFile extends ProxyFile {
         return getDate;
     }
 
-    public boolean canRunProcess() {
-        if(!canRunProcessSet) {
-            canRunProcess = file.canRunProcess();
-            canRunProcessSet = true;
-        }
-
-        return canRunProcess;
-    }
-
     public boolean isSymlink() {
         if(!isSymlinkSet) {
             isSymlink = file.isSymlink();
@@ -283,13 +271,13 @@ public class CachedFile extends ProxyFile {
         return isDirectory;
     }
 
-    public boolean isBrowsable() {
-        if(!isBrowsableSet) {
-            isBrowsable = file.isBrowsable();
-            isBrowsableSet = true;
+    public boolean isArchive() {
+        if(!isArchiveSet) {
+            isArchive = file.isArchive();
+            isArchiveSet = true;
         }
 
-        return isBrowsable;
+        return isArchive;
     }
 
     public boolean isHidden() {
@@ -418,7 +406,7 @@ public class CachedFile extends ProxyFile {
     }
 
 
-    public AbstractFile getParent() throws IOException {
+    public AbstractFile getParent() {
         if(!getParentSet) {
             getParent = file.getParent();
             // Create a CachedFile instance around the file if recursion is enabled
@@ -430,7 +418,7 @@ public class CachedFile extends ProxyFile {
         return getParent;
     }
 
-    public AbstractFile getRoot() throws IOException {
+    public AbstractFile getRoot() {
         if(!getRootSet) {
             getRoot = file.getRoot();
             // Create a CachedFile instance around the file if recursion is enabled

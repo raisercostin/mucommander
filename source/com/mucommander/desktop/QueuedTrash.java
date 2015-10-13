@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 package com.mucommander.desktop;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.text.Translator;
+import com.mucommander.ui.dialog.InformationDialog;
+import com.mucommander.ui.main.WindowManager;
 
 import java.util.Vector;
 
@@ -139,7 +142,8 @@ public abstract class QueuedTrash extends AbstractTrash {
             while(queueSize!=queuedFiles.size());
 
             synchronized(moveToTrashLock) {     // Files can't be added to queue while files are moved to trash
-                moveToTrash(queuedFiles);
+                if(!moveToTrash(queuedFiles))
+                    InformationDialog.showErrorDialog(WindowManager.getCurrentMainFrame(), Translator.get("delete_dialog.move_to_trash.option"), Translator.get("delete_dialog.move_to_trash.failed"));
 
                 queuedFiles.clear();
                 // Wake up any thread waiting for this thread to be finished

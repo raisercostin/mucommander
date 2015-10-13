@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ public class SimpleFileAttributesTest extends TestCase {
      */
     private void assertAttributesMatch(AbstractFile file, SimpleFileAttributes attrs) {
         assertEquals(file.getAbsolutePath(), attrs.getPath());
-        assertEquals(file.exists(), attrs.getExists());
+        assertEquals(file.exists(), attrs.exists());
         assertEquals(file.getDate(), attrs.getDate());
         assertEquals(file.getSize(), attrs.getSize());
         assertEquals(file.isDirectory(), attrs.isDirectory());
@@ -75,7 +75,7 @@ public class SimpleFileAttributesTest extends TestCase {
     public void testDefaultValues() {
         SimpleFileAttributes attrs = new SimpleFileAttributes();
         assertEquals(null, attrs.getPath());
-        assertEquals(false, attrs.getExists());
+        assertEquals(false, attrs.exists());
         assertEquals(0, attrs.getDate());
         assertEquals(0, attrs.getSize());
         assertEquals(false, attrs.isDirectory());

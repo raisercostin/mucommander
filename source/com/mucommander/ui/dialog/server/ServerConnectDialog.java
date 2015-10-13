@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@ import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.file.FileURL;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.ConnectToServerAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.layout.XBoxPanel;
 import com.mucommander.ui.layout.YBoxPanel;
@@ -86,7 +88,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
      * @param selectPanelClass class of the ServerPanel to select
      */
     public ServerConnectDialog(FolderPanel folderPanel, Class selectPanelClass) {
-        super(folderPanel.getMainFrame(), MuAction.getStandardLabel(com.mucommander.ui.action.ConnectToServerAction.class), folderPanel.getMainFrame());
+        super(folderPanel.getMainFrame(), ActionProperties.getActionLabel(ConnectToServerAction.Descriptor.ACTION_ID), folderPanel.getMainFrame());
         this.folderPanel = folderPanel;
         lastPanelClass = selectPanelClass;
 
@@ -199,7 +201,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
             folderPanel.tryChangeCurrentFolder(serverURL, credentialsMapping);
         }
         catch(IOException ex) {
-            JOptionPane.showMessageDialog(this, Translator.get("folder_does_not_exist"), Translator.get("table.folder_access_error_title"), JOptionPane.ERROR_MESSAGE);
+            InformationDialog.showErrorDialog(this, Translator.get("table.folder_access_error_title"), Translator.get("folder_does_not_exist"));
         }
     }
 	

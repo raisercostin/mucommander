@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.ShutdownHook;
 import com.mucommander.auth.AuthException;
+import com.mucommander.auth.CredentialsManager;
 import com.mucommander.auth.CredentialsMapping;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
@@ -28,7 +29,9 @@ import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.extension.ExtensionManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileURL;
 import com.mucommander.ui.dialog.auth.AuthDialog;
+import com.mucommander.ui.main.commandbar.CommandBar;
 
 import javax.swing.*;
 import java.awt.*;
@@ -96,9 +99,13 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         // Goes through the list and install every custom look and feel we could find.
         // Look and feels that aren't supported under the current platform are ignored.
         plafsIterator = plafs.iterator();
+        String plaf;
         while(plafsIterator.hasNext()) {
-            try {installLookAndFeel((String)plafsIterator.next());}
-            catch(Throwable e) {if(Debug.ON) Debug.trace(e);}
+            plaf = (String)plafsIterator.next();
+            try {installLookAndFeel(plaf);}
+            catch(Throwable e) {
+                AppLogger.info("Failed to install Look&Feel "+plaf, e);
+            }
         }
     }
 
@@ -120,10 +127,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         if(lnfName!=null && !lnfName.equals(UIManager.getLookAndFeel().getName()))
             setLookAndFeel(lnfName);
 
-        // In debug mode, trace un-initialised preference files.
-        if(Debug.ON)
-            if(lnfName == null)
-                Debug.trace("Could load look'n feel from preferences");
+        if(lnfName == null)
+            AppLogger.fine("Could load look'n feel from preferences");
     }
 
     /**
@@ -165,7 +170,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         if(folderPath == null || (folder = FileFactory.getFile(folderPath)) == null || !folder.exists())
             folder = FileFactory.getFile(System.getProperty("user.home"));
 
-        if(Debug.ON) Debug.trace("initial folder= "+folder);
+        AppLogger.finer("initial folder= "+folder);
         return folder;
     }
 
@@ -207,11 +212,14 @@ public class WindowManager implements WindowListener, ConfigurationListener {
                 if(e instanceof AuthException) {
                     // Prompts the user for a login and password.
                     AuthException authException = (AuthException)e;
-                    AuthDialog authDialog = new AuthDialog(currentMainFrame, authException.getURL(), true, authException.getMessage());
+                    FileURL url = authException.getURL();
+                    AuthDialog authDialog = new AuthDialog(currentMainFrame, url, true, authException.getMessage());
                     authDialog.showDialog();
                     newCredentialsMapping = authDialog.getCredentialsMapping();
                     if(newCredentialsMapping !=null) {
-                        path = newCredentialsMapping.getRealm().toString(true);
+                        // Use the provided credentials
+                        CredentialsManager.authenticate(url, newCredentialsMapping);
+                        path = url.toString(true);
                     }
                     // If the user cancels, we fall back to the default path.
                     else {
@@ -236,7 +244,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         if(!file.isBrowsable())
             // This is just playing things safe, as I doubt there might ever be a case of
             // a file without a parent directory.
-            if((file = file.getParentSilently()) == null)
+            if((file = file.getParent()) == null)
                 return getInitialPath(frame);
 
         return file;
@@ -245,6 +253,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     
     /**
      * Returns the sole instance of WindowManager.
+     *
+     * @return the sole instance of WindowManager
      */
     public static WindowManager getInstance() {
         return instance;
@@ -252,15 +262,19 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     
 	
     /**
-     * Returns the last MainFrame instance that was active. Note that the returned MainFrame may or may not be
-     * currently active.
+     * Returns the <code>MainFrame</code> instance that was last active. Note that the returned <code>MainFrame</code>
+     * may or may not be currently active.
+     *
+     * @return the <code>MainFrame</code> instance that was last active
      */
     public static MainFrame getCurrentMainFrame() {
         return currentMainFrame;
     }
 	
     /**
-     * Returns a Vector of all MainFrame instances the application has.
+     * Returns a <code>Vector</code> of all <code>MainFrame</code> instances currently displaying.
+     *
+     * @return a <code>Vector</code> of all <code>MainFrame</code> instances currently displaying
      */
     public static Vector getMainFrames() {
         return mainFrames;
@@ -313,8 +327,10 @@ public class WindowManager implements WindowListener, ConfigurationListener {
 
     /**
      * Creates a new MainFrame and makes it visible on the screen, on top of any other frames.
+     *
      * @param folder1 initial path for the left frame.
      * @param folder2 initial path for the right frame.
+     * @return the newly created MainFrame.
      */
     public static synchronized MainFrame createNewMainFrame(AbstractFile folder1, AbstractFile folder2) {
         MainFrame newMainFrame; // New MainFrame.
@@ -449,19 +465,22 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * or the last one which was activated.
      */
     public static synchronized void quit() {
-        // Retrieve current MainFrame's index
-        int currentMainFrameIndex = mainFrames.indexOf(currentMainFrame);
-		
-        // Dispose all MainFrames but the current one
+        // Dispose all MainFrames, ending with the currently active one.
         int nbFrames = mainFrames.size();
-        for(int i=0; i<nbFrames; i++) {
-            if(i!=currentMainFrameIndex)
-                ((MainFrame)mainFrames.elementAt(i)).dispose();
+        if(nbFrames>0) {            // If an uncaught exception occurred in the startup sequence, there is no MainFrame to dispose
+            // Retrieve current MainFrame's index
+            int currentMainFrameIndex = mainFrames.indexOf(currentMainFrame);
+            
+            // Dispose all MainFrames but the current one
+            for(int i=0; i<nbFrames; i++) {
+                if(i!=currentMainFrameIndex)
+                    ((MainFrame)mainFrames.elementAt(i)).dispose();
+            }
+
+            // Dispose current MainFrame last so that its attributes (last folders, window position...) are saved last
+            // in the preferences
+            ((MainFrame)mainFrames.elementAt(currentMainFrameIndex)).dispose();
         }
-        
-        // Dispose current MainFrame last so that its attributes (last folders, window position...) are saved last
-        // in the preferences
-        ((MainFrame)mainFrames.elementAt(currentMainFrameIndex)).dispose();
 
         // Dispose all other frames (viewers, editors...)
         Frame frames[] = Frame.getFrames();
@@ -469,9 +488,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         Frame frame;
         for(int i=0; i<nbFrames; i++) {
             frame = frames[i];
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("frame#"+i+"= "+frame);
             if(frame.isShowing()) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("disposing frame#"+i);
+                AppLogger.finer("disposing frame#"+i);
                 frame.dispose();
             }
         }
@@ -512,6 +530,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
 
     /**
      * Changes LooknFeel to the given one, updating the UI of each MainFrame.
+     *
+     * @param lnfName name of the new LooknFeel to use
      */
     private static void setLookAndFeel(String lnfName) {
         try {
@@ -533,7 +553,9 @@ public class WindowManager implements WindowListener, ConfigurationListener {
             for(int i=0; i<mainFrames.size(); i++)
                 SwingUtilities.updateComponentTreeUI((MainFrame)(mainFrames.elementAt(i)));
         }
-        catch(Throwable e) {if(Debug.ON) Debug.trace(e);}
+        catch(Throwable e) {
+            AppLogger.fine("Exception caught", e);
+        }
     }
 
 
@@ -575,22 +597,13 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     }
 
     public void windowClosing(WindowEvent e) {
-  //      Object source = e.getSource();
-
-//        // Return if event doesn't originate from a MainFrame (e.g. ViewerFrame or EditorFrame)
-//        if(!(source instanceof MainFrame))
-//            return;
-
-//        if(source instanceof MainFrame)
-//            disposeMainFrame((MainFrame)source);
     }
- 
     
     /**
      * windowClosed is synchronized so that it doesn't get called while quit() is executing.
      */
     public synchronized void windowClosed(WindowEvent e) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
+        AppLogger.finest("called");
 
         Object source = e.getSource();
 
@@ -625,9 +638,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         Frame frame;
         for(int i=0; i<nbFrames; i++) {
             frame = frames[i];
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("frame#"+i+"= "+frame);
             if(frame.isShowing()) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("found active frame#"+i);
+                AppLogger.finer("found active frame#"+i);
                 return;
             }
         }
@@ -671,7 +683,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     // - Screen handling --------------------------------------------------------
     // --------------------------------------------------------------------------
     /**
-     * Computes the screen's insets for the specified window.
+     * Computes the screen's insets for the specified window and returns them.
      * <p>
      * While this might seem strange, screen insets can change from one window
      * to another. For example, on X11 windowing systems, there is no guarantee that
@@ -679,6 +691,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * the application is running on.
      * </p>
      * @param window the window for which screen insets should be computed.
+     * @return the screen's insets for the specified window
      */
     public static Insets getScreenInsets(Window window) {
         return Toolkit.getDefaultToolkit().getScreenInsets(window.getGraphicsConfiguration());
@@ -714,6 +727,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * Returns the maximum dimensions for a full-screen window.
      *
      * @param window window who's full screen size should be computed.
+     * @return the maximum dimensions for a full-screen window
      */
     public static Rectangle getFullScreenBounds(Window window) {
         Toolkit   toolkit;

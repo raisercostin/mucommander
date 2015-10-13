@@ -18,13 +18,13 @@
 
 package com.mucommander.file.impl.zip.provider;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.io.*;
 
 import java.io.*;
-import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Vector;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -45,7 +45,7 @@ import java.util.zip.ZipException;
  * <p>This class doesn't extend <code>java.util.zip.ZipFile</code> as it would have to reimplement all methods anyway.
  * Like <code>java.util.ZipFile</code>, it supports compressed (DEFLATED) and uncompressed (STORED) entries.</p>
  *
- * <p>Random read access is required to instanciate a <code>ZipFile</code> and retrieve its entries. Furthermore, random
+ * <p>Random read access is required to instantiate a <code>ZipFile</code> and retrieve its entries. Furthermore, random
  * write access is required for methods that modify the Zip file.</p>
  *
  * <p>The method signatures mimic the ones of <code>java.util.zip.ZipFile</code> with a few exceptions:
@@ -53,7 +53,8 @@ import java.util.zip.ZipException;
  *   <li>There is no <code>getName</code> method.</li>
  *   <li>There is no <code>close</code> method: underlying input and output streams are opened and closed automatically
  *    as they are needed.</li>
- *   <li><code>entries</code> has been renamed to {@link #getEntries()}.</li>
+ *   <li><code>entries</code> has been renamed to {@link #getEntries()} and returns an <code>Iterator</code> instead of
+ * an <code>Enumeration</code>.</li>
  *   <li><code>size</code> has been renamed to {@link #getNbEntries()}.</li>
  * </ul>
  * </p>
@@ -127,7 +128,7 @@ public class ZipFile implements ZipConstants {
      */
     private void openRead() throws IOException {
         if(rais!=null) {
-            if(Debug.ON) Debug.trace("Warning: an existing RandomAccessInputStream was found, closing it now");
+            FileLogger.fine("Warning: an existing RandomAccessInputStream was found, closing it now");
             rais.close();
         }
 
@@ -157,7 +158,7 @@ public class ZipFile implements ZipConstants {
      */
     private void openWrite() throws IOException{
         if(raos!=null) {
-            if(Debug.ON) Debug.trace("Warning: an existing RandomAccessOutputStream was found, closing it now");
+            FileLogger.fine("Warning: an existing RandomAccessOutputStream was found, closing it now");
             raos.close();
         }
 
@@ -218,12 +219,12 @@ public class ZipFile implements ZipConstants {
     }
 
     /**
-     * Returns all entries as an enumeration of {@link ZipEntry} instances.
+     * Returns all entries as an <code>Iterator</code> of {@link ZipEntry} instances.
      *
-     * @return Returns all entries as an enumeration of ZipEntry instances.
+     * @return Returns all entries as an <code>Iterator</code> of ZipEntry instances.
      */
-    public Enumeration getEntries() {
-        return entries.elements();
+    public Iterator getEntries() {
+        return entries.iterator();
     }
 
     /**
@@ -272,9 +273,9 @@ public class ZipFile implements ZipConstants {
         BoundedInputStream bis =
             new BoundedInputStream(entryIn, start, ze.getCompressedSize());
         switch (ze.getMethod()) {
-            case ZipEntry.STORED:
+            case ZipConstants.STORED:
                 return bis;
-            case ZipEntry.DEFLATED:
+            case ZipConstants.DEFLATED:
                 bis.addDummy();
                 return new InflaterInputStream(bis, new Inflater(true));
             default:
@@ -779,14 +780,14 @@ public class ZipFile implements ZipConstants {
 
             if(isUTF8) {
                 entryInfo.encoding = UTF_8;
-                if(Debug.ON) Debug.trace("Entry declared as UTF-8");
+                FileLogger.finest("Entry declared as UTF-8");
             }
             else if(defaultEncodingSet) {
                 entryInfo.encoding = defaultEncoding;
-                if(Debug.ON) Debug.trace("Using default encoding: "+defaultEncoding);
+                FileLogger.finest("Using default encoding: "+defaultEncoding);
             }
             else {
-                // if(Debug.ON) Debug.trace("Encoding will be detected later");
+//                FileLogger.finest("Encoding will be detected later");
             }
 
             entryInfo.hasDataDescriptor = (gp&8)!=0;
@@ -838,7 +839,7 @@ public class ZipFile implements ZipConstants {
 
             // If the encoding is known already, set the String now
             if(entryInfo.encoding!=null) {
-                ze.setName(getString(filename, entryInfo.encoding));
+                setFilename(ze, getString(filename, entryInfo.encoding));
             }
             else {
                 // Keep the filename bytes, String will be encoded after
@@ -889,7 +890,7 @@ public class ZipFile implements ZipConstants {
             // In that case, the default system encoding will be used to create the string
             String guessedEncoding = EncodingDetector.detectEncoding(encodingAccumulator.toByteArray());
 
-            if(Debug.ON) Debug.trace("Guessed encoding: "+guessedEncoding);
+            FileLogger.finest("Guessed encoding: "+guessedEncoding);
 
             ZipEntry entry;
             ZipEntryInfo entryInfo;
@@ -903,13 +904,32 @@ public class ZipFile implements ZipConstants {
 
                 entryInfo.encoding = guessedEncoding;
 
-                entry.setName(getString(entryInfo.filename, guessedEncoding));
+                setFilename(entry, getString(entryInfo.filename, guessedEncoding));
                 entryInfo.filename = null;
 
                 entry.setComment(getString(entryInfo.comment, guessedEncoding));
                 entryInfo.comment = null;
             }
         }
+    }
+
+    /**
+     * Sets the given filename in the ZipEntry.
+     *
+     * <p>This method detects filenames that use '\' as a path separator and replaces occurrences of '\' to '/'.
+     * Zip specifications make it clear that '/' should always be used, even under FAT platforms, but some packers
+     * (IZArc for instance) don't comply with the specs and use '/' anyway. We handle those paths only if the archive
+     * was created under a FAT platform ; '\' is an allowed character under UNIX platforms: replacing them
+     * would be a bad idea.</p>
+     *
+     * @param ze the ZipEntry object in which to set the filename
+     * @param filename the filename to set 
+     */
+    private static void setFilename(ZipEntry ze, String filename) {
+        if(ze.getPlatform()==ZipEntry.PLATFORM_FAT)
+            filename = filename.replace('\\', '/');
+
+        ze.setName(filename);
     }
 
     /**
@@ -1043,7 +1063,7 @@ public class ZipFile implements ZipConstants {
      * If the specified encoding isn't supported, the platform's default encoding will be used.
      *
      * @param bytes the byte array to transform
-     * @param encoding the encoding to use to instanciate the String
+     * @param encoding the encoding to use to instantiate the String
      * @return String instance that was created with the given encoding
      */
     private static String getString(byte[] bytes, String encoding) {
@@ -1055,7 +1075,7 @@ public class ZipFile implements ZipConstants {
                 return new String(bytes, encoding);
             }
             catch(UnsupportedEncodingException e) {
-                if(Debug.ON) Debug.trace("Error: unsupported encoding: "+encoding+" , falling back to default encoding");
+                FileLogger.fine("Error: unsupported encoding: "+encoding+" , falling back to default encoding");
             }
         }
 

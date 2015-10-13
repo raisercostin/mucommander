@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
 
 
 package com.mucommander.auth;
-
-import com.mucommander.bookmark.XORCipher;
-
 
 /**
  * This class is a container for a login and password pair, used to authenticate a location on a filesystem.
@@ -85,16 +82,6 @@ public final class Credentials {
 
         return maskedPasswordSb.toString();
     }
-
-    /**
-     * Returns the password as a weakly encrypted string.
-     *
-     * @return the password as a weakly encrypted string.
-     */
-    public String getEncryptedPassword() {
-        return XORCipher.encryptXORBase64(password);
-    }
-
 
     /**
      * Returns <code>true</code> if these credentials are empty.
@@ -170,6 +157,11 @@ public final class Credentials {
 
     public String toString() {
         return login;
+    }
+
+    public int hashCode() {
+        // Do not take into account the password, as #equals(Object) is password-insensitive
+        return login.hashCode();
     }
 }
 

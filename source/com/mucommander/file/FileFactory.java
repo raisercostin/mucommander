@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,12 @@
 
 package com.mucommander.file;
 
-import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.CredentialsManager;
-import com.mucommander.cache.LRUCache;
 import com.mucommander.file.icon.FileIconProvider;
 import com.mucommander.file.icon.impl.SwingFileIconProvider;
 import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.file.util.FileCache;
 import com.mucommander.file.util.PathTokenizer;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.runtime.JavaVersions;
@@ -32,7 +31,10 @@ import com.mucommander.runtime.OsFamilies;
 import com.mucommander.util.Enumerator;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Random;
+import java.util.Vector;
 
 /**
  * FileFactory is an abstract class that provides static methods to get a {@link AbstractFile} instance for
@@ -54,7 +56,6 @@ import java.util.*;
  *   <li>{@link FileProtocols#HTTPS HTTPS}.</li>
  *   <li>{@link FileProtocols#NFS NFS}.</li>
  *   <li>{@link FileProtocols#SMB SMB}.</li>
- *   <li>{@link FileProtocols#BOOKMARKS Bookmarks}.</li>
  * </ul>
  * </p>
  * <h3>Archive formats</h3>
@@ -92,14 +93,11 @@ public class FileFactory {
     /** Array of registered FileProtocolMapping instances, for quicker access */
     private static ArchiveFormatProvider[] archiveFormatProviders;
 
-    /** Static LRUCache instance that caches frequently accessed AbstractFile instances */
-    private static LRUCache fileCache;
+    /** Caches raw (as opposed to archives) file instances */
+    private final static FileCache rawFileCache = new FileCache();
 
     /** Caches archive file instances */
-    private static WeakHashMap archiveFileCache = new WeakHashMap();
-
-    /** Default capacity of the file cache */
-    public final static int DEFAULT_FILE_CACHE_CAPACITY = 1000;
+    private final static FileCache archiveFileCache = new FileCache();
 
     /** System temp directory */
     private final static AbstractFile TEMP_DIRECTORY;
@@ -108,23 +106,17 @@ public class FileFactory {
     private static FileIconProvider defaultFileIconProvider;
 
     static {
-        if(Debug.ON) Debug.trace("Registering file providers");
-
-        // Initialize the LRUCache that caches frequently accessed AbstractFile instances
-        setFileCacheCapacity(DEFAULT_FILE_CACHE_CAPACITY);
-
         // Register built-in file protocols.
         ProtocolProvider protocolProvider;
-        registerProtocol(FileProtocols.FILE,      new com.mucommander.file.impl.local.LocalFileProvider());
+        registerProtocol(FileProtocols.FILE, new com.mucommander.file.impl.local.LocalFileProvider());
         registerProtocol(FileProtocols.SMB,       new com.mucommander.file.impl.smb.SMBProtocolProvider());
-        registerProtocol(FileProtocols.HTTP,      protocolProvider = new com.mucommander.file.impl.http.HTTPProtocolProvider());
-        registerProtocol(FileProtocols.HTTPS,     protocolProvider);
-        registerProtocol(FileProtocols.FTP,       new com.mucommander.file.impl.ftp.FTPProtocolProvider());
-        registerProtocol(FileProtocols.NFS,       new com.mucommander.file.impl.nfs.NFSProtocolProvider());
-        registerProtocol(FileProtocols.BOOKMARKS, new com.mucommander.bookmark.file.BookmarkProtocolProvider());
+        registerProtocol(FileProtocols.HTTP, protocolProvider = new com.mucommander.file.impl.http.HTTPProtocolProvider());
+        registerProtocol(FileProtocols.HTTPS, protocolProvider);
+        registerProtocol(FileProtocols.FTP, new com.mucommander.file.impl.ftp.FTPProtocolProvider());
+        registerProtocol(FileProtocols.NFS, new com.mucommander.file.impl.nfs.NFSProtocolProvider());
         // SFTP support is not compatible with all version of the Java runtime
         if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
-            registerProtocol(FileProtocols.SFTP,      new com.mucommander.file.impl.sftp.SFTPProtocolProvider());
+            registerProtocol(FileProtocols.SFTP, new com.mucommander.file.impl.sftp.SFTPProtocolProvider());
 
 //        registerProtocol(FileProtocols.S3,        new com.mucommander.file.impl.s3.S3Provider());
 
@@ -141,6 +133,8 @@ public class FileFactory {
         // Register this provider only if running Java 1.5 or up as it uses the Java 1.5 API
         if(JavaVersions.JAVA_1_5.isCurrentOrHigher())
             registerArchiveFormat(new com.mucommander.file.impl.rar.RarFormatProvider());
+        
+        registerArchiveFormat(new com.mucommander.file.impl.sevenzip.SevenZipFormatProvider());
 
         // Set the default FileIconProvider instance
         defaultFileIconProvider = new SwingFileIconProvider();
@@ -156,32 +150,6 @@ public class FileFactory {
     private FileFactory() {
     }
 
-
-    /**
-     * Sets the capacity of the {@link LRUCache} that caches frequently accessed file instances. The more the capacity,
-     * the more frequent the cache is hit but the higher the memory usage. By default, the capacity is
-     * {@link #DEFAULT_FILE_CACHE_CAPACITY}.
-     *
-     * <p>If the specified capacity is different from the current one, a new cache instance will be created, thus clearing
-     * all previously cached files.</p>
-     *
-     * @param capacity the capacity of the LRU cache that caches frequently accessed file instances
-     * @see com.mucommander.cache.LRUCache
-     */
-    public static void setFileCacheCapacity(int capacity) {
-        if(fileCache==null || fileCache.getCapacity()!=capacity)   // Don't create a new instance if the capacity is the same
-            fileCache = LRUCache.createInstance(capacity);
-    }
-
-    /**
-     * Returns the capacity of the {@link LRUCache} that caches frequently accessed file instances. By default, the
-     * capacity is {@link #DEFAULT_FILE_CACHE_CAPACITY}.
-     *
-     * @return capacity of the LRU cache that caches frequently accessed file instances
-     */
-    public static int getFileCacheCapacity() {
-        return fileCache.getCapacity();
-    }
 
     /**
      * Registers a new file protocol.
@@ -234,13 +202,24 @@ public class FileFactory {
     }
 
     /**
-     * Returns the protocol provider associated with the specified protocol identifer.
+     * Returns the protocol provider associated with the specified protocol identifer, or <code>null</code> if there
+     * is none.
      *
      * @param  protocol identifier of the protocol whose provider should be retrieved.
      * @return          the protocol provider registered to the specified protocol identifer, or <code>null</code> if none.
      */
     public static ProtocolProvider getProtocolProvider(String protocol) {
         return (ProtocolProvider)protocolProviders.get(protocol.toLowerCase());
+    }
+
+    /**
+     * Returns <code>true</code> if the given protocol has a registered {@link ProtocolProvider}.
+     *
+     * @param protocol identifier of the protocol to test
+     * @return <code>true</code> if the given protocol has a registered {@link ProtocolProvider}.
+     */
+    public static boolean isRegisteredProtocol(String protocol) {
+        return getProtocolProvider(protocol)!=null;
     }
 
     /**
@@ -336,7 +315,7 @@ public class FileFactory {
     public static AbstractFile getFile(String absPath) {
         try {return getFile(absPath, null);}
         catch(IOException e) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught exception: "+e);
+            FileLogger.fine("Caught an exception", e);
             return null;
         }
     }
@@ -355,9 +334,8 @@ public class FileFactory {
     public static AbstractFile getFile(String absPath, boolean throwException) throws AuthException, IOException {
         try {return getFile(absPath, null);}
         catch(IOException e) {
-            if(com.mucommander.Debug.ON) {
-                com.mucommander.Debug.trace("Caught exception: "+e);
-            }
+            FileLogger.fine("Caught an exception", e);
+
             if(throwException)
                 throw e;
             return null;
@@ -388,7 +366,7 @@ public class FileFactory {
     public static AbstractFile getFile(FileURL fileURL) {
         try {return getFile(fileURL, null);}
         catch(IOException e) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught exception: "+e);
+            FileLogger.fine("Caught an exception", e);
             return null;
         }
     }
@@ -404,10 +382,8 @@ public class FileFactory {
     public static AbstractFile getFile(FileURL fileURL, boolean throwException) throws IOException {
         try {return getFile(fileURL, null);}
         catch(IOException e) {
-            if(com.mucommander.Debug.ON) {
-                com.mucommander.Debug.trace("Caught exception: "+e);
-                e.printStackTrace();
-            }
+            FileLogger.fine("Caught an exception", e);
+
             if(throwException)
                 throw e;
             return null;
@@ -432,8 +408,10 @@ public class FileFactory {
         if(OsFamilies.WINDOWS.isCurrent() && FileProtocols.FILE.equals(fileURL.getScheme()))
             filePath = PathUtils.removeLeadingSeparator(filePath, "/");
 
+        String pathSeparator = fileURL.getPathSeparator();
+
         PathTokenizer pt = new PathTokenizer(filePath,
-                fileURL.getPathSeparator(),
+                pathSeparator,
                 false);
 
         AbstractFile currentFile = null;
@@ -448,7 +426,7 @@ public class FileFactory {
             if(isArchiveFilename(pt.nextFilename())) {
                 // Remove trailing separator of file, some file protocols such as SFTP don't like trailing separators.
                 // On the contrary, directories without a trailing slash are fine.
-                String currentPath = PathUtils.removeTrailingSeparator(pt.getCurrentPath());
+                String currentPath = PathUtils.removeTrailingSeparator(pt.getCurrentPath(), pathSeparator);
 
                 // Test if current file is an archive file and if it is, create an archive entry file instead of a raw
                 // protocol file
@@ -462,7 +440,7 @@ public class FileFactory {
                 }
                 else {          // currentFile is an AbstractArchiveFile
                     // Note: wrapArchive() is already called by AbstractArchiveFile#createArchiveEntryFile()
-                    AbstractFile tempEntryFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
+                    AbstractFile tempEntryFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length()), pathSeparator));
                     if(tempEntryFile instanceof AbstractArchiveFile) {
                         currentFile = tempEntryFile;
                         lastFileResolved = true;
@@ -488,7 +466,7 @@ public class FileFactory {
                 currentFile = createRawFile(clonedURL);
             }
             else {          // currentFile is an AbstractArchiveFile
-                currentFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length())));
+                currentFile = ((AbstractArchiveFile)currentFile).getArchiveEntryFile(PathUtils.removeLeadingSeparator(currentPath.substring(currentFile.getURL().getPath().length(), currentPath.length()), pathSeparator));
             }
         }
 
@@ -508,15 +486,12 @@ public class FileFactory {
                 || scheme.equals(FileProtocols.SMB)
                 || scheme.equals(FileProtocols.SFTP);
 
-        // This value is used twice, only if file caching is used
-        String urlRep = useFileCache?fileURL.toString(true):null;
-
         AbstractFile file;
 
         if(useFileCache) {
             // Lookup the cache for an existing AbstractFile instance
-            file = (AbstractFile)fileCache.get(urlRep);
-//            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("file cache hits/misses: "+fileCache.getHitCount()+"/"+fileCache.getMissCount());
+            // Note: FileURL#equals(Object) and #hashCode() take into account credentials and properties
+            file = rawFileCache.get(fileURL);
 
             if(file!=null)
                 return file;
@@ -537,10 +512,8 @@ public class FileFactory {
         else {
             // If the specified FileURL doesn't contain any credentials, use CredentialsManager to find
             // any credentials matching the url and use them.
-//            if(Debug.ON) Debug.trace("fileURL.containsCredentials() "+fileURL.containsCredentials());
             if(!fileURL.containsCredentials())
                 CredentialsManager.authenticateImplicit(fileURL);
-//            if(Debug.ON) Debug.trace("credentials="+fileURL.getCredentials());
 
             // Finds the right file protocol provider
             ProtocolProvider provider = getProtocolProvider(scheme);
@@ -553,8 +526,8 @@ public class FileFactory {
             // Note: Creating an archive file on top of the file must be done after adding the file to the LRU cache,
             // this could otherwise lead to weird behaviors, for example if a directory with the same filename
             // of a former archive was created, the directory would be considered as an archive
-            fileCache.add(urlRep, file);
-//                            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Added to file cache: "+file);
+            rawFileCache.put(fileURL, file);
+            FileLogger.finest("Added to file cache: "+file);
         }
 
         return file;
@@ -667,21 +640,21 @@ public class FileFactory {
             boolean useCache = !(file instanceof ArchiveEntryFile);
 
             if(useCache) {
-                archiveFile = (AbstractFile)archiveFileCache.get(file.getAbsolutePath());
+                archiveFile = archiveFileCache.get(file.getURL());
                 if(archiveFile!=null) {
-//                    if(Debug.ON) Debug.trace("Found cached archive file for: "+file.getAbsolutePath());
+//                    FileLogger.finest("Found cached archive file for: "+file.getAbsolutePath());
                     return archiveFile;
                 }
 
-//                if(Debug.ON) Debug.trace("No cached archive file found for: "+file.getAbsolutePath());
+//                FileLogger.finest("No cached archive file found for: "+file.getAbsolutePath());
             }
 
             ArchiveFormatProvider provider;
             if((provider = getArchiveFormatProvider(filename)) != null) {
                 archiveFile = provider.getFile(file);
                 if(useCache) {
-                    if(Debug.ON) Debug.trace("Adding archive file to cache: "+file.getAbsolutePath());
-                    archiveFileCache.put(file.getAbsolutePath(), archiveFile);
+                    FileLogger.finest("Adding archive file to cache: "+file.getAbsolutePath());
+                    archiveFileCache.put(file.getURL(), archiveFile);
                 }
                 return archiveFile;
             }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ import java.util.Vector;
  * all discovered classes to a {@link ClassFilter}.
  * </p>
  * <p>
- * In order for classes to be analysed, they need to be loaded. This can be achieved in two ways:
+ * In order for classes to be analyzed, they need to be loaded. This can be achieved in two ways:
  * <ul>
  *   <li>By using a custom class loader through {@link #find(AbstractFile,ClassFilter,ClassLoader)}.</li>
  *   <li>
@@ -48,16 +48,16 @@ public class ClassFinder {
     // -----------------------------------------------------------------------------------
     /** ClassLoader used to load classes from explored files. */
     private ClassLoader  loader;
-    /** Contains all the classes that have been found. */
-    private Vector       classes;
     /** Used to filter out files that are neither classes nor directories. */
     private OrFileFilter filter;
     /** Used to filter out unwanted classes. */
     private ClassFilter  classFilter;
 
+    public static final int CLASSES_NAMES     = 0;
+    public static final int CLASSES           = 1;
 
 
-    // - Initialisation ------------------------------------------------------------------
+    // - Initialization ------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /**
      * Creates a new instance of <code>ClassFinder</code>.
@@ -76,29 +76,32 @@ public class ClassFinder {
      * Explores the specified file for classes that match {@link #classFilter}.
      * @param  currentPackage package we're currently exploring (with a trailing '.').
      * @param  currentFile    file we're currently exploring.
+     * @return a vector containing all the classes that were found and matched <code>classFilter</code>.
      * @throws IOException    if an error occurs while exploring <code>currentFile</code>.
      */
-    private void find(String currentPackage, AbstractFile currentFile) throws IOException {
+    private Vector find(String currentPackage, AbstractFile currentFile) throws IOException {
         AbstractFile[] files;        // All subfolders or child class files of currentFile.
         Class          currentClass; // Buffer for the current class.
-
+        Vector result = new Vector();
+        
         // Analyses all subdirectories and class files.
         files = currentFile.ls(filter);
         for(int i = 0; i < files.length; i++) {
             // Explores subdirectories recursively.
             if(files[i].isDirectory())
-                find(currentPackage + files[i].getName() + '.', files[i]);
+                result.addAll(find(currentPackage + files[i].getName() + '.', files[i]));
 
             // Passes each class through the class filter.
             // Errors are treated as 'this class is not wanted'.
             else {
                 try {
                     if(classFilter.accept(currentClass = Class.forName(currentPackage + files[i].getNameWithoutExtension(), false, loader)))
-                        classes.add(currentClass.getName());
+                        result.add(currentClass);                    
                 }
                 catch(Throwable e) {}
             }
         }
+        return result;
     }
 
 
@@ -114,7 +117,7 @@ public class ClassFinder {
      * @param  browsable   file in which to look for classes.
      * @param  classFilter how to decide which classes should be kept.
      * @param  classLoader used to load each class found in <code>browsable</code>.
-     * @return             a vector containing the names of all the classes that were found and matched <code>classFilter</code>.
+     * @return             a vector containing all the classes that were found and matched <code>classFilter</code>.
      * @throws IOException if an error occurs while exploring <code>browsable</code>.
      * @see                #find(AbstractFile,ClassFilter)
      */
@@ -123,22 +126,19 @@ public class ClassFinder {
         if(!browsable.isBrowsable())
             return new Vector();
 
-        // Initialises exploring.
-        classes          = new Vector();
+        // Initializes exploring.
         loader           = classLoader;
         this.classFilter = classFilter;
 
-        // Looks for all matched classes in browsable.
-        find("", browsable);
-
-        return classes;
+        // Looks for all matched classes in browsable.        
+        return find("", browsable);
     }
 
     /**
      * Explores the content of the specified file and looks for classes that match the specified class filter.
      * <p>
      * This is a convenience method and is strictly equivalent to calling {@link #find(AbstractFile,ClassFilter,ClassLoader)}
-     * with a class loader argument initialised with the following code:
+     * with a class loader argument initialized with the following code:
      * <pre>
      * AbstractFileClassLoader loader;
      *
@@ -148,13 +148,13 @@ public class ClassFinder {
      * </p>
      * @param  browsable   file in which to look for classes.
      * @param  classFilter how to decide which classes should be kept.
-     * @return             a vector containing the names of all the classes that were found and matched <code>classFilter</code>.
+     * @return             a vector containing all the classes that were found and matched <code>classFilter</code>.
      * @throws IOException if an error occurs while exploring <code>browsable</code>.
      */
     public Vector find(AbstractFile browsable, ClassFilter classFilter) throws IOException {
         AbstractFileClassLoader classLoader; // Default class loader.
 
-        // Initialises the default class loader.
+        // Initializes the default class loader.
         classLoader = new AbstractFileClassLoader();
         classLoader.addFile(browsable);
 

@@ -84,7 +84,6 @@ public class BaseBlock{
 	
 	
 	protected long positionInFile;
-	
 	protected short headCRC = 0;
 	protected byte headerType = 0;
 	protected short flags = 0;
@@ -93,9 +92,7 @@ public class BaseBlock{
 	/**
 	 * 
 	 */
-	public BaseBlock(){
-		
-	}
+	public BaseBlock(){ }
 	
 	public BaseBlock(BaseBlock bb){
 		this.flags = bb.getFlags();
@@ -104,7 +101,21 @@ public class BaseBlock{
     	this.headerSize = bb.getHeaderSize();
     	this.positionInFile = bb.getPositionInFile();
 	}
-	public BaseBlock(byte[] baseBlockHeader){
+	
+	/*public BaseBlock(byte[] baseBlockHeader){
+		int pos = 0;
+		this.headCRC = Raw.readShortLittleEndian(baseBlockHeader, pos);
+		pos+=2;
+		this.headerType |= baseBlockHeader[pos]&0xff;
+		pos++;
+		this.flags = Raw.readShortLittleEndian(baseBlockHeader, pos);
+		pos+=2;
+		this.headerSize = Raw.readShortLittleEndian(baseBlockHeader, pos);
+	}*/
+	
+	public void init(byte[] baseBlockHeader, long position) {
+		positionInFile = position;
+		headerType = 0;
 		
 		int pos = 0;
 		this.headCRC = Raw.readShortLittleEndian(baseBlockHeader, pos);
@@ -115,7 +126,6 @@ public class BaseBlock{
 		pos+=2;
 		this.headerSize = Raw.readShortLittleEndian(baseBlockHeader, pos);
 	}
-	
 	
 	public boolean hasArchiveDataCRC(){
 		return (this.flags & EARC_DATACRC)!=0;
@@ -163,7 +173,9 @@ public class BaseBlock{
 
 	/*public UnrarHeadertype getHeaderType() {
 		return UnrarHeadertype.getHeaderType(headerType);
-	}*/public byte getHeaderType() {
+	}*/
+	
+	public byte getHeaderType() {
 		return headerType;
 	}
 	

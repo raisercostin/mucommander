@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,14 @@
 
 package com.mucommander.ui.notifier;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.runtime.JavaVersions;
-import com.mucommander.ui.action.*;
+import com.mucommander.ui.action.AWTActionProxy;
+import com.mucommander.ui.action.ActionManager;
+import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.impl.BringAllToFrontAction;
+import com.mucommander.ui.action.impl.NewWindowAction;
+import com.mucommander.ui.action.impl.QuitAction;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.WindowManager;
 
@@ -47,7 +52,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     private boolean isEnabled;
 
     /** Path to the tray icon image */
-    private final static String TRAY_ICON_PATH = "/icon16.gif";
+    private final static String TRAY_ICON_PATH = "/icon16_8.png";
 
     /** Width of the muCommander tray icon */
     private final static int TRAY_ICON_WIDTH = 16;
@@ -68,8 +73,8 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
      * Creates and adds a menu item that triggers the MuAction denoted by the given Class. The menu item's label
      * is set to the value returned by {@link MuAction#getLabel()}.
      */
-    private void addMenuItem(Menu menu, Class muActionClass) {
-        MuAction action = ActionManager.getActionInstance(muActionClass, WindowManager.getCurrentMainFrame());
+    private void addMenuItem(Menu menu, String muActionId) {
+        MuAction action = ActionManager.getActionInstance(muActionId, WindowManager.getCurrentMainFrame());
         MenuItem menuItem = new MenuItem(action.getLabel());
         menuItem.addActionListener(new AWTActionProxy(action));
         menu.add(menuItem);
@@ -111,9 +116,10 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
             // Create the popup (AWT!) menu. Note there is no way with java.awt.Menu to know when the menu is selected
             // and thus it makes it hard to have contextual menu items such as the list of open windows.
             PopupMenu menu = new PopupMenu();
-            addMenuItem(menu, BringAllToFrontAction.class);
+            addMenuItem(menu, NewWindowAction.Descriptor.ACTION_ID);
+            addMenuItem(menu, BringAllToFrontAction.Descriptor.ACTION_ID);
             menu.addSeparator();
-            addMenuItem(menu, QuitAction.class);
+            addMenuItem(menu, QuitAction.Descriptor.ACTION_ID);
 
             trayIcon.setPopupMenu(menu);
 
@@ -150,10 +156,10 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     }
 
     public boolean displayNotification(int notificationType, String title, String description) {
-        if(Debug.ON) Debug.trace("notificationType="+notificationType+" title="+title+" description="+description);
+        AppLogger.finer("notificationType="+notificationType+" title="+title+" description="+description);
 
         if(!isEnabled()) {
-            if(Debug.ON) Debug.trace("Ignoring notification, this notifier is not enabled");
+            AppLogger.finer("Ignoring notification, this notifier is not enabled");
 
             return false;
         }
@@ -172,7 +178,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     ///////////////////////////////////
 
     public void actionPerformed(ActionEvent actionEvent) {
-        if(Debug.ON) Debug.trace("caught SystemTray ActionEvent");
+        AppLogger.finest("caught SystemTray ActionEvent");
 
         WindowManager.getCurrentMainFrame().toFront();
     }

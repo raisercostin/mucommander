@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -173,6 +173,9 @@ public class StringUtilsTest extends TestCase {
         assertFalse(StringUtils.equals("a", "z", true));
     }
 
+    /**
+     * Tests {@link StringUtils#capitalize(String)}.
+     */
     public void testCapitalize() {
         assertEquals("Bob", StringUtils.capitalize("bob"));
         assertEquals("Bob", StringUtils.capitalize("BOB"));
@@ -186,5 +189,25 @@ public class StringUtilsTest extends TestCase {
         assertEquals("", StringUtils.capitalize(null));
 
         assertEquals("7", StringUtils.capitalize("7"));
+    }
+
+    /**
+     * Tests {@link StringUtils#flatten(String[], String)} and {@link StringUtils#flatten(String[])}.
+     */
+    public void testFlatten() {
+        assertEquals("a b c", StringUtils.flatten(new String[]{"a", "b", "c"}));
+        assertEquals("a b c", StringUtils.flatten(new String[]{"a", "b", "c"}, " "));
+
+        assertEquals("a*b*c", StringUtils.flatten(new String[]{"a", "b", "c"}, "*"));
+
+        assertEquals("a*c", StringUtils.flatten(new String[]{"a", "", "c"}, "*"));
+
+        assertEquals("a*c", StringUtils.flatten(new String[]{"a", null, "c"}, "*"));
+
+        assertEquals("b", StringUtils.flatten(new String[]{null, "b", null}, "*"));
+
+        assertEquals("", StringUtils.flatten(new String[]{null, null, null}, "*"));
+
+        assertEquals(null, StringUtils.flatten(null, "*"));
     }
 }

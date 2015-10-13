@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,15 +20,14 @@ package com.mucommander.ui.dialog.pref.general;
 
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
 import com.mucommander.ui.dialog.pref.component.PrefComponent;
 import com.mucommander.ui.main.WindowManager;
 
-import java.awt.Dimension;
+import java.awt.*;
 import java.util.LinkedHashSet;
 import java.util.Set;
-
-import javax.swing.JOptionPane;
 
 /**
  * This is the main preferences dialog that contains all preferences panels organized by tabs.
@@ -80,6 +79,8 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
     private final static String MAIL_ICON       = "mail.png";
     /** Name of the icon used by the 'misc' tab. */
     private final static String MISC_ICON       = "misc.png";
+    /** Name of the icon used by the 'shortucts' tab. */
+    private final static String SHORTCUTS_ICON  = "shortcuts.png";
 
 
 
@@ -106,6 +107,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
         addPreferencesPanel(new GeneralPanel(this),    GENERAL_ICON);
         addPreferencesPanel(new FoldersPanel(this),    FOLDERS_ICON);
         addPreferencesPanel(new AppearancePanel(this), APPEARANCE_ICON);
+        addPreferencesPanel(new ShortcutsPanel(this),  SHORTCUTS_ICON);
         addPreferencesPanel(new MailPanel(this),       MAIL_ICON);
         addPreferencesPanel(new MiscPanel(this),       MISC_ICON);
 
@@ -127,8 +129,12 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
      */
     public void commit() {
         super.commit();
-        try {MuConfiguration.write();}
-        catch(Exception e) {JOptionPane.showMessageDialog(this, Translator.get("generic_error"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);}
+        try {
+            MuConfiguration.write();
+        }
+        catch(Exception e) {
+            InformationDialog.showErrorDialog(this);
+        }
     }
 
     /**

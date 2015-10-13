@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,12 @@
 
 package com.mucommander.file.impl.bzip2;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractROArchiveFile;
-import com.mucommander.file.ArchiveEntry;
+import com.mucommander.file.*;
 import org.apache.tools.bzip2.CBZip2InputStream;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Vector;
 
 /**
  * Bzip2ArchiveFile provides read-only access to archives in the Bzip2 format.
@@ -41,6 +38,8 @@ public class Bzip2ArchiveFile extends AbstractROArchiveFile {
 
     /**
      * Creates a BzipArchiveFile on top of the given file.
+     *
+     * @param file the underlying file to wrap this archive file around
      */
     public Bzip2ArchiveFile(AbstractFile file) {
         super(file);
@@ -50,8 +49,8 @@ public class Bzip2ArchiveFile extends AbstractROArchiveFile {
     ////////////////////////////////////////
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////
-	
-    public Vector getEntries() throws IOException {
+
+    public ArchiveEntryIterator getEntryIterator() throws IOException {
         String extension = getExtension();
         String name = getName();
 		
@@ -65,13 +64,10 @@ public class Bzip2ArchiveFile extends AbstractROArchiveFile {
                 name = name.substring(0, name.length()-4);
         }
 
-        Vector entries = new Vector();
-        entries.add(new ArchiveEntry("/"+name, false, getDate(), -1));
-        return entries;
+        return new SingleArchiveEntryIterator(new ArchiveEntry("/"+name, false, getDate(), -1, true));
     }
 
-
-    public InputStream getEntryInputStream(ArchiveEntry entry) throws IOException {
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
         try {
             InputStream in = getInputStream();
 
@@ -92,7 +88,7 @@ public class Bzip2ArchiveFile extends AbstractROArchiveFile {
         catch(Exception e) {
             // CBZip2InputStream is known to throw NullPointerException if file is not properly Bzip2-encoded
             // so we need to catch those and throw them as IOException
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught while creating CBZip2InputStream:"+e+", throwing IOException"); 
+            FileLogger.finer("Exception caught while creating CBZip2InputStream, throwing IOException", e);
 
             throw new IOException();
         }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,27 +19,21 @@
 package com.mucommander.process;
 
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * muCommander specific version of a process.
- * <p>
- * Implementations of this class are used to execute various types of processes.
- * It can be a {@link com.mucommander.file.impl.local.LocalProcess}, but some types of
- * {@link com.mucommander.file.AbstractFile abstract files}, such as SFTP files,
- * allow for commands to be executed.
- * </p>
+ * muCommander specific version of a process, allowing various types of processes to be executed.
  * <p>
  * Unlike normal instances of <code>java.lang.Process</code>, abstract processes
  * will empty their own streams, preventing deadlocks from occuring on some systems.
  * </p>
  * <p>
  * Note that abstract processes should not be created directly. They should be
- * instanciated through {@link com.mucommander.process.ProcessRunner#execute(String[],com.mucommander.file.AbstractFile,ProcessListener)}.
+ * instantiated through {@link com.mucommander.process.ProcessRunner#execute(String[],com.mucommander.file.AbstractFile,ProcessListener)}.
  * </p>
  * @author Nicolas Rinaudo
  */
@@ -68,14 +62,18 @@ public abstract class AbstractProcess {
         new Thread() {
             public void run() {
                 // Closes the process' streams.
-		if(Debug.ON) Debug.trace("Destroying process...");
-		stdoutMonitor.stopMonitoring();
-		if(stderrMonitor != null)
-		    stderrMonitor.stopMonitoring();
+                AppLogger.finer("Destroying process...");
+                stdoutMonitor.stopMonitoring();
+                if(stderrMonitor != null)
+                    stderrMonitor.stopMonitoring();
 
                 // Destroys the process.
-                try {destroyProcess();}
-                catch(IOException e) {if(Debug.ON) Debug.trace(e);}
+                try {
+                    destroyProcess();
+                }
+                catch(IOException e) {
+                    AppLogger.fine("IOException caught", e);
+                }
             }
         }.start();
     }
@@ -88,12 +86,12 @@ public abstract class AbstractProcess {
     final void startMonitoring(ProcessListener listener, String encoding) throws IOException {
         // Only monitors stdout if the process uses merged streams.
         if(usesMergedStreams()) {
-            if(Debug.ON) Debug.trace("Starting process merged output monitor...");
+            AppLogger.finer("Starting process merged output monitor...");
             new Thread(stdoutMonitor = new ProcessOutputMonitor(getInputStream(), encoding, listener, this), "Process sdtout/stderr monitor").start();
         }
         // Monitors both stdout and stderr.
         else {
-            if(Debug.ON) Debug.trace("Starting process stdout and stderr monitors...");
+            AppLogger.finer("Starting process stdout and stderr monitors...");
             new Thread(stdoutMonitor = new ProcessOutputMonitor(getInputStream(), encoding, listener, this), "Process stdout monitor").start();
             new Thread(stderrMonitor = new ProcessOutputMonitor(getErrorStream(), encoding, listener), "Process stderr monitor").start();
         }

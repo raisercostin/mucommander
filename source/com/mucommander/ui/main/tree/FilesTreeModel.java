@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -150,9 +150,10 @@ public class FilesTreeModel implements TreeModel, CachedDirectoryListener {
         for (int i = listeners.length - 2; i >= 0; i -= 2) {
             if (listeners[i] == TreeModelListener.class) {
                 // Lazily create the event:
-                if (e == null)
+                if (e == null) {
                     e = new TreeModelEvent(source, path);
-                    ((TreeModelListener) listeners[i + 1]).treeStructureChanged(e);
+                }
+                ((TreeModelListener) listeners[i + 1]).treeStructureChanged(e);
             }
         }
     }
@@ -221,7 +222,7 @@ public class FilesTreeModel implements TreeModel, CachedDirectoryListener {
             if(aNode == root) {
                 retNodes = new AbstractFile[depth];
             } else {
-                retNodes = getPathToRoot(aNode.getParentSilently(), depth);
+                retNodes = getPathToRoot(aNode.getParent(), depth);
             }
             retNodes[retNodes.length - depth] = aNode;
             cache.getOrAdd(aNode).isCached();       // ensures that a path is in cache

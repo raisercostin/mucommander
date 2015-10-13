@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +18,16 @@
 
 package com.mucommander.file;
 
-import com.mucommander.Debug;
 import com.mucommander.auth.Credentials;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.runtime.OsFamilies;
 
 import java.net.MalformedURLException;
-import java.util.Vector;
+import java.util.logging.Level;
 
 /**
  * This class provides a default {@link SchemeParser} implementation. Certain scheme-specific features of the parser
- * can be turned on or off in the constructor, allowing to use this parser to be used most schemes.
+ * can be turned on or off in the constructor, allowing this parser to be used with most schemes.
  *
  * <p>This parser can not only parse URLs but also local absolute paths and UNC paths. Upon parsing, these paths are
  * turned into equivalent, fully qualified URLs.</p>
@@ -60,117 +59,81 @@ import java.util.Vector;
  * </ul>
  * </p>
  *
+ * @see PathCanonizer
  * @author Maxence Bernard
  */
 public class DefaultSchemeParser implements SchemeParser {
 
-    /** Path separator */
-    protected String separator;
-
     /** True if query should be parsed and not considered as part of the path */
     protected boolean parseQuery;
 
-    /** The string replacement for '~' path fragraments, null for no tilde replacement */
-    protected String tildeReplacement;
+    /** <code>PathCanonizer</code> instance to be used for canonizing the path part */
+    protected PathCanonizer pathCanonizer;
 
     /** String designating the localhost. */
     protected final static String LOCALHOST = "localhost";
 
-    /** Local user home folder */
-    protected final static String LOCAL_USER_HOME = System.getProperty("user.home");
-
 
     /**
-     * Creates a DefaultSchemeParser with a <code>"/"</code> path separator, query parsing and tilde replacement
-     * disabled.
+     * Creates a DefaultSchemeParser with a {@link DefaultPathCanonizer} that uses <code>"/"</code> as the path
+     * separator and no tilde replacement, and query parsing disabled.
      */
     public DefaultSchemeParser() {
-        this("/", false, null);
+        this(new DefaultPathCanonizer("/", null), false);
     }
 
     /**
-     * Creates a DefaultSchemeParser using the specified path separator and tilde replacement (<code>null</code> to
-     * disable tilde replacement), and query parsing enabled if the corresponding parameter is set to <code>true</code>.
+     * Creates a DefaultSchemeParser with a {@link DefaultPathCanonizer} that uses <code>"/"</code> as the path
+     * separator and no tilde replacement.
+     * If <code>parseQuery</code> is <code>true</code>, any query part (delimited by '?') will be parsed as such,
+     * or considered as part of the path otherwise.
      *
-     * @param separator the path separator that delimits path fragments
-     * @param parseQuery if <code>true</code>, the query part (delimited by the '?' character) will be extracted and not
-     * considered as being part of the path
-     * @param tildeReplacement if not <code>null</code>, path fragments equal to '~' will be replaced by this string.
-     * <code>null</code> disables tilde replacement
-     *
+     * @param parseQuery <code>true</code>, any query part (delimited by '?') will be parsed as such, or considered
+     * as part of the path otherwise
      */
-    public DefaultSchemeParser(String separator, boolean parseQuery, String tildeReplacement) {
-        this.separator = separator;
+    public DefaultSchemeParser(boolean parseQuery) {
+        this(new DefaultPathCanonizer("/", null), parseQuery);
+    }
+
+    /**
+     * Creates a DefaultSchemeParser using the specified {@link PathCanonizer} for canonizing the path part.
+     * If <code>parseQuery</code> is <code>true</code>, any query part (delimited by '?') will be parsed as such,
+     * or considered as part of the path otherwise.
+     *
+     * @param pathCanonizer <code>PathCanonizer</code> instance to be used for canonizing the path part
+     * @param parseQuery <code>true</code>, any query part (delimited by '?') will be parsed as such, or considered
+     * as part of the path otherwise
+     */
+    public DefaultSchemeParser(PathCanonizer pathCanonizer, boolean parseQuery) {
         this.parseQuery = parseQuery;
-        this.tildeReplacement = tildeReplacement;
+        this.pathCanonizer = pathCanonizer;
     }
 
     /**
-     * Returns a canonical value of the given path, where '.' and '..' path fragments are factored out, and '~' replaced
-     * by the specified value (if not <code>null</code>).
+     * Handles the parsing of the given local file url.
      *
-     * @param path the path to canonize
-     * @param separator the path separator to use that delimits path fragments.
-     * @param tildeReplacement if the specified value is not null, it is used to replace path fragments equal to '~'
-     * @return the canonized path
-     * @throws MalformedURLException if the path is invalid
+     * @param url the URL to parse
+     * @param fileURL the FileURL instance in which to set the different parsed parts
      */
-    protected String canonizePath(String path, String separator, String tildeReplacement) throws MalformedURLException {
-        // Todo: use PathTokenizer?
+    private void handleLocalFilePath(String url, FileURL fileURL) {
+        SchemeHandler handler = FileURL.getRegisteredHandler(FileProtocols.FILE);
+        SchemeParser parser = handler.getParser();
 
-        if(!path.equals("/")) {
-            int pos;	    // position of current path separator
-            int pos2 = 0;	// position of next path separator
-            String dir;		// Current directory
-            String dirWS;	// Current directory without trailing slash
-            Vector pathV = new Vector();	// Will contain directory hierachy
-            while((pos=pos2)!=-1) {
-                // Get the index of the next path separator occurrence
-                pos2 = path.indexOf(separator, pos);
-
-                if(pos2==-1) {	// Last dir (or empty string)
-                    dir = path.substring(pos);
-                    dirWS = dir;
-                }
-                else {
-                    dir = path.substring(pos, ++pos2);		// Dir name includes trailing slash
-                    dirWS = dir.substring(0, dir.length()-1);
-                }
-
-                // Discard '.' and empty directories
-                if((dirWS.equals("") && pathV.size()>0) || dirWS.equals(".")) {
-                    continue;
-                }
-                // Remove last directory
-                else if(dirWS.equals("..")) {
-                    if(pathV.size()==0)
-                        throw new MalformedURLException();
-                    pathV.removeElementAt(pathV.size()-1);
-                    continue;
-                }
-                // Replace '~' by the provided replacement string, only if one was specified
-                else if(dirWS.equals("~") && (tildeReplacement!=null)) {
-                    path = path.substring(0, pos) + tildeReplacement + path.substring(pos+1);
-                    // Will perform another pass at the same position
-                    pos2 = pos;
-                    continue;
-                }
-
-                // Add directory to the end of the list
-                pathV.add(dir);
-            }
-
-            // Reconstruct path from directory list
-            path = "";
-            int nbDirs = pathV.size();
-            for(int i=0; i<nbDirs; i++)
-                path += pathV.elementAt(i);
-
-            // We now have a path free of '.' and '..'
-        }
-
-        return path;
+        fileURL.setHandler(handler);
+        fileURL.setScheme(FileProtocols.FILE);
+        fileURL.setHost(LOCALHOST);
+        fileURL.setPath((parser instanceof DefaultSchemeParser?((DefaultSchemeParser)parser).getPathCanonizer():pathCanonizer).canonize(url));
     }
+
+    /**
+     * Returns the {@link PathCanonizer} instance that is used by this {@link DefaultSchemeParser}.
+     *
+     * @return the {@link PathCanonizer} instance that is used by this {@link DefaultSchemeParser}
+     */
+    public PathCanonizer getPathCanonizer() {
+        return pathCanonizer;
+    }
+
 
 
     /////////////////////////////////
@@ -178,6 +141,19 @@ public class DefaultSchemeParser implements SchemeParser {
     /////////////////////////////////
 
     public void parse(String url, FileURL fileURL) throws MalformedURLException {
+        // The general form of a URI is:
+
+        //      foo://example.com:8042/over/there?name=ferret#nose
+        //      \_/   \______________/\_________/ \_________/ \__/
+        //       |           |            |            |        |
+        //    scheme     authority       path        query   fragment
+        //       |   _____________________|__
+        //      / \ /                        \
+        //      urn:example:animal:ferret:nose
+
+
+        // See http://labs.apache.org/webarch/uri/rfc/rfc3986.html for full specs
+
         try {
             int pos;
             int schemeDelimPos = url.indexOf("://");
@@ -187,14 +163,20 @@ public class DefaultSchemeParser implements SchemeParser {
             if(schemeDelimPos==-1) {
                 // Treat the URL as local file path if it starts with:
                 // - '/' and OS doesn't use root drives (Unix-style path)
-                // - a drive letter and OS uses root drives (Windows-style)
+                // - a drive letter and OS uses root drives (Windows-style) [support both C:\ and C:/ style]
                 // - a ~ character (refers to the user home folder)
-                if((!LocalFile.USES_ROOT_DRIVES && url.startsWith("/")) || (LocalFile.USES_ROOT_DRIVES && url.indexOf(":\\")==1) || url.startsWith("~")) {
-                    fileURL.setHandler(FileURL.getRegisteredHandler(FileProtocols.FILE));
-                    fileURL.setScheme(FileProtocols.FILE);
-                    fileURL.setHost(LOCALHOST);
-                    String separator = LocalFile.SEPARATOR;
-                    fileURL.setPath(canonizePath(url, separator, LOCAL_USER_HOME));
+                if((!LocalFile.USES_ROOT_DRIVES && url.startsWith("/")) || url.startsWith("~")) {
+                    handleLocalFilePath(url, fileURL);
+
+                    // All done, return
+                    return;
+                }
+                else if (LocalFile.USES_ROOT_DRIVES && (url.indexOf(":\\")==1 || url.indexOf(":/")==1)) {
+                    // Turn forward slash-separated paths into their backslash-separated counterparts.
+                    if(url.charAt(2)=='/')
+                        url = url.replace('/', '\\');
+
+                    handleLocalFilePath(url, fileURL);
 
                     // All done, return
                     return;
@@ -251,22 +233,23 @@ public class DefaultSchemeParser implements SchemeParser {
             else
                 hostEndPos = urlLen;
 
-            // URL part before path/query part and without scheme://
-            String urlBP = url.substring(pos, hostEndPos);
+            // The authority part is the one between scheme:// and the path/query. It includes the user information
+            // (login/password), host and port. 
+            String authority = url.substring(pos, hostEndPos);
             pos = 0;
 
-            // Parse login and password if they have been specified in the URL
-            // Login/password may @ characters, so consider the last '@' occurrence (if any) as the host delimiter
+            // Parse login and password (if specified)
+            // Login/password may contain @ characters, so consider the last '@' occurrence (if any) as the host delimiter.
             // Note that filenames may contain @ characters, but that's OK here since path is not contained in the String
-            int atPos = urlBP.lastIndexOf('@');
+            int atPos = authority.lastIndexOf('@');
             int colonPos;
             // Filenames may contain @ chars, so atPos must be lower than next separator's position (if any)
             if(atPos!=-1 && (separatorPos==-1 || atPos<separatorPos)) {
-                colonPos = urlBP.indexOf(':');
-                String login = urlBP.substring(0, colonPos==-1?atPos:colonPos);
+                colonPos = authority.indexOf(':');
+                String login = authority.substring(0, colonPos==-1?atPos:colonPos);
                 String password;
                 if(colonPos!=-1)
-                    password = urlBP.substring(colonPos+1, atPos);
+                    password = authority.substring(colonPos+1, atPos);
                 else
                     password = null;
 
@@ -278,12 +261,12 @@ public class DefaultSchemeParser implements SchemeParser {
             }
 
             // Parse host and port (if specified)
-            colonPos = urlBP.indexOf(':', pos);
+            colonPos = authority.indexOf(':', pos);
 
             String host;
             if(colonPos!=-1) {
-                host = urlBP.substring(pos, colonPos);
-                String portString = urlBP.substring(colonPos+1);
+                host = authority.substring(pos, colonPos);
+                String portString = authority.substring(colonPos+1);
                 if(!portString.equals("")) {        // Tolerate an empty port part (e.g. http://mucommander.com:/)
                     try {
                         fileURL.setPort(Integer.parseInt(portString));
@@ -294,7 +277,7 @@ public class DefaultSchemeParser implements SchemeParser {
                 }
             }
             else {
-                host = urlBP.substring(pos);
+                host = authority.substring(pos);
             }
 
             if(host.equals(""))
@@ -311,22 +294,21 @@ public class DefaultSchemeParser implements SchemeParser {
                 path = "/";
 
             // Canonize path: factor out '.' and '..' and replace '~' by the replacement string (if any)
-            fileURL.setPath(canonizePath(path, separator, tildeReplacement));
+            fileURL.setPath(pathCanonizer.canonize(path));
 
-            if(Debug.ON && path.trim().equals("")) Debug.trace("Warning: path should not be empty, url="+url);
+            if(FileLogger.isLoggable(Level.FINE) && path.trim().equals(""))
+                FileLogger.fine("Warning: path should not be empty, url="+url);
 
             // Parse query part (if any)
             if(questionMarkPos!=-1)
-                fileURL.setQuery(url.substring(questionMarkPos));
+                fileURL.setQuery(url.substring(questionMarkPos+1));     // Do not include the question mark
         }
         catch(MalformedURLException e) {
             throw e;
         }
         catch(Exception e2) {
-            if(com.mucommander.Debug.ON) {
-                com.mucommander.Debug.trace("Unexpected exception in FileURL() with "+url+" : "+e2);
-                e2.printStackTrace();
-            }
+            FileLogger.info("Unexpected exception in FileURL() with "+url, e2);
+
             throw new MalformedURLException();
         }
     }

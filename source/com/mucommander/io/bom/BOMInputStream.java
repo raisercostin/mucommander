@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +63,8 @@ public class BOMInputStream extends InputStream implements BOMConstants {
 
     /** Current offset within the {@link #leadingBytes} array */
     private int leadingBytesOff;
+
+    private byte oneByteBuf[];
 
     /** Contains the max signature length of supported BOMs */
     private final static int MAX_BOM_LENGTH;
@@ -169,15 +171,12 @@ public class BOMInputStream extends InputStream implements BOMConstants {
     ////////////////////////////////
 
     public int read() throws IOException {
-        if(leadingBytes==null)
-            return in.read();
+        if(oneByteBuf==null)
+            oneByteBuf = new byte[1];
 
-        int i = leadingBytes[leadingBytesOff++];
+        int ret = read(oneByteBuf, 0, 1);
 
-        if(leadingBytesOff>=leadingBytes.length)
-            leadingBytes = null;
-
-        return i;
+        return ret==-1?-1:oneByteBuf[0];
     }
 
     public int read(byte b[]) throws IOException {
@@ -185,15 +184,13 @@ public class BOMInputStream extends InputStream implements BOMConstants {
     }
 
     public int read(byte b[], int off, int len) throws IOException {
-        if(leadingBytes==null)
+        if(leadingBytes==null || leadingBytesOff>=leadingBytes.length)
             return in.read(b, off, len);
 
         int nbBytes = Math.min(leadingBytes.length-leadingBytesOff, len);
         System.arraycopy(leadingBytes, leadingBytesOff, b, off, nbBytes);
 
         leadingBytesOff += nbBytes;
-        if(leadingBytesOff>=leadingBytes.length)
-            leadingBytes = null;
 
         return nbBytes;
     }

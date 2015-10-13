@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,25 +18,20 @@
 
 package com.mucommander.file.impl;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.FilePermissions;
 
-import java.io.IOException;
 import java.util.Random;
 
 /**
  * DebugFile is a {@link ProxyFile} to be used for debugging purposes. It allows to track the calls made to
- * {@link com.mucommander.file.AbstractFile} methods that are commonly IO-bound, by printing debug information to the
- * standard output when these are called. It also allows to slow those methods down to simulate a slow filesytem.
+ * {@link com.mucommander.file.AbstractFile} methods that are commonly I/O-bound, by logging calls to each of those
+ * methods. It also allows to slow those methods down to simulate a slow filesytem.
  *
- * @see Debug
  * @author Maxence Bernard
  */
 public class DebugFile extends ProxyFile {
-
-    /** Trace level for the Debug class */
-    private int traceLevel;
 
     /** Maximum latency in milliseconds */
     private int maxLatency;
@@ -46,40 +41,27 @@ public class DebugFile extends ProxyFile {
 
     
     /**
-     * Creates a DebugFile that proxies the calls made to the given AbstractFile's methods. The trace level and maximum
-     * latency are both set to 0.
+     * Creates a DebugFile that proxies the calls made to the given AbstractFile's methods, with no latency.
      *
      * @param file the AbstractFile to proxy and debug
      */
     public DebugFile(AbstractFile file) {
-        this(file, 0, 0);
+        this(file, 0);
     }
 
     /**
-     * Creates a DebugFile that proxies the calls made to the given AbstractFile, and prints debug information about
-     * calls made to methods that are commonly IO-bound, and slows those methods down by adding some latency.
+     * Creates a DebugFile that proxies the calls made to the given AbstractFile and slows those methods down by
+     * simulating latency by making I/O bound methods wait.
      *
      * @param file the AbstractFile to proxy and debug
-     * @param traceLevel the trace level, see {@link Debug} for more information
      * @param maxLatency the maximum amount of latency in milliseconds
      */
-    public DebugFile(AbstractFile file, int traceLevel, int maxLatency) {
+    public DebugFile(AbstractFile file, int maxLatency) {
         super(file);
         
-        this.traceLevel = traceLevel;
         this.maxLatency = maxLatency;
     }
 
-
-    /**
-     * Sets the trace level that will be printed to the standard output for each call to IO-bound AbstractFile methods
-     * (i.e. those that are overridden by this class).
-     *
-     * @param traceLevel the trace level, see {@link Debug} for more information.
-     */
-    public void setTraceLevel(int traceLevel) {
-        this.traceLevel = traceLevel;
-    }
 
     /**
      * Sets the the maximum amount of latency in milliseconds to add to calls made to IO-bound AbstractFile methods
@@ -119,156 +101,157 @@ public class DebugFile extends ProxyFile {
     /////////////////////////////////////////////////////
 
     public long getDate() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getDate();
     }
 
     public long getSize() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getSize();
     }
 
     public boolean exists() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.exists();
     }
 
     public boolean isDirectory() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.isDirectory();
     }
 
     public boolean isSymlink() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.isSymlink();
     }
 
     public long getFreeSpace() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getFreeSpace();
     }
 
     public long getTotalSpace() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getTotalSpace();
     }
 
     public String getName() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getName();
     }
 
     public String getExtension() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getExtension();
     }
 
     public String getAbsolutePath() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getAbsolutePath();
     }
 
     public String getCanonicalPath() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getCanonicalPath();
     }
 
     public AbstractFile getCanonicalFile() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getCanonicalFile();
     }
 
-    public boolean isBrowsable() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+    public boolean isArchive() {
+        FileLogger.finest(getDebugString());
         lag();
 
-        return super.isBrowsable();
+        return super.isArchive();
     }
 
     public boolean isHidden() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.isHidden();
     }
 
     public FilePermissions getPermissions() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getPermissions();
     }
 
     public String getOwner() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getOwner();
     }
 
     public String getGroup() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getGroup();
     }
 
-    public AbstractFile getRoot() throws IOException {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+    public AbstractFile getRoot() {
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getRoot();
     }
 
     public boolean isRoot() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.isRoot();
     }
 
-    public boolean equals(Object f) {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+    public boolean equalsCanonical(Object f) {
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.equals(f);
     }
 
     public String toString() {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.toString();
     }
 
-    public AbstractFile getParent() throws IOException {
-        if(Debug.ON) Debug.trace(getDebugString(), traceLevel);
+    public AbstractFile getParent() {
+        FileLogger.finest(getDebugString());
         lag();
 
         return super.getParent();
     }
+
 }

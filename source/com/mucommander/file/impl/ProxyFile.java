@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.io.FileTransferException;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.process.AbstractProcess;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -101,7 +100,7 @@ public abstract class ProxyFile extends AbstractFile {
         return file.getSize();
     }
 
-    public AbstractFile getParent() throws IOException {
+    public AbstractFile getParent() {
         return file.getParent();
     }
 
@@ -189,14 +188,6 @@ public abstract class ProxyFile extends AbstractFile {
         return file.getUnderlyingFileObject();
     }
 
-    public boolean canRunProcess() {
-        return file.canRunProcess();
-    }
-
-    public AbstractProcess runProcess(String[] tokens) throws IOException {
-        return file.runProcess(tokens);
-    }
-
     
     /////////////////////////////////////
     // Overridden AbstractFile methods //
@@ -234,8 +225,8 @@ public abstract class ProxyFile extends AbstractFile {
         return file.getSeparator();
     }
 
-    public boolean isBrowsable() {
-        return file.isBrowsable();
+    public boolean isArchive() {
+        return file.isArchive();
     }
 
     public boolean isHidden() {
@@ -258,12 +249,16 @@ public abstract class ProxyFile extends AbstractFile {
         return file.getPermissionsString();
     }
 
-    public AbstractFile getRoot() throws IOException {
+    public AbstractFile getRoot() {
         return file.getRoot();
     }
 
     public boolean isRoot() {
         return file.isRoot();
+    }
+
+    public AbstractFile getVolume() {
+        return file.getVolume();
     }
 
     public InputStream getInputStream(long offset) throws IOException {
@@ -317,7 +312,11 @@ public abstract class ProxyFile extends AbstractFile {
     public boolean equals(Object f) {
         return file.equals(f);
     }
-    
+
+    public boolean equalsCanonical(Object f) {
+        return file.equalsCanonical(f);
+    }
+
     public int hashCode() {
         return file.hashCode();
     }

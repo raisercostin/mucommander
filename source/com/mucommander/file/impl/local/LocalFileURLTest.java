@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,25 +51,50 @@ public class LocalFileURLTest extends FileURLTestCase {
             url = FileURL.getFileURL("C:\\");
             assertEquals("file", url.getScheme());
             assertEquals("localhost", url.getHost());
-            assertEquals("C:\\", url.getPath());
+            assertEquals("/C:\\", url.getPath());
 
             url = FileURL.getFileURL("C:\\dir\\file");
             assertEquals("file", url.getScheme());
             assertEquals("localhost", url.getHost());
-            assertEquals("C:\\dir\\file", url.getPath());
+            assertEquals("/C:\\dir\\file", url.getPath());
             assertEquals("file", url.getFilename());
 
             url = url.getParent();
             assertEquals("file", url.getScheme());
             assertEquals("localhost", url.getHost());
-            assertEquals("C:\\dir\\", url.getPath());
+            assertEquals("/C:\\dir\\", url.getPath());
             assertEquals("dir", url.getFilename());
 
             url = FileURL.getFileURL("C:\\direc/tory");
             assertEquals("file", url.getScheme());
             assertEquals("localhost", url.getHost());
-            assertEquals("C:\\direc/tory", url.getPath());
+            assertEquals("/C:\\direc/tory", url.getPath());
             assertEquals("direc/tory", url.getFilename());
+
+            // Test forward-separated paths which are also supported
+
+            url = FileURL.getFileURL("C:/");
+            assertEquals("file", url.getScheme());
+            assertEquals("localhost", url.getHost());
+            assertEquals("/C:\\", url.getPath());
+
+            url = FileURL.getFileURL("C:/dir/file");
+            assertEquals("file", url.getScheme());
+            assertEquals("localhost", url.getHost());
+            assertEquals("/C:\\dir\\file", url.getPath());
+            assertEquals("file", url.getFilename());
+
+            url = url.getParent();
+            assertEquals("file", url.getScheme());
+            assertEquals("localhost", url.getHost());
+            assertEquals("/C:\\dir\\", url.getPath());
+            assertEquals("dir", url.getFilename());
+
+            url = FileURL.getFileURL("C:/direc\\tory");
+            assertEquals("file", url.getScheme());
+            assertEquals("localhost", url.getHost());
+            assertEquals("/C:\\direc\\tory", url.getPath());
+            assertEquals("tory", url.getFilename());
         }
         // For OSes that use forward slash as a path separator
         else {
@@ -135,10 +160,6 @@ public class LocalFileURLTest extends FileURLTestCase {
 
     protected String getPathSeparator() {
         return System.getProperty("file.separator");
-    }
-
-    protected String getTildeReplacement() {
-        return System.getProperty("user.home");
     }
 
     protected boolean isQueryParsed() {

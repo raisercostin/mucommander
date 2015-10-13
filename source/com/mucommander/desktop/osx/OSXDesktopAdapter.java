@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import com.mucommander.command.CommandManager;
 import com.mucommander.desktop.DefaultDesktopAdapter;
 import com.mucommander.desktop.DesktopInitialisationException;
 import com.mucommander.desktop.DesktopManager;
+import com.mucommander.file.AbstractFile;
 import com.mucommander.runtime.OsFamily;
 
 import java.awt.event.MouseEvent;
@@ -67,4 +68,16 @@ public class OSXDesktopAdapter extends DefaultDesktopAdapter {
         return (modifiers & MouseEvent.BUTTON3_MASK) != 0 || ((modifiers & MouseEvent.BUTTON1_MASK) != 0 && e.isControlDown());
     }
 
+    /**
+     * Returns <code>true</code> for directories with an <code>app</code> extension (case-insensitive comparison).
+     *
+     * @param file the file to test
+     * @return <code>true</code> for directories with an <code>app</code> extension (case-insensitive comparison).
+     */
+    public boolean isApplication(AbstractFile file) {
+        String extension = file.getExtension();
+
+        // the isDirectory() test comes last as it is I/O bound
+        return extension!=null && extension.equalsIgnoreCase("app") && file.isDirectory();
+    }
 }

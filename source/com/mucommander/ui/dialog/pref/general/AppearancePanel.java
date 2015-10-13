@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 package com.mucommander.ui.dialog.pref.general;
 
+import com.mucommander.AppLogger;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.extension.ClassFinder;
 import com.mucommander.extension.ExtensionManager;
@@ -26,7 +27,9 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.job.FileCollisionChecker;
 import com.mucommander.runtime.OsFamilies;
+import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.pref.PreferencesDialog;
@@ -43,23 +46,9 @@ import com.mucommander.ui.main.WindowManager;
 import com.mucommander.ui.theme.Theme;
 import com.mucommander.ui.theme.ThemeManager;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFileChooser;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.plaf.basic.BasicComboBoxRenderer;
-
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -168,7 +157,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         initUI();
 
         // Initialises the known custom look and feels
-        initialiseCustomLookAndFeels();
+        initializeCustomLookAndFeels();
     }
 
 
@@ -205,22 +194,19 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         toolbarIconsSizeComboBox.addDialogListener(parent);
         commandBarIconsSizeComboBox.addDialogListener(parent);
         fileIconsSizeComboBox.addDialogListener(parent);
-        if(OsFamilies.MAC_OS_X.isCurrent())
+        if(brushedMetalCheckBox!=null)
         	brushedMetalCheckBox.addDialogListener(parent);
     }
 
-    private void showGenericError() {JOptionPane.showMessageDialog(this, Translator.get("generic_error"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);}
-
     /**
-     * Populates the look&feel combo box will all available look&feels.
+     * Populates the look&feel combo box with all available look&feels.
      */
     private void populateLookAndFeels() {
         int    currentIndex;
         String currentName;
 
-        // Resets the content of the combo box and retrieves all available look&feels.
         lookAndFeelComboBox.removeAllItems();
-        initialiseAvailableLookAndFeels();
+        initializeAvailableLookAndFeels();
 
         // Populates the combo box.
         currentIndex = -1;
@@ -254,7 +240,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         // Creates the look and feel combo box.
         lookAndFeelComboBox = new PrefComboBox() {
 			public boolean hasChanged() {
-				return !lookAndFeels[getSelectedIndex()].getClassName().equals(MuConfiguration.getVariable(MuConfiguration.LOOK_AND_FEEL));
+				int selectedIndex = getSelectedIndex();
+                if(selectedIndex<0)
+                    return false;                
+
+                return !lookAndFeels[selectedIndex].getClassName().equals(MuConfiguration.getVariable(MuConfiguration.LOOK_AND_FEEL));
 			}
         };
         lookAndFeelComboBox.setRenderer(new BasicComboBoxRenderer() {
@@ -263,12 +253,8 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 
                     label = (JLabel)super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
-                    // Works around a strange JComboBox issue: index is often set to -1, which really doesn't make any sense.
-                    if(index < 0) {
-                        for(index = 0; index < lookAndFeels.length; index++)
-                            if(lookAndFeels[index].getName().equals(value))
-                                break;
-                    }
+                    if(index < 0)
+                        return label;
 
                     // All look and feels that are not modifiable must be flagged with a lock icon.
                     if(isLookAndFeelModifiable(lookAndFeels[index]))
@@ -300,7 +286,10 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         lnfPanel.add(flowPanel);
 
         // For Mac OS X only, creates the 'brushed metal' checkbox.
-        if(OsFamilies.MAC_OS_X.isCurrent()) {
+        // At the time of writing, the 'brushed metal' look causes the JVM to crash randomly under Leopard (10.5)
+        // so we disable brushed metal on that OS version but leave it for earlier versions where it works fine.
+        // See http://www.mucommander.com/forums/viewtopic.php?f=4&t=746 for more info about this issue.
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_4.isCurrentOrLower()) {
             // 'Use brushed metal look' option
             brushedMetalCheckBox = new PrefCheckBox(Translator.get("prefs_dialog.use_brushed_metal")) {
             	public boolean hasChanged() {
@@ -510,7 +499,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             SwingUtilities.updateComponentTreeUI(parent);
         }
 
-        if(OsFamilies.MAC_OS_X.isCurrent())
+        if(brushedMetalCheckBox!=null)
             MuConfiguration.setVariable(MuConfiguration.USE_BRUSHED_METAL,  brushedMetalCheckBox.isSelected());
 
         // Set ToolBar's icon size
@@ -548,14 +537,14 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     /**
      * Initialises the list of custom look&feels.
      */
-    private void initialiseCustomLookAndFeels() {
+    private void initializeCustomLookAndFeels() {
         customLookAndFeels = MuConfiguration.getListVariable(MuConfiguration.CUSTOM_LOOK_AND_FEELS, MuConfiguration.CUSTOM_LOOK_AND_FEELS_SEPARATOR);
     }
 
     /**
      * Initialises the list of available look&feels.
      */
-    private void initialiseAvailableLookAndFeels() {
+    private void initializeAvailableLookAndFeels() {
         // Loads all available look and feels.
         lookAndFeels = UIManager.getInstalledLookAndFeels();
 
@@ -594,8 +583,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
      */
     private void resetLookAndFeelButtons() {
         // If the dial is animated, we're currently loading look&feels and should ignore this call.
-        if(dial == null || !dial.isAnimated())
-            deleteLookAndFeelButton.setEnabled(isLookAndFeelModifiable(lookAndFeels[lookAndFeelComboBox.getSelectedIndex()]));
+        if(dial == null || !dial.isAnimated()) {
+            int selectedIndex = lookAndFeelComboBox.getSelectedIndex();
+            if(selectedIndex!=-1)
+                deleteLookAndFeelButton.setEnabled(isLookAndFeelModifiable(lookAndFeels[selectedIndex]));
+        }
     }
 
     /**
@@ -732,7 +724,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             // Identifies all the look&feels contained by the new library and adds them to the list of custom
             // If no look&feel was found, notifies the user.
             if((newLookAndFeels = new ClassFinder().find(lookAndFeelLibrary, new LookAndFeelFilter())).isEmpty())
-                JOptionPane.showMessageDialog(this, Translator.get("prefs_dialog.no_look_and_feel"), Translator.get("warning"), JOptionPane.WARNING_MESSAGE);
+                InformationDialog.showWarningDialog(this, Translator.get("prefs_dialog.no_look_and_feel"));
             else if(importLookAndFeelLibrary(lookAndFeelLibrary)) {
                 String currentName;
 
@@ -741,7 +733,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 
                 // Adds all new instances to the list of custom look&feels.
                 for(int i = 0; i < newLookAndFeels.size(); i++) {
-                    currentName = (String)newLookAndFeels.elementAt(i);
+                    currentName = ((Class) newLookAndFeels.elementAt(i)).getName();
                     if(!customLookAndFeels.contains(currentName)) {
                         customLookAndFeels.add(currentName);
                         try {WindowManager.installLookAndFeel(currentName);}
@@ -757,7 +749,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
                 populateLookAndFeels();
             }
         }
-        catch(Exception e) {showGenericError();}
+        catch(Exception e) {
+            AppLogger.fine("Exception caught", e);
+
+            InformationDialog.showErrorDialog(this);
+        }
         setLookAndFeelsLoading(false);
     }
 
@@ -774,11 +770,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 
         if(chooser.showDialog(parent, Translator.get("prefs_dialog.import")) == JFileChooser.APPROVE_OPTION) {
             file               = FileFactory.getFile(chooser.getSelectedFile().getAbsolutePath());
-            lastSelectedFolder = file.getParentSilently();
+            lastSelectedFolder = file.getParent();
 
             // Makes sure the file actually exists - JFileChooser apparently doesn't enforce that properly in all look&feels.
             if(!file.exists()) {
-                JOptionPane.showMessageDialog(this, Translator.get("this_file_does_not_exist", file.getName()), Translator.get("error"), JOptionPane.ERROR_MESSAGE);
+                InformationDialog.showErrorDialog(this, Translator.get("this_file_does_not_exist", file.getName()));
                 return;
             }
 
@@ -842,7 +838,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             }
             catch(Exception e) {}
             // Otherwise, notifies the user.
-            JOptionPane.showMessageDialog(this, Translator.get("prefs_dialog.rename_failed", theme.getName()), Translator.get("error"), JOptionPane.ERROR_MESSAGE);
+            InformationDialog.showErrorDialog(this, Translator.get("prefs_dialog.rename_failed", theme.getName()));
         }
     }
 
@@ -863,7 +859,9 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             ThemeManager.deleteCustomTheme(theme.getName());
             themeComboBox.removeItem(theme);
         }
-        catch(Exception e) {showGenericError();}
+        catch(Exception e) {
+            InformationDialog.showErrorDialog(this);
+        }
     }
 
     /**
@@ -918,9 +916,9 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         if(chooser.showDialog(parent, Translator.get("prefs_dialog.import")) == JFileChooser.APPROVE_OPTION) {
             // Makes sure the file actually exists - JFileChooser apparently doesn't enforce that properly in all look&feels.
             file               = FileFactory.getFile(chooser.getSelectedFile().getAbsolutePath());
-            lastSelectedFolder = file.getParentSilently();
+            lastSelectedFolder = file.getParent();
             if(!file.exists()) {
-                JOptionPane.showMessageDialog(this, Translator.get("this_file_does_not_exist", file.getName()), Translator.get("error"), JOptionPane.ERROR_MESSAGE);
+                InformationDialog.showErrorDialog(this, Translator.get("this_file_does_not_exist", file.getName()));
                 return;
             }
 
@@ -928,8 +926,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             try {insertTheme(ThemeManager.importTheme((java.io.File)file.getUnderlyingFileObject()));}
             // Notifies the user that something went wrong.
             catch(Exception ex) {
-                JOptionPane.showMessageDialog(this, Translator.get("prefs_dialog.error_in_import", file.getName()),
-                                              Translator.get("error"), JOptionPane.ERROR_MESSAGE);
+                InformationDialog.showErrorDialog(this, Translator.get("prefs_dialog.error_in_import", file.getName()));
             }
         }
     }
@@ -950,7 +947,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         if(chooser.showDialog(parent, Translator.get("prefs_dialog.export")) == JFileChooser.APPROVE_OPTION) {
 
             file               = FileFactory.getFile(chooser.getSelectedFile().getAbsolutePath());
-            lastSelectedFolder = file.getParentSilently();
+            lastSelectedFolder = file.getParent();
 
             // Makes sure the file's extension is .xml.
             try {
@@ -982,7 +979,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             }
             // Notifies users of errors.
             catch(Exception exception) {
-                JOptionPane.showMessageDialog(this, Translator.get("cannot_write_file", file.getName()), Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+                InformationDialog.showErrorDialog(this, Translator.get("write_error"), Translator.get("cannot_write_file", file.getName()));
             }
         }
     }
@@ -992,7 +989,9 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
      */
     private void duplicateTheme(Theme theme) {
         try {insertTheme(ThemeManager.duplicateTheme(theme));}
-        catch(Exception e) {showGenericError();}
+        catch(Exception e) {
+            InformationDialog.showErrorDialog(this);
+        }
     }
 
 
@@ -1048,7 +1047,6 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         else if(e.getSource() == duplicateThemeButton)
             duplicateTheme(theme);
     }
-
 
 
     // - File filter ------------------------------------------------------------

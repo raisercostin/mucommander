@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,16 +29,23 @@ import java.io.IOException;
 /**
  * This class is the provider for the 'Iso' and 'Nrg' archive formats implemented by {@link IsoArchiveFile}.
  *
- * @see com.mucommander.file.impl.iso.IsoArchiveFile
  * @author Nicolas Rinaudo, Maxence Bernard
+ * @see com.mucommander.file.impl.iso.IsoArchiveFile
  */
 public class IsoFormatProvider implements ArchiveFormatProvider {
 
-    /** Static instance of the filename filter that matches archive filenames */
-    private final static ExtensionFilenameFilter filenameFilter = new ExtensionFilenameFilter(new String[]
-        {".iso", ".nrg"}
-    );
+    /**
+     * Array of format extensions
+     */
+    private final static String FORMAT_EXTENSIONS[] = {
+            ".iso",
+            ".nrg",
+    };
 
+    /**
+     * Static instance of the filename filter that matches archive filenames
+     */
+    private final static ExtensionFilenameFilter filenameFilter = new ExtensionFilenameFilter(FORMAT_EXTENSIONS);
 
     //////////////////////////////////////////
     // ArchiveFormatProvider implementation //

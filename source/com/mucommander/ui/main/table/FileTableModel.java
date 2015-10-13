@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,11 +61,11 @@ public class FileTableModel extends AbstractTableModel {
     /** Marked rows array */
     private boolean rowMarked[];
 	
-    /** Marked files FileSet */
-    private FileSet markedFiles;
-
     /** Combined size of files currently marked */
     private long markedTotalSize;
+
+    /** Number of files currently marked */
+    private int nbRowsMarked;
 
     /** Contains sort-related variables */
     private SortInfo sortInfo;
@@ -126,7 +126,6 @@ public class FileTableModel extends AbstractTableModel {
         fileArrayIndex = new int[0];
         cellValuesCache = new Object[0][Columns.COLUMN_COUNT-1];
         rowMarked = new boolean[0];
-        markedFiles = new FileSet();
     }
 
     /**
@@ -177,18 +176,27 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     /**
+     * Returns the index of the first row that can be marked/unmarked : <code>1</code> if the current folder has a
+     * parent folder, <code>0</code> otherwise (parent folder row '..' cannot be marked).
+     *
+     * @return the index of the first row that can be marked/unmarked
+     */
+    public int getFirstMarkableRow() {
+        return parent==null?0:1;
+    }
+
+    /**
      * Sets the current folder and its children.
      *
      * @param folder the current folder
      * @param children the current folder's children
      */
     synchronized void setCurrentFolder(AbstractFile folder, AbstractFile children[]) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(""+folder);
         int nbFiles = children.length;
 
         this.currentFolder = (folder instanceof CachedFile)?folder:new CachedFile(folder, true);
 
-        this.parent = currentFolder.getParentSilently();    // Note: the returned parent is a CachedFile instance
+        this.parent = currentFolder.getParent();    // Note: the returned parent is a CachedFile instance
         if(parent!=null) {
             // Pre-fetch the attributes that are used by the table renderer and some actions.
             prefetchCachedFileAttributes(parent);
@@ -211,8 +219,8 @@ public class FileTableModel extends AbstractTableModel {
         // Reset marked files
         int nbRows = getRowCount();
         this.rowMarked = new boolean[nbRows];
-        this.markedFiles = new FileSet(folder);
         this.markedTotalSize = 0;
+        this.nbRowsMarked = 0;
 
         // Init and fill cell cache to speed up table even more
         this.cellValuesCache = new Object[nbRows][Columns.COLUMN_COUNT-1];
@@ -452,13 +460,16 @@ public class FileTableModel extends AbstractTableModel {
             return;
 			
         int rowIndex = parent==null?row:row-1;
-		
+
+        // Return if the row is already marked/unmarked
         if((marked && rowMarked[fileArrayIndex[rowIndex]]) || (!marked && !rowMarked[fileArrayIndex[rowIndex]]))
             return;
-		
+
         AbstractFile file = getCachedFileAtRow(row);
+
         // Do not call getSize() on directories, it's unnecessary and the value is most likely not cached by CachedFile yet
-        long fileSize = file.isDirectory()?0:file.getSize();    
+        long fileSize = file.isDirectory()?0:file.getSize();
+
         // Update :
         // - Combined size of marked files
         // - marked files FileSet 
@@ -466,13 +477,15 @@ public class FileTableModel extends AbstractTableModel {
             // File size can equal -1 if not available, do not count that in total
             if(fileSize>0)
                 markedTotalSize += fileSize;
-            markedFiles.add(file);
+
+            nbRowsMarked++;
         }
         else {
             // File size can equal -1 if not available, do not count that in total
             if(fileSize>0)
                 markedTotalSize -= fileSize;
-            markedFiles.remove(file);
+
+            nbRowsMarked--;
         }
 
         rowMarked[fileArrayIndex[rowIndex]] = marked;
@@ -530,33 +543,36 @@ public class FileTableModel extends AbstractTableModel {
 
     /**
      * Returns a {@link com.mucommander.file.util.FileSet FileSet} with all currently marked files.
-     * The returned FileSet is a clone of the internal FileSet, so it can be safely modified.
-     * 
-     * <p>However, it won't be kept current : the returned FileSet is just a snapshot
+     * <p>
+     * The returned <code>FileSet</code> is a freshly created instance, so it can be safely modified.
+     & However, it won't be kept current : the returned FileSet is just a snapshot
      * which might not reflect the current marked files state after this method has returned and additional
      * files have been marked/unmarked.
+     * </p>
      *
-     * @return the FileSet containing all the files that are currently marked
+     * @return a FileSet containing all the files that are currently marked
      */
     public synchronized FileSet getMarkedFiles() {
-        return getMarkedFiles(true);
+        FileSet markedFiles = new FileSet(currentFolder, nbRowsMarked);
+        int nbRows = getRowCount();
+
+        if(parent==null) {
+            for(int i=0; i<nbRows; i++) {
+                if(rowMarked[fileArrayIndex[i]])
+                    markedFiles.add(getFileAtRow(i));
+            }
+        }
+        else {
+            for(int i=1, iMinusOne=0; i<nbRows; i++) {
+                if(rowMarked[fileArrayIndex[iMinusOne]])
+                    markedFiles.add(getFileAtRow(i));
+
+                iMinusOne = i;
+            }
+        }
+
+        return markedFiles;
     }
-
-
-    /**
-     * Same usage as {@link #getMarkedFiles()} except that it can be specified whether the returned
-     * {@link com.mucommander.file.util.FileSet} should be cloned or not.
-     *
-     * <p>Not cloning the FileSet can be used for efficiency reasons when the FileSet is only accessed,
-     * but great precaution must be taken to ensure that the FileSet is never modified.</p>
-     *
-     * @param cloneFileSet specifies whether the internal marked files FileSet should be cloned or not
-     * @return the FileSet containing all the files currently marked
-     */
-    public synchronized FileSet getMarkedFiles(boolean cloneFileSet) {
-        return cloneFileSet?(FileSet)markedFiles.clone():markedFiles;
-    }
-
 
     /**
      * Returns the number of marked files. This number is pre-calculated so calling this method is much faster than
@@ -565,7 +581,7 @@ public class FileTableModel extends AbstractTableModel {
      * @return the number of marked files
      */
     public int getNbMarkedFiles() {
-        return markedFiles.size();
+        return nbRowsMarked;
     }
 
 	

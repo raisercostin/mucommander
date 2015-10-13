@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ package com.mucommander.file;
 
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.process.AbstractProcess;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -78,7 +77,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>null</code>.
      */
-    public AbstractFile getParent() throws IOException {
+    public AbstractFile getParent() {
         return null;
     }
 
@@ -149,6 +148,13 @@ public class DummyFile extends AbstractFile {
      * Implementation notes: always returns <code>false</code>.
      */
     public boolean isDirectory() {
+        return false;
+    }
+
+    /**
+     * Implementation notes: always returns <code>false</code>.
+     */
+    public boolean isArchive() {
         return false;
     }
 
@@ -241,19 +247,5 @@ public class DummyFile extends AbstractFile {
      */
     public Object getUnderlyingFileObject() {
         return null;
-    }
-
-    /**
-     * Implementation notes: always returns <code>false</code>.
-     */
-    public boolean canRunProcess() {
-        return false;
-    }
-
-    /**
-     * Implementation notes: always throws an exception.
-     */
-    public AbstractProcess runProcess(String[] tokens) throws IOException {
-        throw new IOException();
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,423 +18,324 @@
 
 package com.mucommander.ui.action;
 
-import com.mucommander.Debug;
-import com.mucommander.PlatformManager;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileFactory;
-import com.mucommander.file.util.ResourceLoader;
-import com.mucommander.io.BackupInputStream;
-import com.mucommander.io.StreamUtils;
 import com.mucommander.ui.main.MainFrame;
-import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
 
 import javax.swing.*;
-import javax.xml.parsers.SAXParserFactory;
-import java.io.*;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Vector;
-
+import java.util.*;
 
 /**
- * This class manages keyboard associations with {@link MuAction} classes.
- * Proper documentation and cleaning of this class is pending.  
+ * This class manages keyboard associations with {@link MuAction} ids.
  *
- * @author Maxence Bernard
+ * @author Maxence Bernard, Arik Hadas
  */
-public class ActionKeymap extends DefaultHandler {
+public class ActionKeymap {
 
-    /** Maps action Class onto Keystroke instances*/
-    private static Hashtable primaryActionKeymap = new Hashtable();
-    /** Maps action Class instances onto Keystroke instances*/
-    private static Hashtable alternateActionKeymap = new Hashtable();
+    /** Maps action id onto Keystroke instances*/
+    private static HashMap customPrimaryActionKeymap = new HashMap();
+    /** Maps action id instances onto Keystroke instances*/
+    private static HashMap customAlternateActionKeymap = new HashMap();
+    /** Maps Keystroke instances onto action id */
+    private static AcceleratorMap acceleratorMap = new AcceleratorMap();
 
-    /** Maps Keystroke instances onto action Class */
-    private static Hashtable acceleratorMap = new Hashtable();
-
-    /** Default action keymap filename */
-    private final static String DEFAULT_ACTION_KEYMAP_FILE_NAME = "action_keymap.xml";
-    /** Path to the action keymap resource file within the application JAR file */
-    public final static String ACTION_KEYMAP_RESOURCE_PATH = "/" + DEFAULT_ACTION_KEYMAP_FILE_NAME;
-
-    /** Action keymap file used when calling {@link #loadActionKeyMap()} */
-    private static AbstractFile actionKeyMapFile;
-
-    /* Variables used for XML parsing */
-
-    private final static String ACTION_ELEMENT = "action";
-    private final static String CLASS_ATTRIBUTE = "class";
-    private final static String KEYSTROKE_ATTRIBUTE = "keystroke";
-    private final static String ALTERNATE_KEYSTROKE_ATTRIBUTE = "alt_keystroke";
-
-    /** True when default/JAR action keymap is being parsed */
-    private static boolean isParsingDefaultActionKeymap;
-
-    /** List of action Class which are defined in the user action keymap */
-    private static HashSet definedUserActionClasses = new HashSet();
-
-
+    /******************
+     * Public Methods *
+     ******************/
+    
     /**
-     * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
-     * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
-     * <p>
-     * This is a convenience method and is strictly equivalent to calling <code>setActionKeyMapFile(FileFactory.getFile(file))</code>.
-     * </p>
-     * @param  path                  path to the action keymap file
-     * @throws FileNotFoundException if <code>file</code> is not accessible.
+     * Register all action shortcuts to the given MainFrame's file tables.
+     * 
+     * @param mainFrame - MainFrame instance to which all action shortcuts would be registered.
      */
-    public static void setActionKeyMapFile(String path) throws FileNotFoundException {
-        AbstractFile file;
-
-        if((file = FileFactory.getFile(path)) == null)
-            setActionKeyMapFile(new File(path));
-        else
-            setActionKeyMapFile(file);
-    }
-
-    /**
-     * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
-     * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
-     * <p>
-     * This is a convenience method and is strictly equivalent to calling <code>setActionKeyMapFile(FileFactory.getFile(file.getAbsolutePath()))</code>.
-     * </p>
-     * @param  file                  path to the action keymap file
-     * @throws FileNotFoundException if <code>file</code> is not accessible.
-     */
-    public static void setActionKeyMapFile(File file) throws FileNotFoundException {setActionKeyMapFile(FileFactory.getFile(file.getAbsolutePath()));}
-
-    /**
-     * Sets the path to the user action keymap file to be loaded when calling {@link #loadActionKeyMap()}.
-     * By default, this file is {@link #DEFAULT_ACTION_KEYMAP_FILE_NAME} within the preferences folder.
-     * @param  file                  path to the action keymap file
-     * @throws FileNotFoundException if <code>file</code> is not accessible.
-     */
-    public static void setActionKeyMapFile(AbstractFile file) throws FileNotFoundException {
-        if(file.isBrowsable())
-            throw new FileNotFoundException("Not a valid file: " + file.getAbsolutePath());
-
-        actionKeyMapFile = file;
-    }
-
-    /**
-     * Returns the path to the action keymap file.
-     * @return             the path to the action keymap file.
-     * @throws IOException if an error occured while locating the default action keymap file.
-     */
-    public static AbstractFile getActionKeyMapFile() throws IOException {
-        if(actionKeyMapFile == null)
-            return PlatformManager.getPreferencesFolder().getChild(DEFAULT_ACTION_KEYMAP_FILE_NAME);
-        return actionKeyMapFile;
-    }
-
-
-    /**
-     * Loads the action keymap files: loads the one contained in the JAR file first, and then the user's one.
-     * This means any new action in the JAR action keymap (when a new version is released) will have the default
-     * keyboard mapping, but the keyboard mappings customized by the user in the user's action keymap will override
-     * the ones from the JAR action keymap.
-     *
-     * <p>This method must be called before requesting and registering any action.
-     */
-    public static void loadActionKeyMap() throws Exception {
-        new ActionKeymap();
-    }
-
-
-    public static KeyStroke getAccelerator(Class muActionClass) {
-        return (KeyStroke)primaryActionKeymap.get(muActionClass);
-    }
-
-    public static KeyStroke getAlternateAccelerator(Class muActionClass) {
-        return (KeyStroke)alternateActionKeymap.get(muActionClass);
-    }
-
-
-    public static boolean isKeyStrokeRegistered(KeyStroke ks) {
-        return getRegisteredActionClassForKeystroke(ks)!=null;
-    }
-
-    public static Class getRegisteredActionClassForKeystroke(KeyStroke ks) {
-        return (Class)acceleratorMap.get(ks);
-    }
-
-
     public static void registerActions(MainFrame mainFrame) {
-        JComponent leftTable = mainFrame.getLeftPanel().getFileTable();
-        JComponent rightTable = mainFrame.getRightPanel().getFileTable();
+        Enumeration actionIds = ActionManager.getActionIds();
+        String actionId;
+        ActionDescriptor actionDescriptor;
+        while(actionIds.hasMoreElements()) {
+            actionId = (String)actionIds.nextElement();
+            actionDescriptor = ActionProperties.getActionDescriptor(actionId);
 
-        Enumeration actionClasses = primaryActionKeymap.keys();
-        while(actionClasses.hasMoreElements()) {
-            MuAction action = ActionManager.getActionInstance((Class)actionClasses.nextElement(), mainFrame);
-            ActionKeymap.registerActionAccelerators(action, leftTable, JComponent.WHEN_FOCUSED);
-            ActionKeymap.registerActionAccelerators(action, rightTable, JComponent.WHEN_FOCUSED);
-        }
-
-        actionClasses = alternateActionKeymap.keys();
-        while(actionClasses.hasMoreElements()) {
-            MuAction action = ActionManager.getActionInstance((Class)actionClasses.nextElement(), mainFrame);
-            ActionKeymap.registerActionAccelerators(action, leftTable, JComponent.WHEN_FOCUSED);
-            ActionKeymap.registerActionAccelerators(action, rightTable, JComponent.WHEN_FOCUSED);
+            // Instantiate the action only if it is not parameterized: parameterized actions should only be instantiated
+            // when they are needed and with the required parameters.
+            if(!actionDescriptor.isParameterized()) {
+                registerAction(mainFrame, ActionManager.getActionInstance(actionId, mainFrame));
+            }
         }
     }
+    
+    /**
+     * Register MuAction to JComponent with the given condition. 
+     * 
+     * @param action - MuAction instance.
+     * @param comp - JComponent to which the action would be registered
+     * @param condition - condition in which the action could be invoked. 
+     */
+    public static void registerActionAccelerators(MuAction action, JComponent comp, int condition) {
+    	registerActionAccelerator(action, action.getAccelerator(), comp, condition);
+    	registerActionAccelerator(action, action.getAlternateAccelerator(), comp, condition);
+    }
 
+    /**
+     * Register new accelerators to the given action.
+     * 
+     * Note: if accelerator is null, it would be replaced by alternateAccelerator.
+     * 
+     * @param actionId - id of the MuAction.
+     * @param accelerator - KeyStroke that would be primary accelerator of the given action.
+     * @param alternateAccelerator - KeyStroke that would be alternative accelerator of the given action.
+     */
+    public static void changeActionAccelerators(String actionId, KeyStroke accelerator, KeyStroke alternateAccelerator) {
+    	// Check whether the given actions are already assigned to the given action
+    	if (equals(accelerator, ActionKeymap.getAccelerator(actionId)) &&
+    			equals(alternateAccelerator, ActionKeymap.getAlternateAccelerator(actionId)))
+    		return;
+    	
+    	// If primary accelerator is already registered to other MuAction, unregister it.
+    	String previousActionForAccelerator = getRegisteredActionIdForKeystroke(accelerator);
+    	if (previousActionForAccelerator != null && !previousActionForAccelerator.equals(actionId))
+    		unregisterAcceleratorFromAction(previousActionForAccelerator, accelerator);
+    	
+    	// If alternative accelerator is already registered to other MuAction, unregister it.
+    	String previousActionForAlternativeAccelerator = getRegisteredActionIdForKeystroke(alternateAccelerator);
+    	if (previousActionForAlternativeAccelerator != null && !previousActionForAlternativeAccelerator.equals(alternateAccelerator))
+    		unregisterAcceleratorFromAction(previousActionForAlternativeAccelerator, alternateAccelerator);
+    	
+    	// Remove action's previous accelerators (primary and alternate)
+    	acceleratorMap.remove((KeyStroke)customPrimaryActionKeymap.remove(actionId));
+    	acceleratorMap.remove((KeyStroke)customAlternateActionKeymap.remove(actionId));
 
-    public static void registerAction(MainFrame mainFrame, MuAction action) {
+    	// Register new accelerators
+    	registerActionAccelerators(actionId, accelerator, alternateAccelerator);
+    }
+    
+    private static void unregisterAcceleratorFromAction(String actionId, KeyStroke accelerator) {
+    	switch (getAcceleratorType(accelerator)) {
+		case AcceleratorMap.PRIMARY_ACCELERATOR:
+			registerActionAccelerators(actionId, null, getAlternateAccelerator(actionId));
+			break;
+		case AcceleratorMap.ALTERNATIVE_ACCELERATOR:
+			registerActionAccelerators(actionId, getAccelerator(actionId), null);
+			break;
+		}
+    }
+    
+    /**
+     * Register all primary and alternative accelerator given.
+     * 
+     * @param primary - HashMap that maps action id to primary accelerator.
+     * @param alternate - HashMap that maps action id to alternative accelerator.
+     */
+    public static void registerActions(HashMap primary, HashMap alternate) {
+    	Iterator actionIdsIterator = primary.keySet().iterator();
+    	
+    	while(actionIdsIterator.hasNext()) {
+    		String actionId = (String) actionIdsIterator.next();
+    		
+    		// Add the action/keystroke mapping
+    		ActionKeymap.registerActionAccelerators(
+    				actionId, 
+    				(KeyStroke) primary.get(actionId), 
+    				(KeyStroke) alternate.get(actionId));
+    	}
+    }
+
+    /**
+     * Check whether an accelerator is registered to MuAction.
+     * 
+     * @param ks - accelerator.
+     * @return true if the given accelerator is registered to whatever MuAction, false otherwise.
+     */
+    public static boolean isKeyStrokeRegistered(KeyStroke ks) {
+    	return getRegisteredActionIdForKeystroke(ks)!=null;
+    }
+    
+    /**
+     * Check whether the action has accelerator assigned to it.
+     * 
+     * @param actionId - id of MuAction.
+     * @return true if there is a shortcut which is assigned to the action, false otherwise.
+     */
+    public static boolean doesActionHaveShortcut(String actionId) {
+    	return getAccelerator(actionId) != null;
+    }
+    
+    /**
+     * Restore the default accelerators assignments (remove custom assignments).
+     */
+    public static void restoreDefault() {
+    	customPrimaryActionKeymap.clear();
+    	customAlternateActionKeymap.clear();
+    	acceleratorMap.clear();
+    }
+    
+    ///////////////////
+    ///// getters /////
+    ///////////////////
+    
+    /**
+     * Return primary accelerator of MuAction.
+     * 
+     * @param actionId - id of MuAction.
+     * @return primary accelerator of the given MuAction.
+     */
+    public static KeyStroke getAccelerator(String actionId) {
+    	if (customPrimaryActionKeymap.containsKey(actionId))
+    		return (KeyStroke)customPrimaryActionKeymap.get(actionId);
+        return ActionProperties.getDefaultAccelerator(actionId);
+    }
+
+    /**
+     * Return alternative accelerator of MuAction.
+     * 
+     * @param actionId - id of MuAction.
+     * @return alternative accelerator of the given MuAction.
+     */
+    public static KeyStroke getAlternateAccelerator(String actionId) {
+    	if (customAlternateActionKeymap.containsKey(actionId))
+    		return (KeyStroke)customAlternateActionKeymap.get(actionId);
+    	return ActionProperties.getDefaultAlternativeAccelerator(actionId);
+    }
+
+    /**
+     * Return the id of MuAction to which accelerator is registered.
+     * 
+     * @param ks - accelerator.
+     * @return id of MuAction to which the given accelerator is registered, null if the accelerator is not registered.
+     */
+    public static String getRegisteredActionIdForKeystroke(KeyStroke ks) {
+    	String actionId = acceleratorMap.getActionId(ks);
+        return actionId != null ? actionId : ActionProperties.getDefaultActionForKeyStroke(ks);
+    }
+    
+    /**
+     * Return accelerator type: primary\alternative\not registered.
+     * 
+     * @param ks - accelerator.
+     * @return accelerator type.
+     */
+    private static int getAcceleratorType(KeyStroke ks) {
+    	int type = acceleratorMap.getAcceleratorType(ks);
+    	return type != 0 ? type : ActionProperties.getDefaultAcceleratorType(ks);
+    }
+    
+    /**
+     * Return ids of actions that their registered accelerators are different from their default accelerators.
+     * 
+     * @return Iterator of actions that their accelerators were customized.
+     */
+    public static Iterator getCustomizedActions() {
+    	Set modifiedActions = new HashSet();
+    	modifiedActions.addAll(customPrimaryActionKeymap.keySet());
+    	modifiedActions.addAll(customAlternateActionKeymap.keySet());
+    	return modifiedActions.iterator();
+    }
+    
+    
+    /*******************
+     * Private Methods *
+     *******************/
+
+    /**
+     * Register MuAction instance to MainFrame instance.
+     */
+    private static void registerAction(MainFrame mainFrame, MuAction action) {
         registerActionAccelerators(action, mainFrame.getLeftPanel().getFileTable(), JComponent.WHEN_FOCUSED);
         registerActionAccelerators(action, mainFrame.getRightPanel().getFileTable(), JComponent.WHEN_FOCUSED);
     }
 
-    public static void unregisterAction(MainFrame mainFrame, MuAction action) {
+    /**
+     * Register accelerator of MuAction to JComponent with a condition that states when the action can be invoked.
+     */
+    private static void registerActionAccelerator(MuAction action, KeyStroke accelerator, JComponent comp, int condition) {
+    	if(accelerator != null) {
+    		InputMap inputMap = comp.getInputMap(condition);
+    		ActionMap actionMap = comp.getActionMap();
+    		Class muActionClass = action.getClass();
+    		inputMap.put(accelerator, muActionClass);
+    		actionMap.put(muActionClass, action);
+    	}
+    }
+
+    /**
+     * Unregister MuAction instance from MainFrame instance.
+     */
+    private static void unregisterAction(MainFrame mainFrame, MuAction action) {
         unregisterActionAccelerators(action, mainFrame.getLeftPanel().getFileTable(), JComponent.WHEN_FOCUSED);
         unregisterActionAccelerators(action, mainFrame.getRightPanel().getFileTable(), JComponent.WHEN_FOCUSED);
     }
-
-
-    public static void registerActionAccelerator(MuAction action, KeyStroke accelerator, JComponent comp, int condition) {
-        if(accelerator==null)
-            return;
-        InputMap inputMap = comp.getInputMap(condition);
-        ActionMap actionMap = comp.getActionMap();
-        Class muActionClass = action.getClass();
-        inputMap.put(accelerator, muActionClass);
-        actionMap.put(muActionClass, action);
-    }
-
-    public static void unregisterActionAccelerator(MuAction action, KeyStroke accelerator, JComponent comp, int condition) {
-        if(accelerator==null)
-            return;
-        InputMap inputMap = comp.getInputMap(condition);
-        ActionMap actionMap = comp.getActionMap();
-        Class muActionClass = action.getClass();
-        inputMap.remove(accelerator);
-        actionMap.remove(muActionClass);
-    }
-
-
-    public static void registerActionAccelerators(MuAction action, JComponent comp, int condition) {
-        KeyStroke accelerator = action.getAccelerator();
-        if(accelerator!=null)
-            registerActionAccelerator(action, accelerator, comp, condition);
-
-        accelerator = action.getAlternateAccelerator();
-        if(accelerator!=null)
-            registerActionAccelerator(action, accelerator, comp, condition);
-    }
-
-    public static void unregisterActionAccelerators(MuAction action, JComponent comp, int condition) {
-        KeyStroke accelerator = action.getAccelerator();
-        if(accelerator!=null)
-            unregisterActionAccelerator(action, accelerator, comp, condition);
-
-        accelerator = action.getAlternateAccelerator();
-        if(accelerator!=null)
-            unregisterActionAccelerator(action, accelerator, comp, condition);
-    }
-
-
-    public static void changeActionAccelerators(Class muActionClass, KeyStroke accelerator, KeyStroke alternateAccelerator) {
-        // Remove old accelerators (primary and alternate) from accelerators map
-        KeyStroke oldAccelator = (KeyStroke)primaryActionKeymap.get(muActionClass);
-        if(oldAccelator!=null)
-            acceleratorMap.remove(oldAccelator);
-
-        oldAccelator = (KeyStroke)alternateActionKeymap.get(muActionClass);
-        if(oldAccelator!=null)
-            acceleratorMap.remove(oldAccelator);
-
-        // Register new accelerators
-        if(accelerator!=null) {
-            primaryActionKeymap.put(muActionClass, accelerator);
-            acceleratorMap.put(accelerator, muActionClass);
-        }
-
-        if(alternateAccelerator!=null) {
-            alternateActionKeymap.put(muActionClass, alternateAccelerator);
-            acceleratorMap.put(alternateAccelerator, muActionClass);
-        }
-        
-        // Update each MainFrame's action instance and input map
-        Vector actionInstances = ActionManager.getActionInstances(muActionClass);
-        int nbActionInstances = actionInstances.size();
-        for(int i=0; i<nbActionInstances; i++) {
-            MuAction action = (MuAction)actionInstances.elementAt(i);
-            MainFrame mainFrame = action.getMainFrame();
-
-            // Remove action from MainFrame's action and input maps
-            unregisterAction(mainFrame, action);
-
-            // Change action's accelerators
-            action.setAccelerator(accelerator);
-            action.setAlternateAccelerator(alternateAccelerator);
-
-            // Add updated action to MainFrame's action and input maps
-            registerAction(mainFrame, action);
-        }
-    }
-
-
-    /**
-     * Loads the action keymap file: loads the one contained in the JAR file first, and then the user's one.
-     * This means any new action in the JAR action keymap (when a new version gets released) will have the default
-     * keyboard mapping, but the keyboard mappings customized by the user in the user's action keymap will override
-     * the ones from the JAR action keymap.
-     */
-    private ActionKeymap() throws Exception {
-        try {
-            AbstractFile file;
-
-            // If the user hasn't yet defined an action keymap, copies the default one.
-            file = getActionKeyMapFile();
-            if(!file.exists()) {
-                InputStream in = null;
-                OutputStream out = null;
-
-                if(Debug.ON) Debug.trace("Copying "+ACTION_KEYMAP_RESOURCE_PATH+" JAR resource to "+file);
-
-                try {
-                    in = ResourceLoader.getResourceAsStream(ACTION_KEYMAP_RESOURCE_PATH);
-                    out = file.getOutputStream(false);
-
-                    StreamUtils.copyStream(in, out);
-                }
-                catch(IOException e) {
-                    if(Debug.ON) Debug.trace("Error: unable to copy "+ACTION_KEYMAP_RESOURCE_PATH+" resource to "+actionKeyMapFile+": "+e);
-                }
-                finally {
-                    if(in != null) {
-                        try {in.close();}
-                        catch(IOException e) {}
-                    }
-
-                    if(out != null) {
-                        try {out.close();}
-                        catch(IOException e) {}
-                    }
-                }
-
-                // No need to load the user action keymap here as it is the same as the default keymap
-            }
-            else {
-                // Load the user's custom action keymap file.
-                if(Debug.ON) Debug.trace("Loading user action keymap at " + file.getAbsolutePath());
-                parseActionKeymapFile(new BackupInputStream(file));
-            }
-
-            isParsingDefaultActionKeymap = true;
-
-            // Loads the default action keymap.
-            if(Debug.ON) Debug.trace("Loading default JAR action keymap at "+ACTION_KEYMAP_RESOURCE_PATH);
-            parseActionKeymapFile(ResourceLoader.getResourceAsStream(ACTION_KEYMAP_RESOURCE_PATH));
-        }
-        finally {
-            definedUserActionClasses = null;
-        }
-    }
-
-
-    /**
-     * Starts parsing the XML action keymap file.
-     * @param in the file's input stream
-     * @throws Exception if an error was caught while parsing the file
-     */
-    private void parseActionKeymapFile(InputStream in) throws Exception {
-        // Parse action keymap file
-        try {SAXParserFactory.newInstance().newSAXParser().parse(in, this);}
-        finally {
-            if(in!=null) {
-                try { in.close(); }
-                catch(IOException e) {}
-            }
-        }
-    }
-
-
-    /**
-     * Parses the keystroke defined in the given attribute map (if any) and associates it with the given action class.
-     * The keystroke will not be associated in any of the following cases:
-     * <ul>
-     *  <li>the keystroke attribute does not contain any value.</li>
-     *  <li>the keystroke attribute has a value that does not represent a valid KeyStroke (syntax error).</li>
-     *  <li>the keystroke is already associated with an action class. In this case, the existing association is preserved.</li>
-     * </ul>
-     *
-     * @param actionClass the action class to associate the keystroke with
-     * @param attributes the attributes map that holds the value
-     * @param alternate true to process the alternate keystroke attribute, false for the primary one
-     */
-    private void processKeystrokeAttribute(Class actionClass, Attributes attributes, boolean alternate) {
-        String keyStrokeString = attributes.getValue(alternate?ALTERNATE_KEYSTROKE_ATTRIBUTE:KEYSTROKE_ATTRIBUTE);
-        KeyStroke keyStroke = null;
-
-        // Parse the keystroke and retrieve the corresponding KeyStroke instance and return if the attribute's value
-        // is invalid.
-        if(keyStrokeString!=null) {
-            keyStroke = KeyStroke.getKeyStroke(keyStrokeString);
-            if(keyStroke==null)
-                System.out.println("Error: action keymap file contains a keystroke which could not be resolved: "+keyStrokeString);
-        }
-
-        // Return if keystroke attribute is not defined or KeyStroke instance could not be resolved
-        if(keyStroke==null)
-            return;
-
-        // Discard the mapping if the keystroke is already associated with an action
-        Class existingActionClass = (Class)acceleratorMap.get(keyStroke);
-        if(existingActionClass!=null) {
-            System.out.println("Warning: action keymap file contains multiple associations for keystroke: "+keyStrokeString+", preserving association with action: "+existingActionClass.getName());
-            return;
-        }
-
-        // Add the action/keystroke mapping
-        (alternate?alternateActionKeymap:primaryActionKeymap).put(actionClass, keyStroke);
-        acceleratorMap.put(keyStroke, actionClass);
-    }
-
     
-    ///////////////////////////////////
-    // ContentHandler implementation //
-    ///////////////////////////////////
+    /**
+     * Unregister MuAction from JComponent.
+     */
+    private static void unregisterActionAccelerators(MuAction action, JComponent comp, int condition) {
+    	unregisterActionAccelerator(action, action.getAccelerator(), comp, condition);
+    	unregisterActionAccelerator(action, action.getAlternateAccelerator(), comp, condition);
+    }
+    
+    /**
+     * Unregister accelerator of MuAction from JComponent.
+     */
+    private static void unregisterActionAccelerator(MuAction action, KeyStroke accelerator, JComponent comp, int condition) {
+    	if(accelerator != null) {
+    		InputMap inputMap = comp.getInputMap(condition);
+    		ActionMap actionMap = comp.getActionMap();
+    		Class muActionClass = action.getClass();
+    		inputMap.remove(accelerator);
+    		actionMap.remove(muActionClass);
+    	}
+    }
+    
+    /**
+     * Register primary and alternative accelerators to MuAction.
+     */
+    private static void registerActionAccelerators(String actionId, KeyStroke accelerator, KeyStroke alternateAccelerator) {
+    	// If accelerator is null, replace it with alternateAccelerator
+    	if (accelerator == null) {
+    		accelerator = alternateAccelerator;
+    		alternateAccelerator = null;
+    	}
+    	
+    	// New accelerators are identical to the default action's accelerators
+    	if (equals(accelerator, ActionProperties.getDefaultAccelerator(actionId)) &&
+    			equals(alternateAccelerator, ActionProperties.getDefaultAlternativeAccelerator(actionId))) {
+    		// Remove all action's accelerators customization
+    		customPrimaryActionKeymap.remove(actionId);
+    		customAlternateActionKeymap.remove(actionId);
+    		acceleratorMap.remove(accelerator);
+    		acceleratorMap.remove(alternateAccelerator);
+    	}
+    	// New accelerators are different from the default accelerators
+    	else {
+    		customPrimaryActionKeymap.put(actionId, accelerator);
+    		acceleratorMap.putAccelerator(accelerator, actionId);
 
-    public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-        if(qName.equals(ACTION_ELEMENT)) {
-            // Retrieve the action classname
-            String actionClassName = attributes.getValue(CLASS_ATTRIBUTE);
-            if(actionClassName==null) {
-                if(Debug.ON) Debug.trace("Error in action keymap file: no 'class' attribute specified in 'action' element");
-                return;
-            }
+    		customAlternateActionKeymap.put(actionId, alternateAccelerator);
+    		acceleratorMap.putAlternativeAccelerator(alternateAccelerator, actionId);
+    	}
+    	
+    	// Update each MainFrame's action instance and input map
+    	Iterator actionInstancesIterator = ActionManager.getActionInstances(actionId).iterator();
+    	while (actionInstancesIterator.hasNext()) {
+    		MuAction action = (MuAction) actionInstancesIterator.next();
+    		MainFrame mainFrame = action.getMainFrame();
 
-            // Resolve the action Class
-            Class actionClass;
-            try {
-                actionClass = Class.forName(actionClassName);
-            }
-            catch(ClassNotFoundException e) {
-                if(Debug.ON) Debug.trace("Error in action keymap file: could not resolve class "+actionClassName);
-                return;
-            }
+    		// Remove action from MainFrame's action and input maps
+    		unregisterAction(mainFrame, action);
 
-            // When parsing the default/JAR action keymap:
-            // Skip action classes that have already been encountered in the user action keymap.
-            if(isParsingDefaultActionKeymap && definedUserActionClasses.contains(actionClass))
-                return;
+    		// Change action's accelerators
+    		action.setAccelerator(accelerator);
+    		action.setAlternateAccelerator(alternateAccelerator);
 
-            // Load the action's primary accelator (if any)
-            processKeystrokeAttribute(actionClass, attributes, false);
-            // Load the action's secondary/alternate accelerator (if any)
-            processKeystrokeAttribute(actionClass, attributes, true);
-
-            // When parsing the user action keymap:
-            if(!isParsingDefaultActionKeymap) {
-                // Add the action Class to the list of actions that have already been encountered/defined in the user
-                // action keymap. Note that action elements that do not define any accelerator will still be added to
-                // this list ; this allows discarding accelerators defined in the default/JAR action keymap and having
-                // an action with no associated accelerator.
-                definedUserActionClasses.add(actionClass);
-            }
-       }
+    		// Add updated action to MainFrame's action and input maps
+    		registerAction(mainFrame, action);
+    	}
+    }
+    
+    /**
+     * Return true if the two KeyStrokes are equal, false otherwise.
+     */
+    private static boolean equals(Object first, Object second) {
+    	if (first == null)
+    		return second == null;
+    	return first.equals(second);
     }
 }

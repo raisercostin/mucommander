@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 
 package com.mucommander.ui.dialog.file;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.job.BatchRenameJob;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.BatchRenameAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
 import com.mucommander.ui.layout.XBoxPanel;
@@ -104,7 +107,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
      * @param files a list of files to rename
      */
     public BatchRenameDialog(MainFrame mainFrame, FileSet files) {
-        super(mainFrame, Translator.get("batch_rename_dialog.title"), null);
+        super(mainFrame, ActionProperties.getActionLabel(BatchRenameAction.Descriptor.ACTION_ID), null);
         this.mainFrame = mainFrame;
         this.files = files;
         for (int i=0; i<files.size(); i++) {
@@ -191,8 +194,8 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
                     removeSelectedFiles();
                 }
             };
-            actRemove.putValue(Action.ACCELERATOR_KEY, KeyStroke.getKeyStroke("DELETE"));
-            actRemove.putValue(Action.NAME, Translator.get("batch_rename_dialog.remove"));
+            actRemove.putValue(Action.ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
+            actRemove.putValue(Action.NAME, Translator.get("remove"));
         }
         return actRemove;
     }
@@ -345,7 +348,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
         for (int i=0; i<newNames.size(); i++) {
             String name = (String) newNames.get(i);
             AbstractFile file = (AbstractFile) files.get(i);
-            AbstractFile parent = file.getParentSilently();
+            AbstractFile parent = file.getParent();
             if (parent != null) {
                 name = parent.getAbsolutePath(true) + name;
             }
@@ -371,7 +374,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
 
         // search & replace
         if (edtSearchFor.getText().length() > 0) {
-            newName = newName.replace(edtSearchFor.getText(), edtReplaceWith
+            newName = StringUtils.replaceCompat(newName, edtSearchFor.getText(), edtReplaceWith
                     .getText());
         }
 
@@ -583,7 +586,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
         try {
             edtFileNameMask.getDocument().insertString(pos, pattern, null);
         } catch (BadLocationException e) {
-            e.printStackTrace();
+            AppLogger.fine("Caught exception", e);
         }
     }
     
@@ -905,9 +908,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
                         name = name.substring(currentStartIndex - 1, Math.min(
                                 currentEndIndex, targetLen));
                     } catch (Exception e) {
-                        System.err.println(e.getMessage());
-                        System.err.println(currentStartIndex);
-                        System.err.println(currentEndIndex);
+                        AppLogger.info("currentStartIndex="+currentStartIndex+", currentEndIndex="+currentEndIndex, e);
                     }
                 } else {
                     name = "";
@@ -1009,7 +1010,7 @@ public class BatchRenameDialog extends FocusDialog implements ActionListener,
         }
 
         public String apply(AbstractFile file) {
-            AbstractFile parent = file.getParentSilently();
+            AbstractFile parent = file.getParent();
             if (parent != null)
                 return extractNamePart(parent.getName());
             return "";

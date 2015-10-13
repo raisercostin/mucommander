@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,12 @@
 
 package com.mucommander.file.impl.sftp;
 
-import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.file.*;
 import com.mucommander.file.connection.ConnectionHandler;
 import com.mucommander.file.connection.ConnectionPool;
 import com.mucommander.io.*;
-import com.mucommander.process.AbstractProcess;
 import com.sshtools.j2ssh.io.UnsignedInteger32;
-import com.sshtools.j2ssh.session.SessionChannelClient;
 import com.sshtools.j2ssh.sftp.FileAttributes;
 import com.sshtools.j2ssh.sftp.*;
 
@@ -61,13 +58,10 @@ import java.util.List;
  * @see ConnectionPool
  * @author Maxence Bernard
  */
-public class SFTPFile extends AbstractFile {
+public class SFTPFile extends ProtocolFile {
 
     /** The absolute path to the file on the remote server, not the full URL */
     private String absPath;
-
-    /** This file's permissions */
-    private FilePermissions permissions;
 
     /** Contains the file attribute values */
     private SFTPFileAttributes fileAttributes;
@@ -99,12 +93,12 @@ public class SFTPFile extends AbstractFile {
     /**
      * Creates a new instance of SFTPFile and initializes the SSH/SFTP connection to the server.
      */
-    public SFTPFile(FileURL fileURL) throws IOException {
+    protected SFTPFile(FileURL fileURL) throws IOException {
         this(fileURL, null);
     }
 
     
-    private SFTPFile(FileURL fileURL, SFTPFileAttributes fileAttributes) throws IOException {
+    protected SFTPFile(FileURL fileURL, SFTPFileAttributes fileAttributes) throws IOException {
         super(fileURL);
 
 //        // Throw an AuthException if the url doesn't contain any credentials
@@ -172,10 +166,12 @@ public class SFTPFile extends AbstractFile {
     }
 
     public boolean changeDate(long lastModified) {
-        // Retrieve a ConnectionHandler and lock it
-        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+        SFTPConnectionHandler connHandler = null;
         SftpFile sftpFile = null;
         try {
+            // Retrieve a ConnectionHandler and lock it
+            connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
@@ -192,7 +188,7 @@ public class SFTPFile extends AbstractFile {
             return true;
         }
         catch(IOException e) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Failed to change date: "+e);
+            FileLogger.fine("Failed to change date", e);
             return false;
         }
         finally {
@@ -202,7 +198,8 @@ public class SFTPFile extends AbstractFile {
                 catch(IOException e) {}
 
             // Release the lock on the ConnectionHandler
-            connHandler.releaseLock();
+            if(connHandler!=null)
+                connHandler.releaseLock();
         }
     }
 
@@ -214,16 +211,22 @@ public class SFTPFile extends AbstractFile {
     }
 	
 	
-    public AbstractFile getParent() throws IOException {
+    public AbstractFile getParent() {
         if(!parentValSet) {
             FileURL parentFileURL = this.fileURL.getParent();
-            if(parentFileURL!=null)
-                this.parent = new SFTPFile(parentFileURL);
+            if(parentFileURL!=null) {
+                try {
+                    parent = new SFTPFile(parentFileURL);
+                }
+                catch(IOException e) {
+                    // No parent, that's all
+                }
+            }
 
-            this.parentValSet = true;
+            parentValSet = true;
         }
 		
-        return this.parent;
+        return parent;
     }
 	
 	
@@ -237,7 +240,7 @@ public class SFTPFile extends AbstractFile {
      * Implementation note: for symlinks, returns the value of the link's target.
      */
     public boolean exists() {
-        return fileAttributes.getExists();
+        return fileAttributes.exists();
     }
 
     /**
@@ -288,8 +291,6 @@ public class SFTPFile extends AbstractFile {
         try {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
-
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("using ConnectionHandler="+connHandler);
 
             SftpFile sftpFile;
             if(exists()) {
@@ -373,8 +374,11 @@ public class SFTPFile extends AbstractFile {
 
     public void delete() throws IOException {
         // Retrieve a ConnectionHandler and lock it
-        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+        SFTPConnectionHandler connHandler = null;
         try {
+            // Retrieve a ConnectionHandler and lock it
+            connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
@@ -391,22 +395,19 @@ public class SFTPFile extends AbstractFile {
         }
         finally {
             // Release the lock on the ConnectionHandler if the OutputStream could not be created
-            connHandler.releaseLock();
+            if(connHandler!=null)
+                connHandler.releaseLock();
         }
     }
 
 
     public AbstractFile[] ls() throws IOException {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("starts, absPath="+absPath+" currentThread="+Thread.currentThread());
-
         // Retrieve a ConnectionHandler and lock it
         SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
         List files;
         try {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
-
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("using ConnectionHandler="+connHandler+" currentThread="+Thread.currentThread());
 
     //        connHandler.sftpSubsystem.listChildren(file, files);        // Modified J2SSH method to remove the 100 files limitation
 
@@ -419,15 +420,10 @@ public class SFTPFile extends AbstractFile {
         }
 
         int nbFiles = files.size();
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("nbFiles="+nbFiles);
 
         // File doesn't exist, return an empty file array
         if(nbFiles==0)
             return new AbstractFile[] {};
-
-        String parentURL = fileURL.toString(true);
-        if(!parentURL.endsWith(SEPARATOR))
-            parentURL += SEPARATOR;
 
         AbstractFile children[] = new AbstractFile[nbFiles];
         AbstractFile child;
@@ -435,6 +431,9 @@ public class SFTPFile extends AbstractFile {
         SftpFile sftpFile;
         String filename;
         int fileCount = 0;
+        String parentPath = fileURL.getPath();
+        if(!parentPath .endsWith(SEPARATOR))
+            parentPath  += SEPARATOR;
 
         // Fill AbstractFile array and discard '.' and '..' files
         Iterator iterator = files.iterator();
@@ -444,15 +443,16 @@ public class SFTPFile extends AbstractFile {
             // Discard '.' and '..' files, dunno why these are returned
             if(filename.equals(".") || filename.equals(".."))
                 continue;
-            childURL = FileURL.getFileURL(parentURL+filename);
+
+            childURL = (FileURL)fileURL.clone();
+            childURL.setPath(parentPath+filename);
+
             child = FileFactory.wrapArchive(new SFTPFile(childURL, new SFTPFileAttributes(childURL, sftpFile.getAttributes())));
             child.setParent(this);
 
             children[fileCount++] = child;
         }
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("ends, currentThread="+Thread.currentThread());
-        
         // Create new array of the exact file count
         if(fileCount<nbFiles) {
             AbstractFile newChildren[] = new AbstractFile[fileCount];
@@ -510,25 +510,17 @@ public class SFTPFile extends AbstractFile {
     }
 
 
-    public boolean canRunProcess() {
-//        return true;
-        return false;
-    }
-
-    public AbstractProcess runProcess(String[] tokens) throws IOException {
-        return new SFTPProcess(tokens);
-    }
-
-
     ////////////////////////
     // Overridden methods //
     ////////////////////////
 
 
     public boolean changePermissions(int permissions) {
-        // Retrieve a ConnectionHandler and lock it
-        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+        SFTPConnectionHandler connHandler = null;
         try {
+            // Retrieve a ConnectionHandler and lock it
+            connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
@@ -539,12 +531,13 @@ public class SFTPFile extends AbstractFile {
             return true;
         }
         catch(IOException e) {
-            if(Debug.ON) Debug.trace("Failed to change permissions: "+e);
+            FileLogger.fine("Failed to change permissions", e);
             return false;
         }
         finally {
             // Release the lock on the ConnectionHandler
-            connHandler.releaseLock();
+            if(connHandler!=null)
+                connHandler.releaseLock();
         }
     }
 
@@ -572,9 +565,11 @@ public class SFTPFile extends AbstractFile {
 
         // If destination file is an SFTP file located on the same server, tell the server to rename the file.
 
-        // Retrieve a ConnectionHandler and lock it
-        SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+        SFTPConnectionHandler connHandler = null;
         try {
+            // Retrieve a ConnectionHandler and lock it
+            connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
@@ -596,14 +591,15 @@ public class SFTPFile extends AbstractFile {
             return true;
         }
         catch(IOException e) {
-            if(Debug.ON) Debug.trace("Failed to rename file "+absPath+" : "+e);
+            FileLogger.fine("Failed to rename file "+absPath, e);
 
             // Re-throw an exception
             throw new FileTransferException(FileTransferException.UNKNOWN_REASON);
         }
         finally {
             // Release the lock on the ConnectionHandler
-            connHandler.releaseLock();
+            if(connHandler!=null)
+                connHandler.releaseLock();
         }
     }
 
@@ -614,8 +610,6 @@ public class SFTPFile extends AbstractFile {
         try {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
-
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("using ConnectionHandler="+connHandler);
 
             SftpFile sftpFile = connHandler.sftpSubsystem.openFile(absPath, SftpSubsystemClient.OPEN_READ);
 
@@ -646,9 +640,11 @@ public class SFTPFile extends AbstractFile {
             if(canonicalPath!=null && (System.currentTimeMillis()-canonicalPathFetchedTime<attributeCachingPeriod))
                 return canonicalPath;
 
-            // Retrieve a ConnectionHandler and lock it
-            SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+            SFTPConnectionHandler connHandler = null;
             try {
+                // Retrieve a ConnectionHandler and lock it
+                connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+
                 // Makes sure the connection is started, if not starts it
                 connHandler.checkConnection();
 
@@ -674,7 +670,8 @@ public class SFTPFile extends AbstractFile {
             }
             finally {
                 // Release the lock on the ConnectionHandler
-                connHandler.releaseLock();
+                if(connHandler!=null)
+                    connHandler.releaseLock();
             }
         }
 
@@ -734,9 +731,11 @@ public class SFTPFile extends AbstractFile {
         }
 
         private void fetchAttributes() throws AuthException {
-            // Retrieve a ConnectionHandler and lock it
-            SFTPConnectionHandler connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(SFTPFile.connHandlerFactory, url, true);
+            SFTPConnectionHandler connHandler = null;
             try {
+                // Retrieve a ConnectionHandler and lock it
+                connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(SFTPFile.connHandlerFactory, url, true);
+
                 // Makes sure the connection is started, if not starts it
                 connHandler.checkConnection();
 
@@ -761,7 +760,8 @@ public class SFTPFile extends AbstractFile {
             }
             finally {
                 // Release the lock on the ConnectionHandler
-                connHandler.releaseLock();
+                if(connHandler!=null)
+                    connHandler.releaseLock();
             }
         }
 
@@ -821,7 +821,7 @@ public class SFTPFile extends AbstractFile {
                 fetchAttributes();
             }
             catch(Exception e) {        // AuthException
-                if(Debug.ON) Debug.trace("Failed to refresh attributes: "+e);
+                FileLogger.fine("Failed to refresh attributes", e);
             }
         }
     }
@@ -866,90 +866,90 @@ public class SFTPFile extends AbstractFile {
     }
 
 
-    private class SFTPProcess extends AbstractProcess {
-
-        private boolean success;
-        private SessionChannelClient sessionClient;
-        private SFTPConnectionHandler connHandler;
-
-        private SFTPProcess(String tokens[]) throws IOException {
-
-            try {
-                // Retrieve a ConnectionHandler and lock it
-                connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
-                // Makes sure the connection is started, if not starts it
-                connHandler.checkConnection();
-
-                sessionClient = connHandler.sshClient.openSessionChannel();
-//                sessionClient.startShell();
-
-//                success = sessionClient.executeCommand("cd "+(isDirectory()?fileURL.getPath():fileURL.getParent().getPath()));
-//if(Debug.ON) Debug.trace("commmand="+("cd "+(isDirectory()?fileURL.getPath():fileURL.getParent().getPath()))+" returned "+success);
-
-                // Environment variables are refused by most servers for security reasons  
-//                sessionClient.setEnvironmentVariable("cd", isDirectory()?fileURL.getPath():fileURL.getParent().getPath());
-
-                // No way to set the current working directory:
-                // 1/ when executing a single command:
-                //  + environment variables are ignored by most server, so can't use PWD for that.
-                //  + could send 'cd dir ; command' but it's not platform independant and prevents the command from being
-                //    executed under Windows
-                // 2/ when starting a shell, no problem to change the current working directory (cd dir\n is sent before
-                // the command), but there is no reliable way to detect the end of the command execution, as confirmed
-                // by one of the J2SSH developers : http://sourceforge.net/forum/message.php?msg_id=1826569
-
-                // Concatenates all tokens to create the command string
-                StringBuffer command = new StringBuffer();
-                int nbTokens = tokens.length;
-                for(int i=0; i<nbTokens; i++) {
-                    command.append(tokens[i]);
-                    if(i!=nbTokens-1)
-                        command.append(" ");
-                }
-
-                success = sessionClient.executeCommand(command.toString());
-                if(Debug.ON) Debug.trace("commmand="+command+" returned "+success);
-            }
-            catch(IOException e) {
-                // Release the lock on the ConnectionHandler
-                connHandler.releaseLock();
-
-                sessionClient.close();
-
-                // Re-throw exception
-                throw e;
-            }
-        }
-
-        public boolean usesMergedStreams() {
-            return false;
-        }
-
-        public int waitFor() throws InterruptedException, IOException {
-            return sessionClient.getExitCode().intValue();
-        }
-
-        protected void destroyProcess() throws IOException {
-            // Release the lock on the ConnectionHandler
-            connHandler.releaseLock();
-
-            sessionClient.close();
-        }
-
-        public int exitValue() {
-            return sessionClient.getExitCode().intValue();
-        }
-
-        public OutputStream getOutputStream() throws IOException {
-            return sessionClient.getOutputStream();
-        }
-
-        public InputStream getInputStream() throws IOException {
-            return sessionClient.getInputStream();
-        }
-
-        public InputStream getErrorStream() throws IOException {
-            return sessionClient.getStderrInputStream();
-        }
-    }
+//    private class SFTPProcess extends AbstractProcess {
+//
+//        private boolean success;
+//        private SessionChannelClient sessionClient;
+//        private SFTPConnectionHandler connHandler;
+//
+//        private SFTPProcess(String tokens[]) throws IOException {
+//
+//            try {
+//                // Retrieve a ConnectionHandler and lock it
+//                connHandler = (SFTPConnectionHandler)ConnectionPool.getConnectionHandler(connHandlerFactory, fileURL, true);
+//                // Makes sure the connection is started, if not starts it
+//                connHandler.checkConnection();
+//
+//                sessionClient = connHandler.sshClient.openSessionChannel();
+////                sessionClient.startShell();
+//
+////                success = sessionClient.executeCommand("cd "+(isDirectory()?fileURL.getPath():fileURL.getParent().getPath()));
+////FileLogger.finest("commmand="+("cd "+(isDirectory()?fileURL.getPath():fileURL.getParent().getPath()))+" returned "+success);
+//
+//                // Environment variables are refused by most servers for security reasons
+////                sessionClient.setEnvironmentVariable("cd", isDirectory()?fileURL.getPath():fileURL.getParent().getPath());
+//
+//                // No way to set the current working directory:
+//                // 1/ when executing a single command:
+//                //  + environment variables are ignored by most server, so can't use PWD for that.
+//                //  + could send 'cd dir ; command' but it's not platform independant and prevents the command from being
+//                //    executed under Windows
+//                // 2/ when starting a shell, no problem to change the current working directory (cd dir\n is sent before
+//                // the command), but there is no reliable way to detect the end of the command execution, as confirmed
+//                // by one of the J2SSH developers : http://sourceforge.net/forum/message.php?msg_id=1826569
+//
+//                // Concatenates all tokens to create the command string
+//                StringBuffer command = new StringBuffer();
+//                int nbTokens = tokens.length;
+//                for(int i=0; i<nbTokens; i++) {
+//                    command.append(tokens[i]);
+//                    if(i!=nbTokens-1)
+//                        command.append(" ");
+//                }
+//
+//                success = sessionClient.executeCommand(command.toString());
+//                FileLogger.finest("commmand="+command+" returned "+success);
+//            }
+//            catch(IOException e) {
+//                // Release the lock on the ConnectionHandler
+//                connHandler.releaseLock();
+//
+//                sessionClient.close();
+//
+//                // Re-throw exception
+//                throw e;
+//            }
+//        }
+//
+//        public boolean usesMergedStreams() {
+//            return false;
+//        }
+//
+//        public int waitFor() throws InterruptedException, IOException {
+//            return sessionClient.getExitCode().intValue();
+//        }
+//
+//        protected void destroyProcess() throws IOException {
+//            // Release the lock on the ConnectionHandler
+//            connHandler.releaseLock();
+//
+//            sessionClient.close();
+//        }
+//
+//        public int exitValue() {
+//            return sessionClient.getExitCode().intValue();
+//        }
+//
+//        public OutputStream getOutputStream() throws IOException {
+//            return sessionClient.getOutputStream();
+//        }
+//
+//        public InputStream getInputStream() throws IOException {
+//            return sessionClient.getInputStream();
+//        }
+//
+//        public InputStream getErrorStream() throws IOException {
+//            return sessionClient.getStderrInputStream();
+//        }
+//    }
 }

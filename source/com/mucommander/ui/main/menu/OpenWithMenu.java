@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ public class OpenWithMenu extends JMenu {
         while(iterator.hasNext()) {
             command = (Command)iterator.next();
             if(command.getType() == Command.NORMAL_COMMAND)
-                add(new com.mucommander.ui.action.CommandAction(mainFrame, new Hashtable(), command));
+                add(new com.mucommander.ui.action.impl.CommandAction(mainFrame, new Hashtable(), command));
         }
         if(getItemCount() == 0)
             setEnabled(false);

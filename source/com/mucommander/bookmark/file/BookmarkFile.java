@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ import com.mucommander.file.*;
 import com.mucommander.io.FileTransferException;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.process.AbstractProcess;
 
 import java.io.*;
 
@@ -33,7 +32,7 @@ import java.io.*;
  * Represents a file in the <code>bookmark://</code> file system.
  * @author Nicolas Rinaudo
  */
-public class BookmarkFile extends AbstractFile {
+public class BookmarkFile extends ProtocolFile {
     // - Instance fields -------------------------------------------------------
     // -------------------------------------------------------------------------
     /** Bookmark wrapped by this abstract file. */
@@ -52,8 +51,8 @@ public class BookmarkFile extends AbstractFile {
      * @param  bookmark    bookmark to wrap.
      * @throws IOException if the specified bookmark's URL cannot be resolved.
      */
-    public BookmarkFile(Bookmark bookmark) throws IOException {
-        super(FileURL.getFileURL(FileProtocols.BOOKMARKS + "://" + java.net.URLEncoder.encode(bookmark.getName(), "UTF-8")));
+    protected BookmarkFile(Bookmark bookmark) throws IOException {
+        super(FileURL.getFileURL(BookmarkProtocolProvider.BOOKMARK + "://" + java.net.URLEncoder.encode(bookmark.getName(), "UTF-8")));
         this.bookmark = bookmark;
     }
 
@@ -107,23 +106,14 @@ public class BookmarkFile extends AbstractFile {
      * @throws IOException if an IO error occurs.
      * @see                #setParent(AbstractFile)
      */
-    public AbstractFile getParent() throws IOException {
-        return new BookmarkRoot();
+    public AbstractFile getParent() {
+        try {
+            return new BookmarkRoot();
+        }
+        catch(IOException e) {
+            return null;
+        }
     }
-
-    /**
-     * Returns <code>true</code> if the wrapped file knows how to create processes.
-     * @return <code>true</code> if the wrapped file knows how to create processes.
-     */
-    public boolean canRunProcess() {return getUnderlyingFile().canRunProcess();}
-
-    /**
-     * Runs the specified command on the wrapped file.
-     * @param  tokens      command to run.
-     * @return             a process running the specified command.
-     * @throws IOException if an IO error occurs.
-     */
-    public AbstractProcess runProcess(String[] tokens) throws IOException {return getUnderlyingFile().runProcess(tokens);}
 
     /**
      * Returns the result of the wrapped file's <code>getFreeSpace()</code> methods.
@@ -141,18 +131,12 @@ public class BookmarkFile extends AbstractFile {
      * Returns <code>false</code>.
      * @return <code>false</code>.
      */
-    public boolean isDirectory() {return false;}
-
-    /**
-     * Returns <code>true</code>.
-     * @return <code>true</code>.
-     */
-    public boolean isBrowsable() {return true;}
+    public boolean isDirectory() {return true;}
 
     /**
      * Sets the wrapped file's parent.
      * @param parent object to use as the wrapped file's parent.
-     * @see          #getParent()
+     * @see          AbstractFile#getParent()
      */
     public void setParent(AbstractFile parent) {
         getUnderlyingFile().setParent(parent);}

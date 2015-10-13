@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 package com.mucommander.shell;
 
+import com.mucommander.AppLogger;
+import com.mucommander.RuntimeConstants;
+import com.mucommander.xml.XmlAttributes;
 import com.mucommander.xml.XmlWriter;
 
 import java.io.OutputStream;
@@ -43,9 +46,14 @@ class ShellHistoryWriter implements ShellHistoryConstants {
             // Opens the file for writing.
             out = new XmlWriter(stream);
 
-            // Writes the content of the shell history.
-            out.startElement(ROOT_ELEMENT);
+            // Version the file
+            XmlAttributes attributes = new XmlAttributes();
+            attributes.add(ATTRIBUTE_VERSION, RuntimeConstants.VERSION);
+
+            out.startElement(ROOT_ELEMENT, attributes);
             out.println();
+
+            // Writes the content of the shell history.
             while(history.hasNext()) {
                 out.startElement(COMMAND_ELEMENT);
                 out.writeCData(history.next().toString());
@@ -53,6 +61,8 @@ class ShellHistoryWriter implements ShellHistoryConstants {
             }
             out.endElement(ROOT_ELEMENT);
         }
-        catch(Exception e) {if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Failed to write shell history: " + e);}
+        catch(Exception e) {
+            AppLogger.fine("Failed to write shell history", e);
+        }
     }
 }

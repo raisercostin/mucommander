@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,18 +18,14 @@
 
 package com.mucommander.file.impl.local;
 
-import com.mucommander.Debug;
-import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.*;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.util.Kernel32;
 import com.mucommander.file.util.Kernel32API;
+import com.mucommander.file.util.PathUtils;
 import com.mucommander.io.*;
-import com.mucommander.process.AbstractProcess;
-import com.mucommander.runtime.JavaVersions;
-import com.mucommander.runtime.OsFamilies;
-import com.mucommander.runtime.OsFamily;
-import com.mucommander.runtime.OsVersions;
+import com.mucommander.runtime.*;
+import com.mucommander.util.StringUtils;
 import com.sun.jna.ptr.LongByReference;
 
 import java.io.*;
@@ -38,6 +34,7 @@ import java.nio.channels.FileChannel;
 import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -71,7 +68,7 @@ import java.util.regex.Matcher;
  *
  * @author Maxence Bernard
  */
-public class LocalFile extends AbstractFile {
+public class LocalFile extends ProtocolFile {
 
     protected File file;
     private FilePermissions permissions;
@@ -93,10 +90,12 @@ public class LocalFile extends AbstractFile {
     /** Are we running Windows ? */
     private final static boolean IS_WINDOWS =  OsFamilies.WINDOWS.isCurrent();
 
-    /** true if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...) instead
+    /** True if the underlying local filesystem uses drives assigned to letters (e.g. A:\, C:\, ...) instead
      * of having single a root folder '/' */
     public final static boolean USES_ROOT_DRIVES = IS_WINDOWS || OsFamilies.OS_2.isCurrent();
 
+    /** Pattern matching Windows-like drives' root, e.g. C:\ */
+    final static Pattern driveRootPattern = Pattern.compile("^[a-zA-Z]{1}[:]{1}[\\\\]{1}");
 
     // Permissions can only be changed under Java 1.6 and up and are limited to 'user' access.
     // Note: 'read' and 'execute' permissions have no meaning under Windows (files are either read-only or
@@ -116,6 +115,14 @@ public class LocalFile extends AbstractFile {
             ?(IS_WINDOWS?CHANGEABLE_PERMISSIONS_JAVA_1_6_WINDOWS:CHANGEABLE_PERMISSIONS_JAVA_1_6_NON_WINDOWS)
             : CHANGEABLE_PERMISSIONS_JAVA_1_5;
 
+    /**
+ 	 * List of known UNIX filesystems.
+ 	 */
+ 	public static final String[] KNOWN_UNIX_FS = { "adfs", "affs", "autofs", "cifs", "coda", "cramfs",
+                                                   "debugfs", "efs", "ext2", "ext3", "fuseblk", "hfs", "hfsplus", "hpfs",
+                                                   "iso9660", "jfs", "minix", "msdos", "ncpfs", "nfs", "nfs4", "ntfs",
+                                                   "qnx4", "reiserfs", "smbfs", "udf", "ufs", "usbfs", "vfat", "xfs" };
+
     static {
         // Prevents Windows from poping up a message box when it cannot find a file. Those message box are triggered by
         // java.io.File methods when operating on removable drives such as floppy or CD-ROM drives which have no disk
@@ -131,7 +138,7 @@ public class LocalFile extends AbstractFile {
      * Creates a new instance of LocalFile. The given FileURL's scheme should be {@link FileProtocols#FILE}, and the
      * host {@link FileURL#LOCALHOST}.  
      */
-    public LocalFile(FileURL fileURL) throws IOException {
+    protected LocalFile(FileURL fileURL) throws IOException {
         super(fileURL);
 
         String path = fileURL.getPath();
@@ -158,6 +165,10 @@ public class LocalFile extends AbstractFile {
         this.absPath = absPath.endsWith(SEPARATOR)?absPath.substring(0,absPath.length()-1):absPath;
     }
 
+
+    ////////////////////////////////
+    // LocalFile-specific methods //
+    ////////////////////////////////
 
     /**
      * Returns the user home folder. Most if not all OSes have one, but in the unlikely event that the OS doesn't have
@@ -198,7 +209,8 @@ public class LocalFile extends AbstractFile {
     /**
      * Uses platform dependant functions to retrieve the total and free space on the volume where this file resides.
      *
-     * @return a {totalSpace, freeSpace} long array, both values can be null if the information could not be retrieved
+     * @return a {totalSpace, freeSpace} long array, both values can be <code>null</code> if the information could not
+     * be retrieved.
      */
     protected long[] getNativeVolumeInfo() {
         BufferedReader br = null;
@@ -220,15 +232,18 @@ public class LocalFile extends AbstractFile {
                         dfInfo[1] = freeSpaceLBR.getValue();
                     }
                     else {
-                        if(Debug.ON) Debug.trace("Call to GetDiskFreeSpaceEx failed, absPath="+absPath);
+                        FileLogger.warning("Call to GetDiskFreeSpaceEx failed, absPath="+absPath);
                     }
                 }
-                // Otherwise, parse the output of 'dir "filePath"' command to retrieve free space information
-                else {
+                // Otherwise, parse the output of 'dir "filePath"' command to retrieve free space information, if
+                // running Window NT or higher.
+                // Note: no command invocation under Windows 95/98/Me, because it causes a shell window to
+                // appear briefly every time this method is called (See ticket #63).
+                else if(OsVersions.WINDOWS_NT.isCurrentOrHigher()) {
                     // 'dir' command returns free space on the last line
-                    //Process process = Runtime.getRuntime().exec(new String[] {"dir", absPath}, null, new File(getAbsolutePath()));
-//                    Process process = Runtime.getRuntime().exec(PlatformManager.getDefaultShellCommand() + " dir \""+absPath+"\"");
-                    Process process = Runtime.getRuntime().exec(DesktopManager.getDefaultShell() + " dir \""+absPath+"\"");
+                    Process process = Runtime.getRuntime().exec(
+                            (OsVersion.getCurrent().compareTo(OsVersion.WINDOWS_NT)>=0 ? "cmd /c" : "command.com /c")
+                            + " dir \""+absPath+"\"");
 
                     // Check that the process was correctly started
                     if(process!=null) {
@@ -302,7 +317,7 @@ public class LocalFile extends AbstractFile {
                     int nbTokens = tokenV.size();
                     if(nbTokens<6) {
                         // This shouldn't normally happen
-                        if(Debug.ON) Debug.trace("Failed to parse output of df -k "+absPath+" line="+line);
+                        FileLogger.warning("Failed to parse output of df -k "+absPath+" line="+line);
                         return dfInfo;
                     }
 
@@ -311,7 +326,7 @@ public class LocalFile extends AbstractFile {
                     while(!((String)tokenV.elementAt(pos)).startsWith("/")) {
                         if(pos==0) {
                             // This shouldn't normally happen
-                            if(Debug.ON) Debug.trace("Failed to parse output of df -k "+absPath+" line="+line);
+                            FileLogger.warning("Failed to parse output of df -k "+absPath+" line="+line);
                             return dfInfo;
                         }
 
@@ -333,10 +348,7 @@ public class LocalFile extends AbstractFile {
             }
         }
         catch(Throwable e) {	// JNA throws a java.lang.UnsatisfiedLinkError if the native can't be found
-            if(com.mucommander.Debug.ON) {
-                com.mucommander.Debug.trace("Exception thrown while retrieving volume info: "+e);
-                e.printStackTrace();
-            }
+            FileLogger.fine("Exception thrown while retrieving volume info", e);
         }
         finally {
             if(br!=null)
@@ -387,16 +399,168 @@ public class LocalFile extends AbstractFile {
 
 
     /**
+     * Resolves and returns all local volumes:
+     * <ul>
+     *   <li>On UNIX-based OSes, these are the mount points declared in <code>/etc/ftab</code>.</li>
+     *   <li>On the Windows platform, these are the drives displayed in Explorer. Some of the returned volumes may
+     * correspond to removable drives and thus may not always be available -- if they aren't, {@link #exists()} will
+     * return <code>false</code>.</li>
+     * </ul>
+     * <p>
+     * The return list of volumes is purposively not cached so that new volumes will be returned as soon as they are
+     * mounted.
+     * </p>
+     *
+     * @return all local volumes
+     */
+    public static AbstractFile[] getVolumes() {
+        Vector volumesV = new Vector();
+
+        // Add Mac OS X's /Volumes subfolders and not file roots ('/') since Volumes already contains a named link
+        // (like 'Hard drive' or whatever silly name the user gave his primary hard disk) to /
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
+            addMacOSXVolumes(volumesV);
+        }
+        else {
+            // Add java.io.File's root folders
+            addJavaIoFileRoots(volumesV);
+
+            // Add /proc/mounts folders under UNIX-based systems.
+            if(OsFamily.getCurrent().isUnixBased())
+                addMountEntries(volumesV);
+        }
+
+        // Add home folder, if it is not already present in the list
+        AbstractFile homeFolder = getUserHome();
+        if(!(homeFolder==null || volumesV.contains(homeFolder)))
+            volumesV.add(homeFolder);
+
+        AbstractFile volumes[] = new AbstractFile[volumesV.size()];
+        volumesV.toArray(volumes);
+
+        return volumes;
+    }
+
+
+    ////////////////////
+    // Helper methods //
+    ////////////////////
+
+    /**
+     * Resolves the root folders returned by {@link File#listRoots()} and adds them to the given <code>Vector</code>.
+     *
+     * @param v the <code>Vector</code> to add root folders to
+     */
+    private static void addJavaIoFileRoots(Vector v) {
+        // Warning : No file operation should be performed on the resolved folders as under Win32, this would cause a
+        // dialog to appear for removable drives such as A:\ if no disk is present.
+        File fileRoots[] = File.listRoots();
+
+        int nbFolders = fileRoots.length;
+        for(int i=0; i<nbFolders; i++)
+            try {
+                v.add(FileFactory.getFile(fileRoots[i].getAbsolutePath(), true));
+            }
+            catch(IOException e) {}
+    }
+
+    /**
+     * Parses <code>/proc/mounts</code> kernel virtual file, resolves all the mount points that look like regular
+     * filesystems it contains and adds them to the given <code>Vector</code>.
+     *
+     * @param v the <code>Vector</code> to add mount points to
+     */
+    private static void addMountEntries(Vector v) {
+        BufferedReader br;
+
+        br = null;
+        try {
+            br = new BufferedReader(new InputStreamReader(new FileInputStream("/proc/mounts")));
+            StringTokenizer st;
+            String line;
+            AbstractFile file;
+            String mountPoint, fsType;
+            boolean knownFS;
+            // read each line in file and parse it
+            while ((line=br.readLine())!=null) {
+                line = line.trim();
+                // split line into tokens separated by " \t\n\r\f"
+                // tokens are: device, mount_point, fs_type, attributes, fs_freq, fs_passno
+                st = new StringTokenizer(line);
+                st.nextToken();
+                mountPoint = StringUtils.replaceCompat(st.nextToken(), "\\040", " ");
+                fsType = st.nextToken();
+                knownFS = false;
+                for (int i = 0; i < KNOWN_UNIX_FS.length; i++) {
+                    if (KNOWN_UNIX_FS[i].equals(fsType)) {
+                        // this is really known physical FS
+                        knownFS = true;
+                        break;
+                    }
+                }
+
+                if (knownFS) {
+                    file = FileFactory.getFile(mountPoint);
+                    if(file!=null && !v.contains(file))
+                        v.add(file);
+                }
+            }
+        }
+        catch(Exception e) {
+            FileLogger.warning("Error parsing /proc/mounts entries", e);
+        }
+        finally {
+            if(br != null) {
+                try {
+                    br.close();
+                }
+                catch(IOException e) {}
+            }
+        }
+    }
+
+    /**
+     * Adds all <code>/Volumes</code> subfolders to the given <code>Vector</code>.
+     *
+     * @param v the <code>Vector</code> to add the volumes to
+     */
+    private static void addMacOSXVolumes(Vector v) {
+        // /Volumes not resolved for some reason, giving up
+        AbstractFile volumesFolder = FileFactory.getFile("/Volumes");
+        if(volumesFolder==null)
+            return;
+
+        // Adds subfolders
+        try {
+            AbstractFile volumesFiles[] = volumesFolder.ls();
+            int nbFiles = volumesFiles.length;
+            AbstractFile folder;
+            for(int i=0; i<nbFiles; i++)
+                if((folder=volumesFiles[i]).isDirectory()) {
+                    // The primary hard drive (the one corresponding to '/') is listed under Volumes and should be
+                    // returned as the first volume
+                    if(folder.getCanonicalPath().equals("/"))
+                        v.insertElementAt(folder, 0);
+                    else
+                        v.add(folder);
+                }
+        }
+        catch(IOException e) {
+            FileLogger.warning("Can't get /Volumes subfolders", e);
+        }
+    }
+
+
+    /////////////////////////////////
+    // AbstractFile implementation //
+    /////////////////////////////////
+
+    /**
      * Returns a <code>java.io.File</code> instance corresponding to this file.
      */
     public Object getUnderlyingFileObject() {
         return file;
     }
-    
-	
-    /////////////////////////////////////////
-    // AbstractFile methods implementation //
-    /////////////////////////////////////////
 
     public boolean isSymlink() {
         // At the moment symlinks under Windows (aka NTFS junction points) are not supported because java.io.File
@@ -601,28 +765,6 @@ public class LocalFile extends AbstractFile {
     }	
 
 
-    /**
-     * Always returns <code>true</code>.
-     * @return <code>true</code>
-     */
-    public boolean canRunProcess() {
-        return true;
-    }
-
-    /**
-     * Returns a process executing the specied local command.
-     * @param  tokens      describes the command and its arguments.
-     * @throws IOException if an error occured while creating the process.
-     */
-    public AbstractProcess runProcess(String[] tokens) throws IOException {
-        if(!isDirectory()) {
-            if(Debug.ON) Debug.trace("Tried to create a process using a file as a working directory.");
-            throw new IOException(file + " is not a directory");
-        }
-        return new LocalProcess(tokens, file);
-    }
-
-    
     ////////////////////////
     // Overridden methods //
     ////////////////////////
@@ -768,21 +910,74 @@ public class LocalFile extends AbstractFile {
     }
 
     /**
-     * Overridden for performance reasons. This method doesn't iterate like {@link AbstractFile#getRoot()} to resolve
-     * the root file.
+     * Overridden to play nice with platforms that have root drives -- for those, the drive's root (e.g. <code>C:\</code>)
+     * is returned instead of <code>/</code>.
      */
-    public AbstractFile getRoot() throws IOException {
-        if(IS_WINDOWS) {
-            // Extract drive letter from the path
-            Matcher matcher = windowsDriveRootPattern.matcher(absPath);
+    public AbstractFile getRoot() {
+        if(USES_ROOT_DRIVES) {
+            Matcher matcher = driveRootPattern.matcher(getAbsolutePath(true));
+
+            // Test if this file already is the root folder
             if(matcher.matches())
-                return FileFactory.getFile(absPath.substring(matcher.start(), matcher.end()));
-        }
-        else if(SEPARATOR.equals("/")) {
-            return FileFactory.getFile("/");
+                return this;
+
+            // Extract the drive from the path
+            matcher.reset();
+            if(matcher.find())
+                return FileFactory.getFile(matcher.group());
         }
 
         return super.getRoot();
+    }
+
+    /**
+     * Overridden to play nice with platforms that have root drives -- for those, <code>true</code> is returned if
+     * this file's path matches the drive root's (e.g. <code>C:\</code>).
+     */
+    public boolean isRoot() {
+        if(USES_ROOT_DRIVES)
+            return driveRootPattern.matcher(getAbsolutePath()).matches();
+
+        return super.isRoot();
+    }
+
+    /**
+     * Overridden to return the local volum on which this file is located. The returned volume is one of the volumes
+     * returned by {@link #getVolumes()}.
+     */
+    public AbstractFile getVolume() {
+        AbstractFile[] volumes = LocalFile.getVolumes();
+
+        // Looks for the volume that best matches this file, i.e. the volume that is the deepest parent of this file.
+        // If this file is itself a volume, return it.
+        int bestDepth = -1;
+        int bestMatch = -1;
+        int depth;
+        AbstractFile volume;
+        String volumePath;
+        String thisPath = getAbsolutePath(true);
+
+        for(int i=0; i<volumes.length; i++) {
+            volume = volumes[i];
+            volumePath = volume.getAbsolutePath(true);
+
+            if(thisPath.equals(volumePath)) {
+                return this;
+            }
+            else if(thisPath.startsWith(volumePath)) {
+                depth = PathUtils.getDepth(volumePath, volume.getSeparator());
+                if(depth>bestDepth) {
+                    bestDepth = depth;
+                    bestMatch = i;
+                }
+            }
+        }
+
+        if(bestMatch!=-1)
+            return volumes[bestMatch];
+
+        // If no volume matched this file (shouldn't normally happen), return the root folder
+        return getRoot();
     }
 
     /**
@@ -801,13 +996,8 @@ public class LocalFile extends AbstractFile {
         // allow the transfer to be monitored.
         // Note that Windows UNC paths are handled by the super method when comparing hosts for equality.  
         if(IS_WINDOWS) {
-            try {
-                if(!getRoot().equals(destFile.getRoot()))
-                    return SHOULD_NOT_HINT; 
-            }
-            catch(IOException e) {
+            if(!getRoot().equals(destFile.getRoot()))
                 return SHOULD_NOT_HINT;
-            }
         }
 
         return moveHint;

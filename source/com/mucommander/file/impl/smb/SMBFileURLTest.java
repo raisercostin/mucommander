@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,10 +55,6 @@ public class SMBFileURLTest extends FileURLTestCase {
         return "/";
     }
 
-    protected String getTildeReplacement() {
-        return null;
-    }
-
     protected boolean isQueryParsed() {
         return false;
     }
@@ -72,6 +68,6 @@ public class SMBFileURLTest extends FileURLTestCase {
      * This method is overridden to test SMB's specific notion of realm. 
      */
     public void testRealm() throws MalformedURLException {
-        assertEquals(getSchemeURL("host/share"), getSchemeURL("host/share/path/to/file").getRealm());
+        assertEquals(getURL("host", "/share"), getURL("host", "/share/path/to/file").getRealm());
     }
 }

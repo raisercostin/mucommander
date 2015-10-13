@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ import com.mucommander.bookmark.BookmarkManager;
 import com.mucommander.file.*;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.process.AbstractProcess;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +33,7 @@ import java.io.OutputStream;
  * Represents the root of the <code>bookmarks://</code> file system.
  * @author Nicolas Rinaudo
  */
-class BookmarkRoot extends AbstractFile implements BookmarkListener {
+class BookmarkRoot extends ProtocolFile implements BookmarkListener {
     // - Instance fields -------------------------------------------------------
     // -------------------------------------------------------------------------
     /** Time at which the bookmarks were last modified. */
@@ -44,7 +43,7 @@ class BookmarkRoot extends AbstractFile implements BookmarkListener {
 
     // - Initialisation --------------------------------------------------------
     // -------------------------------------------------------------------------
-    public BookmarkRoot() throws IOException {this(FileURL.getFileURL(FileProtocols.BOOKMARKS + "://"));}
+    public BookmarkRoot() throws IOException {this(FileURL.getFileURL(BookmarkProtocolProvider.BOOKMARK + "://"));}
     public BookmarkRoot(FileURL url) {
         super(url);
         lastModified = System.currentTimeMillis();
@@ -116,8 +115,6 @@ class BookmarkRoot extends AbstractFile implements BookmarkListener {
     public long getFreeSpace() {return -1;}
     public long getTotalSpace() {return -1;}
     public Object getUnderlyingFileObject() {return null;}
-    public boolean canRunProcess() {return false;}
-    public AbstractProcess runProcess(String[] tokens) throws IOException {throw new IOException();}
     public String getOwner() {return null;}
     public boolean canGetOwner() {return false;}
     public String getGroup() {return null;}

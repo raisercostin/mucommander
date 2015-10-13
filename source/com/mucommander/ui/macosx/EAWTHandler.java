@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,11 @@ package com.mucommander.ui.macosx;
 import com.apple.eawt.Application;
 import com.apple.eawt.ApplicationEvent;
 import com.apple.eawt.ApplicationListener;
+import com.mucommander.Launcher;
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
+import com.mucommander.ui.main.FolderPanel;
+import com.mucommander.ui.main.WindowManager;
 
 
 /**
@@ -66,11 +71,21 @@ class EAWTHandler implements ApplicationListener {
     }
 
     public void handleOpenFile(ApplicationEvent event) {
-        // No-op
+        // Wait until the application has been launched. This step is required to properly handle the case where the 
+        // application is launched with a file to open, for instance when drag-n-dropping a file to the Dock icon
+        // when muCommander is not started yet. In this case, this method is called while Launcher is still busy
+        // launching the application (no mainframe exists yet).
+        Launcher.waitUntilLaunched();
+
+        AbstractFile file = FileFactory.getFile(event.getFilename());
+        FolderPanel activePanel = WindowManager.getCurrentMainFrame().getActivePanel();
+        if(file.isBrowsable())
+            activePanel.tryChangeCurrentFolder(file);
+        else
+            activePanel.tryChangeCurrentFolder(file.getParent(), file);
     }
 
     public void handlePrintFile(ApplicationEvent event) {
         // No-op
     }
-
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,6 +47,11 @@ public interface ZipConstants {
      */
     // /!\ For some unknown reason, using a larger buffer *hurts* performance.
     public static final int DEFAULT_DEFLATER_BUFFER_SIZE = 512;
+
+    /**
+     * Maximum size of a Zip32 entry or a Zip32 file as a whole, i.e. (2^32)-1.
+     * */
+    public static final long MAX_ZIP32_SIZE = 4294967295l;
 
     /**
      * Size of write buffers

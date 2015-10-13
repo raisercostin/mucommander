@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 
 package com.mucommander.ui.dialog.file;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.job.FileJob;
 import com.mucommander.job.FileJobListener;
 import com.mucommander.job.TransferFileJob;
+import com.mucommander.job.progress.JobProgress;
+import com.mucommander.job.progress.JobProgressListener;
+import com.mucommander.job.progress.JobProgressMonitor;
 import com.mucommander.text.DurationFormat;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
@@ -48,7 +51,7 @@ import java.util.Vector;
  *
  * @author Maxence Bernard
  */
-public class ProgressDialog extends FocusDialog implements Runnable, ActionListener, ItemListener, ChangeListener, FileJobListener {
+public class ProgressDialog extends FocusDialog implements ActionListener, ItemListener, ChangeListener, FileJobListener, JobProgressListener {
 
     private JLabel currentFileLabel;
     private JLabel totalTransferredLabel;
@@ -74,7 +77,6 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
     private FileJob job;
     private TransferFileJob transferFileJob;
 
-    private Thread repaintThread;
     private boolean firstTimeActivated = true;
 
     // Button icons
@@ -90,12 +92,6 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
 
     /** Height allocated to the 'speed graph' */
     private final static int SPEED_GRAPH_HEIGHT = 80;
-
-    /** Controls how often should progress information be refreshed (in ms) */
-    private final static int MAIN_REFRESH_RATE = 1000;
-
-    /** Controls how often should current file label be refreshed */
-    private final static int CURRENT_FILE_LABEL_REFRESH_RATE = 100;
 
     static {
         // Disable JProgressBar animation which is a real CPU hog under Mac OS X
@@ -235,8 +231,8 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
 
         initUI();
         
-        repaintThread = new Thread(this, getClass().getName());
-        repaintThread.start();
+		JobProgressMonitor.getInstance().addJob(job);
+        JobProgressMonitor.getInstance().addJobProgressListener(this);
 
         showDialog();
     }
@@ -246,7 +242,7 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
      * Stops repaint thread.
      */
     public void stop() {
-        repaintThread = null;
+    	JobProgressMonitor.getInstance().removeJobProgressListener(this);
     }
 
 
@@ -272,7 +268,7 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
     ////////////////////////////////////
 
     public void jobStateChanged(FileJob source, int oldState, int newState) {
-        if(Debug.ON) Debug.trace("currentThread="+Thread.currentThread()+" oldState="+oldState+" newState="+newState);
+        AppLogger.finer("currentThread="+Thread.currentThread()+" oldState="+oldState+" newState="+newState);
 
         if(newState==FileJob.INTERRUPTED) {
             // Stop repaint thread and dispose dialog
@@ -323,168 +319,68 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
         }
     }
 
-
-    /////////////////////////////
-    // Runnable implementation //
-    /////////////////////////////
-
-    public void run() {
-        String progressText;
-        long lastBytesTotal = 0;
-        long lastTime = System.currentTimeMillis();
-        boolean lastLoop = false;
-
-        // Refresh current file label in a separate thread, more frequently than other components to give a sense
-        // of speed when small files are being transferred.
-        // This 'pull' approach allows to throttle the number label updates which have a cost VS updating the label
-        // for each file being processed (job notifications) which can hog the CPU when lots of small files
-        // are being transferred.
-        new Thread() {
-            public void run() {
-                // This thread will naturally die when the main repaint thread is terminated
-                while(repaintThread!=null) {
-                    int jobState = job.getState();
-
-                    if(jobState==FileJob.FINISHED || jobState==FileJob.INTERRUPTED) {
-                        currentFileLabel.setText(Translator.get("progress_dialog.job_finished"));
-                        return;
-                    }
-
-                    currentFileLabel.setText(job.getStatusString());
-
-                    // Sleep for a while
-                    try {
-                        Thread.sleep(CURRENT_FILE_LABEL_REFRESH_RATE);
-                    }
-                    catch(InterruptedException e) {}
-                }
-            }
-        }.start();
-
-        while(repaintThread!=null) {
-            // Now is updated with current time, or job end date if job has finished already.
-            long now = job.getEndDate();
-            if(now==0)  // job hasn't finished yet
-                now = System.currentTimeMillis(); 
-
-            // Do not refresh progress information is job is paused, simply sleep
-            if(job.getState()!=FileJob.PAUSED) {
-                long currentFileRemainingTime = 0;
-                long totalRemainingTime;
-
-                long effectiveJobTime = job.getEffectiveJobTime();
-                if(effectiveJobTime==0)
-                    effectiveJobTime = 1;   // To avoid potential zero divisions
-
-                if (transferFileJob !=null) {
-                    // Do not count bytes that are skipped when files are resumed
-                    long bytesTotal = transferFileJob.getTotalByteCounter().getByteCount() - transferFileJob.getTotalSkippedByteCounter().getByteCount();
-                    long totalBps = (long)(bytesTotal*1000d/effectiveJobTime);
-                    long currentBps;
-
-                    if(now-lastTime>0)  // To avoid divisions by zero
-                        currentBps = (long)((bytesTotal-lastBytesTotal)*1000d/(now-lastTime));
-                    else
-                        currentBps = 0;
-
-                    // Update current file progress bar
-                    float filePercentFloat = transferFileJob.getFilePercentDone();
-                    int filePercentInt = (int)(100*filePercentFloat);
-                    currentFileProgressBar.setValue(filePercentInt);
-
-                    progressText = filePercentInt+"%";
-                    // Append estimated remaining time (ETA) if current file transfer is not already finished (100%)
-                    if(filePercentFloat<1) {
-                        progressText += " - ";
-
-                        long currentFileSize = transferFileJob.getCurrentFileSize();
-                        // If current file size is not available, ETA cannot be calculated
-                        if(currentFileSize==-1)
-                            progressText += "?";
-                        // Avoid potential divisions by zero
-                        else if(totalBps==0) {
-                            currentFileRemainingTime = -1;
-                            progressText += DurationFormat.getInfiniteSymbol();
-                        }
-                        else {
-                            currentFileRemainingTime = (long)((1000*(currentFileSize - transferFileJob.getCurrentFileByteCounter().getByteCount()))/(float)totalBps);
-                            progressText += DurationFormat.format(currentFileRemainingTime);
-                        }
-                    }
-
-                    currentFileProgressBar.setString(progressText);
-
-                    // Update total transferred label
-                    totalTransferredLabel.setText(
-                       Translator.get("progress_dialog.transferred",
-                                      SizeFormat.format(bytesTotal, SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_LONG| SizeFormat.ROUND_TO_KB),
-                                      SizeFormat.format(totalBps, SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.ROUND_TO_KB))
-                    );
-
-                    // Add new immediate bytes per second speed sample to speed graph and label and repaint it
-                    // Skip this sample if job was paused and resumed, speed would not be accurate
-                    if(lastTime>job.getPauseStartDate() && !lastLoop) {
-                        speedGraph.addSample(currentBps);
-                        updateCurrentSpeedLabel(SizeFormat.format(currentBps, SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT));
-                    }
-
-                    lastBytesTotal = bytesTotal;
-                    lastTime = now;
-                }
-
-                // Update total progress bar
-                // Total job percent is based on the *number* of files remaining, not their actual size.
-                // So this is very approximate.
-                float totalPercentFloat = job.getTotalPercentDone();
-                int totalPercentInt = (int)(100*totalPercentFloat);
-
-                totalProgressBar.setValue(totalPercentInt);
-
-                progressText = totalPercentInt+"%";
-
-                // Add a rough estimate of the total remaining time (ETA):
-                // total remaining time is based on the total job percent completed which itself is based on the *number*
-                // of files remaining, not their actual size. So this is very approximate.
-                // Do not add ETA if job is already finished (100%)
-                if(totalPercentFloat<1) {
-                    progressText += " - ";
-
-                    // Avoid potential divisions by zero
-                    if(totalPercentFloat==0)
-                        progressText += "?";
-                    else {
-                        // Make sure that total ETA is never smaller than current file ETA
-                        totalRemainingTime = (long)((1-totalPercentFloat)*(effectiveJobTime/totalPercentFloat));
-                        totalRemainingTime = Math.max(totalRemainingTime, currentFileRemainingTime);
-                        progressText += DurationFormat.format(totalRemainingTime);
-                    }
-                }
-                totalProgressBar.setString(progressText);
-
-//                // Update current file label
-//                currentFileLabel.setText(job.getStatusString());
-
-                // Update elapsed time label
-                elapsedTimeLabel.setText(Translator.get("progress_dialog.elapsed_time")+": "+DurationFormat.format(effectiveJobTime));
-            }
-
-            if(lastLoop) {
-                break;
-            }
-            else if(job.getState()==FileJob.FINISHED) {
-                // Job just finished, let's loop one more time to ensure that components (progress bar in particular)
-                // reflect job completion
-                lastLoop = true;
-            }
-
-            // Sleep for a while
-            try {
-                Thread.sleep(Math.max(MAIN_REFRESH_RATE -(System.currentTimeMillis()-now), 0));
-            }
-            catch(InterruptedException e) {}
-        }
+    
+    // Refresh current file label in a separate thread, more frequently than other components to give a sense
+    // of speed when small files are being transferred.
+    // This 'pull' approach allows to throttle the number label updates which have a cost VS updating the label
+    // for each file being processed (job notifications) which can hog the CPU when lots of small files
+    // are being transferred.
+    private void updateProgressLabel(JobProgress progress) {
+    	currentFileLabel.setText(progress.getJobStatusString());
     }
+    
+    private void updateProgressUI(JobProgress progress) {
+        if (progress.isTransferFileJob()) {
+            currentFileProgressBar.setValue(progress.getFilePercentInt());
+            currentFileProgressBar.setString(progress.getFileProgressText());
 
+            // Update total transferred label
+            totalTransferredLabel.setText(
+               Translator.get("progress_dialog.transferred",
+                              SizeFormat.format(progress.getBytesTotal(), SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_LONG| SizeFormat.ROUND_TO_KB),
+                              SizeFormat.format(progress.getTotalBps(), SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.ROUND_TO_KB))
+            );
+            
+            // Add new immediate bytes per second speed sample to speed graph and label and repaint it
+            // Skip this sample if job was paused and resumed, speed would not be accurate
+            if (progress.getLastTime()>progress.getJobPauseStartDate()) {
+                speedGraph.addSample(progress.getCurrentBps());
+                updateCurrentSpeedLabel(SizeFormat.format(progress.getCurrentBps(), SizeFormat.UNIT_SPEED| SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT));
+            }
+            
+        }
+        
+        totalProgressBar.setValue(progress.getTotalPercentInt());
+        totalProgressBar.setString(progress.getTotalProgressText());
+
+        // Update elapsed time label
+        elapsedTimeLabel.setText(Translator.get("progress_dialog.elapsed_time")+": "+DurationFormat.format(progress.getEffectiveJobTime()));
+    	
+    }
+    
+    /////////////////////////////
+    // JobProgress listener    //
+    /////////////////////////////
+    
+
+	public void jobAdded(FileJob source, int idx) {
+		// nothing here		
+	}
+
+
+	public void jobRemoved(FileJob source, int idx) {
+		// nothing here		
+	}
+
+	public void jobProgress(FileJob source, int idx, boolean fullUpdate) {
+		if (job.equals(source)) {
+			updateProgressLabel(source.getJobProgress());
+			if (fullUpdate) {
+				updateProgressUI(source.getJobProgress());
+			}
+		}
+		
+	}
 
     ///////////////////////////////////
     // ActionListener implementation //
@@ -701,4 +597,6 @@ public class ProgressDialog extends FocusDialog implements Runnable, ActionListe
             }
         }
     }
+
+
 }

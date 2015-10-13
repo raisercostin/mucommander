@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ import java.io.OutputStream;
 /**
  * A simple text editor. Most of the implementation is located in {@link TextEditorImpl}.
  *
- * @author Maxence Bernard
+ * @author Maxence Bernard, Nicolas Rinaudo
  */
 class TextEditor extends FileEditor implements DocumentListener {
 
@@ -51,11 +51,27 @@ class TextEditor extends FileEditor implements DocumentListener {
     ///////////////////////////////
 
     protected void saveAs(AbstractFile destFile) throws IOException {
-        OutputStream out = destFile.getOutputStream(false);
-        out.write(textEditorImpl.getTextArea().getText().getBytes(textEditorImpl.getFileEncoding()));
-        out.close();
+        OutputStream out;
 
-        setSaveNeeded(false);
+        out = null;
+
+        try {
+            out = destFile.getOutputStream(false);
+            textEditorImpl.write(out);
+
+            setSaveNeeded(false);
+
+            // Change the parent folder's date to now, so that changes are picked up by folder auto-refresh (see ticket #258)
+            destFile.getParent().changeDate(System.currentTimeMillis());
+        }
+        finally {
+            if(out != null) {
+                try {out.close();}
+                catch(IOException e) {
+                    // Ignored
+                }
+            }
+        }
     }
 
     public void edit(AbstractFile file) throws IOException {
@@ -63,7 +79,7 @@ class TextEditor extends FileEditor implements DocumentListener {
 
         EditorFrame frame = getFrame();
         if(frame!=null)
-            textEditorImpl.populateMenus(frame);
+            textEditorImpl.populateMenus(frame, getMenuBar());
     }
 
 
@@ -93,6 +109,6 @@ class TextEditor extends FileEditor implements DocumentListener {
     }
 
     public void requestFocus() {
-        textEditorImpl.getTextArea().requestFocus();
+        textEditorImpl.requestFocus();
     }
 }

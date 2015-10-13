@@ -1,6 +1,6 @@
 <!--
 This file is part of muCommander, http://www.mucommander.com
-Copyright (C) 2002-2008 Maxence Bernard
+Copyright (C) 2002-2009 Maxence Bernard
 
 muCommander is free software; you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -146,8 +146,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   <!-- Path to the NSIS installation dir.                      -->
   <!--                                                         -->
-  <!-- If not set, Windows executables won't be generated.     -->
+  <!-- If not set, Windows installers won't be generated.      -->
   <property name="nsis.dir"          location=""/>
+
+  <!-- Path to the NSIS 'makensis' executable.                 -->
+  <!--                                                         -->
+  <!-- If not set, Windows installers won't be generated.      -->
+  <property name="nsis.bin"          location="${nsis.dir}/makensis"/>
 
   <!-- Path to the launch4j installation dir.                  -->
   <!--                                                         -->

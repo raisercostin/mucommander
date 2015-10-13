@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,10 @@ import com.mucommander.bookmark.BookmarkManager;
 import com.mucommander.command.CommandManager;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.shell.ShellHistoryManager;
+import com.mucommander.ui.action.ActionKeymapIO;
+import com.mucommander.ui.main.commandbar.CommandBarIO;
+import com.mucommander.ui.main.toolbar.ToolBarIO;
+import com.mucommander.ui.main.tree.TreeIOThreadManager;
 import com.mucommander.ui.theme.ThemeManager;
 
 /**
@@ -46,7 +50,7 @@ public class ShutdownHook extends Thread {
      * Shuts down muCommander.
      */
     public static void initiateShutdown() {
-        if(Debug.ON) Debug.trace("shutting down");
+        AppLogger.info("shutting down");
 
 //            // No need to call System.exit() under Java 1.4, application will naturally exit
 //            // when no there is no more window showing and no non-daemon thread still running.
@@ -75,32 +79,46 @@ public class ShutdownHook extends Thread {
         // Return if shutdown tasks have already been performed
         if(shutdownTasksPerformed)
             return;
+        
+        TreeIOThreadManager.getInstance().interrupt();
 
         // Save preferences
         try {MuConfiguration.write();}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save configugration: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save configuration", e);}
 
         // Save shell history
         try {ShellHistoryManager.writeHistory();}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save shell history: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save shell history", e);}
 
         // Write credentials file to disk, only if changes were made
         try {CredentialsManager.writeCredentials(false);}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save credentials: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save credentials", e);}
 
         // Write bookmarks file to disk, only if changes were made
         try {BookmarkManager.writeBookmarks(false);}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save bookmarks: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save bookmarks", e);}
 
         // Saves the current theme.
         try {ThemeManager.saveCurrentTheme();}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save user theme: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save user theme", e);}
 
         // Saves the file associations.
         try {CommandManager.writeCommands();}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save commands: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save commands", e);}
         try {CommandManager.writeAssociations();}
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to save associations: " + e);}
+        catch(Exception e) {AppLogger.warning("Failed to save associations", e);}
+        
+        // Saves the action keymap.
+        try { ActionKeymapIO.saveActionKeymap(); }
+        catch(Exception e) {AppLogger.warning("Failed to save action keymap", e);}
+        
+        // Saves the command bar.
+        try { CommandBarIO.saveCommandBar(); }
+        catch(Exception e) {AppLogger.warning("Failed to save command bar", e); }
+        
+        // Saves the tool bar.
+        try { ToolBarIO.saveToolBar(); }
+        catch(Exception e) {AppLogger.warning("Failed to save toolbar", e); }
         
 
         // Shutdown tasks should only be performed once

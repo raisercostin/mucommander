@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
 
 package com.mucommander.file.util;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.FileURL;
 
 import java.net.MalformedURLException;
@@ -182,7 +182,10 @@ public class PathUtils {
             // At this point we have the proper URL, except that the path may contain '.', '..' or '~' tokens.
             // => parse the URL from scratch to have the SchemeParser canonize them.
             try {
-                destURL = FileURL.getFileURL(destURL.toString(true));
+                destURL = FileURL.getFileURL(destURL.toString(false));
+                // Import credentials separately, so that login and passwords that contain URI-unsafe characters
+                // such as '/' are properly parsed.
+                destURL.setCredentials(baseFolderURL.getCredentials());
                 destURL.importProperties(baseFolderURL);
             }
             catch(MalformedURLException e2) {
@@ -193,7 +196,7 @@ public class PathUtils {
         // No point in going any further if the URL cannot be resolved into a file
         destFile = FileFactory.getFile(destURL);
         if(destFile ==null) {
-            if(Debug.ON) Debug.trace("could not resolve a file for "+destURL);
+            FileLogger.fine("could not resolve a file for "+destURL);
             return null;
         }
 
@@ -207,7 +210,7 @@ public class PathUtils {
         }
 
         // Test if the destination's parent exists, if not the path is not a valid destination
-        AbstractFile destParent = destFile.getParentSilently();
+        AbstractFile destParent = destFile.getParent();
         if(destParent==null || !destParent.exists())
             return null;
 
@@ -270,5 +273,141 @@ public class PathUtils {
             return path.substring(0, path.length()-separator.length());
 
         return path;
+    }
+
+    /**
+     * Returns <code>true</code> if both specified paths are equal. The path comparison is case-sensitive but trailing
+     * separator-insensitive: if the sole difference between two paths is a trailing path separator, they will be
+     * considered as equal. For example, <code>/path</code> and <code>/path/</code> are considered equal, assuming the
+     * path separator is '/'.
+     * <p>
+     * If any of the two specified paths is <code>null</code>, then the other one must also be <code>null</code> for
+     * this method to return <code>true</code>. The given <code>separator</code> must never be <code>null</code> or
+     * a {@link NullPointerException} will be thrown.
+     * </p>
+     *
+     * @param path1 first path to test
+     * @param path2 second path to test
+     * @param separator path separator for both paths
+     * @throws NullPointerException if the given separator is <code>null</code>
+     * @return <code>true</code> if both paths are equal
+     */
+    public static boolean pathEquals(String path1, String path2, String separator) {
+        if(path1==null)
+            return path2==null;
+
+        if(path2==null)
+            return path1==null;
+        
+        if(path1.equals(path2))
+            return true;
+
+        int len1 = path1.length();
+        int len2 = path2.length();
+        int separatorLen = separator.length();
+
+        // If the difference between the 2 strings is just a trailing path separator, we consider the paths as equal
+        if(Math.abs(len1-len2)==separatorLen && (len1>len2 ? path1.startsWith(path2) : path2.startsWith(path1))) {
+            String diff = len1>len2 ? path1.substring(len1-separatorLen) : path2.substring(len2-separatorLen);
+            return separator.equals(diff);
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns a hashcode for the given path. The returned hashcode is consistent with
+     * {@link #pathEquals(String, String, String)} in that hashcodes are trailing separator-invariant:
+     * <code>path1.equals(path2)</code> implies <code>path1Hashcode==path2Hashcode.hashCode()</code>, even if path1
+     * ends with a separator and path2 does not or vice-versa.
+     * 
+     * @param path the path for which to return a hashcode
+     * @param separator separator of the given path
+     * @return a trailing separator-insensitive hashcode
+     */
+    public static int getPathHashCode(String path, String separator) {
+        // #equals(Object) is trailing separator insensitive, so the hashCode must be trailing separator invariant
+        return path.endsWith(separator)
+                ?path.substring(0, path.length()-separator.length()).hashCode()
+                :path.hashCode();
+    }
+
+
+    /**
+     * Removes the specified number of fragments from the beginning of the given path and returns the modified path,
+     * free of a leading separator. Returns an empty string (<code>""</code>) if the path does not contain less or
+     * exactly that many fragments.
+     *
+     * <p>
+     * For instance, calling this method with
+     * <ul>
+     *   <li><code>("/home/maxence/, "/", 0)</code> will return "home/maxence/"</li>
+     *   <li><code>("/home/maxence/, "/", 1)</code> will return "maxence/"</li>
+     *   <li><code>("/home/maxence/, "/", 2)</code> will return ""</li>
+     *   <li><code>("/home/maxence/, "/", 3)</code> will return ""</li>
+     * </ul>
+     * </p>
+     *
+     * @param path the path to modify
+     * @param separator the path separator, usually "/" or "\\"
+     * @param nbFragments number of path fragments to remove from the path
+     * @return the modified path, free of any leading separator
+     */
+    public static String removeLeadingFragments(String path, String separator, int nbFragments) {
+        path = removeLeadingSeparator(path, separator);
+
+        if(nbFragments==0)
+            return path;
+
+        int pos=-1;
+        for(int i=0; i<nbFragments && (pos=path.indexOf(separator, pos+1))!=-1; i++);
+
+        if(pos==-1 || pos==path.length()-1)
+            return "";
+
+        return path.substring(pos+1, path.length());
+    }
+
+
+    /**
+     * Returns the depth of the specified path, based on the number of path separators it contains, excluding those
+     * occurring at the beginning and at the end. The minimum depth of a path is 0.<br/>
+     * Here are a few examples when the path separator is <code>"/"</code>:
+     * <dl>
+     *   <dt>/</dt><dd>0</dd>
+     *   <dt>/home</dt><dd>1</dd>
+     *   <dt>/home/maxence</dt><dd>2</dd>
+     * </dl>
+     *
+     * <p>
+     * It is worth noting that this method relies strictly on the occurences of path separators and nothing else.
+     * Therefore, Windows-like paths that start with a drive letter will always have a minimum depth
+     * of 1.<br/>
+     * Here are a few examples when the path separator is <code>"\\"</code>:
+     * <dl>
+     *   <dt>C:\\</dt><dd>1</dd>
+     *   <dt>C:\\home</dt><dd>2</dd>
+     *   <dt>C:\\home\\maxence</dt><dd>1</dd>
+     * </dl>
+     * </p>
+     *
+     * @param path the path for which to calculate the depth
+     * @param separator the path separator, usually "/" or "\\"
+     * @return the depth of the given path
+     */
+    public static int getDepth(String path, String separator) {
+        if(path.equals("") || path.equals(separator))
+            return 0;
+
+        int depth = 1;
+        int pos = path.startsWith(separator)?1:0;
+
+        while ((pos=path.indexOf(separator, pos+1))!=-1)
+            depth++;
+
+        if(path.endsWith(separator))
+            depth--;
+
+        return depth;
     }
 }

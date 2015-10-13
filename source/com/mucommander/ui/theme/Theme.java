@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -244,12 +244,12 @@ public class Theme extends ThemeData {
 
         public void colorChanged(ColorChangedEvent event) {
             if(!theme.isColorSet(event.getColorId()))
-                theme.triggerColorEvent(new ColorChangedEvent(theme, event.getColorId(), getColor(event.getColorId())));
+                Theme.triggerColorEvent(new ColorChangedEvent(theme, event.getColorId(), getColor(event.getColorId())));
         }
 
         public void fontChanged(FontChangedEvent event) {
             if(!theme.isFontSet(event.getFontId()))
-                theme.triggerFontEvent(new FontChangedEvent(theme, event.getFontId(), getFont(event.getFontId())));
+                Theme.triggerFontEvent(new FontChangedEvent(theme, event.getFontId(), getFont(event.getFontId())));
         }
     }
 }

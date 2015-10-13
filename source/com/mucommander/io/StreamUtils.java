@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 package com.mucommander.io;
 
+import com.mucommander.commons.CommonsLogger;
+
 import java.io.*;
 
 /**
@@ -30,7 +32,7 @@ public class StreamUtils {
 
     /**
      * This method is a shorthand for {@link #copyStream(java.io.InputStream, java.io.OutputStream, int)} called with a
-     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     * {@link BufferPool#getDefaultBufferSize() default buffer size}.
      *
      * @param in the InputStream to read from
      * @param out the OutputStream to write to
@@ -38,7 +40,7 @@ public class StreamUtils {
      * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
      */
     public static long copyStream(InputStream in, OutputStream out) throws FileTransferException {
-        return copyStream(in, out, BufferPool.DEFAULT_BUFFER_SIZE);
+        return copyStream(in, out, BufferPool.getDefaultBufferSize());
     }
 
     /**
@@ -98,10 +100,70 @@ public class StreamUtils {
             BufferPool.releaseByteArray(buffer);
         }
     }
+    
+    /**
+     * Copies the <code>length</code> bytes from the given <code>InputStream</code> to the specified </code>OutputStream</code>
+     * and throws a {@link FileTransferException} if something went wrong. This method does *NOT* close any of the
+     * given streams.
+     * 
+     * @param in the InputStream to read from
+     * @param out the OutputStream to write to
+     * @param bufferSize size of the buffer to use, in bytes
+     * @param length number of bytes to copy from InputStream
+     * @return the number of bytes that were copied
+     * @throws FileTransferException if something went wrong while reading from or writing to one of the provided streams
+     */
+    public static long copyStream(InputStream in, OutputStream out, int bufferSize, long length) throws FileTransferException {
+        // Use BufferPool to reuse any available buffer of the same size
+        byte buffer[] = BufferPool.getByteArray(bufferSize);
+        try {
+            // Copies the InputStream's content to the OutputStream chunk by chunk
+            int nbRead;
+            long totalRead = 0;
+
+            while(length>0) {
+                try {
+                	if (in.markSupported()) {
+                		in.mark(buffer.length);
+                	}
+                    nbRead = in.read(buffer, 0, (int)Math.min(buffer.length, length));	// the result of min will be int
+                    length-=nbRead;
+                }
+                catch(IOException e) {
+                    throw new FileTransferException(FileTransferException.READING_SOURCE);
+                }
+
+                if(nbRead==-1)
+                    break;
+
+                try {
+                    out.write(buffer, 0, nbRead);
+                }
+                catch(IOException e) {
+                	try {
+						in.reset();
+					} catch (IOException e1) {
+						CommonsLogger.fine("Caught exception", e1);
+	                	throw new FileTransferException(FileTransferException.READING_SOURCE);
+					}
+                	throw new FileTransferException(FileTransferException.WRITING_DESTINATION, totalRead);
+                }
+
+                totalRead += nbRead;
+            }
+
+            return totalRead;
+        }
+        finally {
+            // Make the buffer available for further use
+            BufferPool.releaseByteArray(buffer);
+        }
+    }
+    
 
     /**
      * This method is a shorthand for {@link #transcode(java.io.InputStream, String, java.io.OutputStream, String, int)}
-     * called with a {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     * called with a {@link BufferPool#getDefaultBufferSize() default buffer size}.
      *
      * @param in the InputStream to read from
      * @param inCharset the source charset
@@ -112,7 +174,7 @@ public class StreamUtils {
      * @throws UnsupportedEncodingException if any of the two charsets are not supported by the JVM
      */
     public static long transcode(InputStream in, String inCharset, OutputStream out, String outCharset) throws FileTransferException, UnsupportedEncodingException {
-        return transcode(in, inCharset, out, outCharset, BufferPool.DEFAULT_BUFFER_SIZE);
+        return transcode(in, inCharset, out, outCharset, BufferPool.getDefaultBufferSize());
     }
 
     /**
@@ -178,7 +240,7 @@ public class StreamUtils {
 
     /**
      * This method is a shorthand for {@link #fillWithConstant(java.io.OutputStream, byte, long, int)} called with a
-     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     * {@link BufferPool#getDefaultBufferSize default buffer size}.
      *
      * @param out the OutputStream to write to
      * @param value the byte constant to write len times
@@ -186,7 +248,7 @@ public class StreamUtils {
      * @throws java.io.IOException if an error occurred while writing
      */
     public static void fillWithConstant(OutputStream out, byte value, long len) throws IOException {
-        fillWithConstant(out, value, len, BufferPool.DEFAULT_BUFFER_SIZE);
+        fillWithConstant(out, value, len, BufferPool.getDefaultBufferSize());
     }
 
     /**
@@ -225,7 +287,7 @@ public class StreamUtils {
 
     /**
      * This method is a shorthand for {@link #copyChunk(RandomAccessInputStream, RandomAccessOutputStream, long, long, long, int)}
-     * called with a {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     * called with a {@link BufferPool#getDefaultBufferSize default buffer size}.
      *
      * @param rais the source stream
      * @param raos the destination stream
@@ -235,7 +297,7 @@ public class StreamUtils {
      * @throws java.io.IOException if an error occurred while copying data
      */
     public static void copyChunk(RandomAccessInputStream rais, RandomAccessOutputStream raos, long srcOffset, long destOffset, long length) throws IOException {
-        copyChunk(rais, raos, srcOffset, destOffset, length, BufferPool.DEFAULT_BUFFER_SIZE);
+        copyChunk(rais, raos, srcOffset, destOffset, length, BufferPool.getDefaultBufferSize());
     }
 
     /**
@@ -334,7 +396,7 @@ public class StreamUtils {
         do {
             long nbSkipped = in.skip(n);
             if(nbSkipped<0)
-                throw new IOException();
+                throw new EOFException();
 
             n -= nbSkipped;
         } while(n>0);
@@ -386,13 +448,13 @@ public class StreamUtils {
 
     /**
      * This method is a shorthand for {@link #readUntilEOF(java.io.InputStream, int)} called with a
-     * {@link BufferPool#DEFAULT_BUFFER_SIZE default buffer size}.
+     * {@link BufferPool#getDefaultBufferSize default buffer size}.
      *
      * @param in the InputStream to read
      * @throws IOException if an I/O error occurs
      */
     public static void readUntilEOF(InputStream in) throws IOException {
-        readUntilEOF(in, BufferPool.DEFAULT_BUFFER_SIZE);
+        readUntilEOF(in, BufferPool.getDefaultBufferSize());
     }
 
     /**

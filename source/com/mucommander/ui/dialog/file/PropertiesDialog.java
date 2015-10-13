@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@ import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.ShowFilePropertiesAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.icon.FileIcons;
@@ -65,8 +66,8 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
     private JButton okCancelButton;
 
     // Dialog width is constrained to 320, height is not an issue (always the same)
-    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(320,0);	
-    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(400,10000);	
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(360,0);
+    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(450,10000);	
 
     /** How often should progress information be refreshed (in ms) */
     private final static int REFRESH_RATE = 500;
@@ -77,7 +78,7 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
 	
     public PropertiesDialog(MainFrame mainFrame, FileSet files) {
         super(mainFrame,
-              files.size() > 1 ? MuAction.getStandardLabel(com.mucommander.ui.action.ShowFilePropertiesAction.class) :
+              files.size() > 1 ? ActionProperties.getActionLabel(ShowFilePropertiesAction.Descriptor.ACTION_ID) :
               Translator.get("properties_dialog.file_properties", files.fileAt(0).getName()), mainFrame);
         this.mainFrame = mainFrame;
 
@@ -159,9 +160,9 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
                              +(nbFiles>0&&nbFolders>0?", ":"")
                              +(nbFolders>0?Translator.get("nb_folders", ""+nbFolders):"")
                              );
-        sizeLabel.setText(SizeFormat.format(job.getTotalBytes(), SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_LONG | SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB) + 
+        sizeLabel.setText(SizeFormat.format(job.getTotalBytes(), SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_LONG | SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB) +
 			  " (" + SizeFormat.format(job.getTotalBytes(), SizeFormat.DIGITS_FULL | SizeFormat.UNIT_LONG | SizeFormat.INCLUDE_SPACE) + ")");
-		
+
         counterLabel.repaint(REFRESH_RATE);
         sizeLabel.repaint(REFRESH_RATE);
     }

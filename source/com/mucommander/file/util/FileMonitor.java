@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.file.util;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 
 import java.util.Iterator;
 import java.util.WeakHashMap;
@@ -232,7 +232,7 @@ public class FileMonitor implements FileMonitorConstants, Runnable {
      * @param changedAttributes the set of attributes that have changed
      */
     private void fireFileChangeEvent(int changedAttributes) {
-        if(Debug.ON) Debug.trace("firing an event to registered listeners, changed attributes="+changedAttributes);
+        FileLogger.finest("firing an event to registered listeners, changed attributes="+changedAttributes);
 
         // Iterate on all listeners
         Iterator iterator = listeners.keySet().iterator();

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 package com.mucommander.ui.helper;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 
 import javax.swing.*;
 import java.awt.*;
@@ -57,7 +57,7 @@ public class FocusRequester implements Runnable {
      */
     public static synchronized void requestFocus(Component c) {
         if(c==null) {
-            if(Debug.ON) Debug.trace(">>>>>>>>>>>>>>>>>> Component is null, returning!", -1);
+            AppLogger.fine(">>>>>>>>>>>>>>>>>> Component is null, returning!");
             
             return;
         }
@@ -77,7 +77,7 @@ public class FocusRequester implements Runnable {
      */
     public static synchronized void requestFocusInWindow(Component c) {
         if(c==null) {
-            if(Debug.ON) Debug.trace(">>>>>>>>>>>>>>>>>> Component is null, returning!", -1);
+            AppLogger.fine(">>>>>>>>>>>>>>>>>> Component is null, returning!");
 
             return;
         }
@@ -97,7 +97,7 @@ public class FocusRequester implements Runnable {
         else
             c.requestFocus();
 
-        if(Debug.ON) Debug.trace("focus requested on "+(c.getClass().getName()));
+        AppLogger.finer("focus requested on "+(c.getClass().getName()));
 
         this.c = null;
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.util.FileSet;
@@ -88,14 +89,14 @@ public class MkdirJob extends FileJob {
 
         do {
             try {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Creating "+file);
+                AppLogger.finer("Creating "+file);
 
                 // Check for file collisions, i.e. if the file already exists in the destination
                 int collision = FileCollisionChecker.checkForCollision(null, file);
                 if(collision!=FileCollisionChecker.NO_COLLOSION) {
                     // File already exists in destination, ask the user what to do (cancel, overwrite,...) but
                     // do not offer the multiple files mode options such as 'skip' and 'apply to all'.
-                    int choice = waitForUserResponse(new FileCollisionDialog(mainFrame, mainFrame, collision, null, file, false, false));
+                    int choice = waitForUserResponse(new FileCollisionDialog(getMainFrame(), getMainFrame(), collision, null, file, false, false));
 
                     // Overwrite file
                     if (choice==FileCollisionDialog.OVERWRITE_ACTION) {
@@ -174,7 +175,7 @@ public class MkdirJob extends FileJob {
                 if(mkfileMode && getState()==INTERRUPTED)
                     return false;
 
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("IOException caught: "+e);
+                AppLogger.fine("IOException caught", e);
 
                 int action = showErrorDialog(
                      Translator.get("error"),
@@ -197,7 +198,7 @@ public class MkdirJob extends FileJob {
      * Folders only needs to be refreshed if it is the destination folder
      */
     protected boolean hasFolderChanged(AbstractFile folder) {
-        return destFolder.equals(folder);
+        return destFolder.equalsCanonical(folder);
     }
 
 

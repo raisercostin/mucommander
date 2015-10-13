@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractArchiveFile;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.AbstractRWArchiveFile;
@@ -106,7 +107,7 @@ public class MoveJob extends AbstractCopyJob {
                     return true;
                 }
                 catch(IOException e) {
-                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("IOException caught: "+e);
+                    AppLogger.fine("IOException caught", e);
 
                     int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_delete_file", file.getAbsolutePath()));
                     // Retry loops
@@ -237,7 +238,7 @@ public class MoveJob extends AbstractCopyJob {
                         return true;
                     }
                     catch(IOException e) {
-                        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("IOException caught: "+e);
+                        AppLogger.fine("IOException caught", e);
 
                         int ret = showErrorDialog(errorDialogTitle, Translator.get("cannot_delete_file", file.getAbsolutePath()));
                         // Retry loops
@@ -255,7 +256,7 @@ public class MoveJob extends AbstractCopyJob {
 
     // This job modifies baseDestFolder and its subfolders
     protected boolean hasFolderChanged(AbstractFile folder) {
-        return (baseSourceFolder!=null && baseSourceFolder.isParentOf(folder)) || baseDestFolder.isParentOf(folder);
+        return (getBaseSourceFolder()!=null && getBaseSourceFolder().isParentOf(folder)) || baseDestFolder.isParentOf(folder);
     }
 
 
@@ -267,20 +268,20 @@ public class MoveJob extends AbstractCopyJob {
         super.jobCompleted();
 
         // If the source files are located inside an archive, optimize the archive file
-        AbstractArchiveFile sourceArchiveFile = baseSourceFolder==null?null:baseSourceFolder.getParentArchive();
-        if(sourceArchiveFile!=null && sourceArchiveFile.isWritableArchive())
+        AbstractArchiveFile sourceArchiveFile = getBaseSourceFolder()==null?null:getBaseSourceFolder().getParentArchive();
+        if(sourceArchiveFile!=null && sourceArchiveFile.isArchive() && sourceArchiveFile.isWritable())
             optimizeArchive((AbstractRWArchiveFile)sourceArchiveFile);
 
         // If the destination files are located inside an archive, optimize the archive file, only if the destination
         // archive is different from the source one
         AbstractArchiveFile destArchiveFile = baseDestFolder.getParentArchive();
-        if(destArchiveFile!=null && destArchiveFile.isWritableArchive()
-                && !(sourceArchiveFile!=null && destArchiveFile.equals(sourceArchiveFile)))
+        if(destArchiveFile!=null && destArchiveFile.isArchive() && destArchiveFile.isWritable()
+                && !(sourceArchiveFile!=null && destArchiveFile.equalsCanonical(sourceArchiveFile)))
             optimizeArchive((AbstractRWArchiveFile)destArchiveFile);
 
         // If this job correponds to a file renaming in the same directory, select the renamed file
         // in the active table after this job has finished (and hasn't been cancelled)
-        if(files.size()==1 && newName!=null && baseDestFolder.equals(files.fileAt(0).getParentSilently())) {
+        if(files.size()==1 && newName!=null && baseDestFolder.equalsCanonical(files.fileAt(0).getParent())) {
             // Resolve new file instance now that it exists: some remote files do not immediately update file attributes
             // after creation, we need to get an instance that reflects the newly created file attributes
             selectFileWhenFinished(FileFactory.getFile(baseDestFolder.getAbsolutePath(true)+newName));

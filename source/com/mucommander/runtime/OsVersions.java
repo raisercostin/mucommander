@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@ package com.mucommander.runtime;
  * <p>
  * Windows versions can be split into two subfamilies:
  * <li>Windows 9X: {@link #WINDOWS_95}, {@link #WINDOWS_98}, {@link #WINDOWS_ME}</li>
- * <li>Windows NT: {@link #WINDOWS_NT}, {@link #WINDOWS_2000}, {@link #WINDOWS_XP}, {@link #WINDOWS_2003}, {@link #WINDOWS_VISTA}</li>
- * It is noneworthy that </i>Windows 9X</i> versions are lowered than <i>Windows NT</i> ones.
+ * <li>Windows NT: {@link #WINDOWS_NT}, {@link #WINDOWS_2000}, {@link #WINDOWS_XP}, {@link #WINDOWS_2003}, {@link #WINDOWS_VISTA}, {@link #WINDOWS_7}</li>
+ * It is noneworthy that </i>Windows 9X</i> versions are lower than <i>Windows NT</i> ones.
  * Thus, <code>OsVersions.WINDOWS_NT.isCurrentLower()</code> tests if the current OS is <i>Windows 9X</i> based ;
  * <code>OsVersions.WINDOWS_NT.isCurrentOrHigher()</code> if it is <i>Windows NT</i> based.
  * </p>
@@ -68,6 +68,9 @@ public interface OsVersions {
     /** Windows Vista */
     public static final OsVersion WINDOWS_VISTA = new OsVersion("Windows Vista", 7);
 
+    /** Windows 7 */
+    public static final OsVersion WINDOWS_7 = new OsVersion("Windows 7", 8);
+
 
     ///////////////////////
     // Mac OS X versions //
@@ -90,6 +93,9 @@ public interface OsVersions {
 
     /** Mac OS X 10.5 */
     public static final OsVersion MAC_OS_X_10_5   = new OsVersion("10.5", 5);
+
+    /** Mac OS X 10.6 */
+    public static final OsVersion MAC_OS_X_10_6   = new OsVersion("10.6", 6);
 
 
     /** Unknown OS version */

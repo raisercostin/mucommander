@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.io.FileTransferException;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
-import com.mucommander.process.AbstractProcess;
 import com.sun.xfile.XFile;
 import com.sun.xfile.XFileInputStream;
 import com.sun.xfile.XFileOutputStream;
@@ -52,7 +51,7 @@ import java.io.OutputStream;
  *
  * @author Maxence Bernard
  */
-public class NFSFile extends AbstractFile {
+public class NFSFile extends ProtocolFile {
 
     /** Underlying file instance */
     private XFile file;
@@ -99,7 +98,7 @@ public class NFSFile extends AbstractFile {
     /**
      * Creates a new instance of NFSFile.
      */
-    public NFSFile(FileURL fileURL) {
+    protected NFSFile(FileURL fileURL) {
         super(fileURL);
 
         // Create the NFS URL used by XFile.
@@ -332,20 +331,6 @@ public class NFSFile extends AbstractFile {
      */
     public Object getUnderlyingFileObject() {
         return file;
-    }
-
-    /**
-     * Always returns <code>false</code>.
-     */
-    public boolean canRunProcess() {
-        return false;
-    }
-
-    /**
-     * Always throws an <code>IOException</code>.
-     */
-    public AbstractProcess runProcess(String[] tokens) throws IOException {
-        throw new IOException();
     }
 
 

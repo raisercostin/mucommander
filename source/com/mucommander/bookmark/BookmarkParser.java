@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 package com.mucommander.bookmark;
 
+import com.mucommander.AppLogger;
 import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.auth.CredentialsMapping;
@@ -45,6 +46,8 @@ class BookmarkParser extends DefaultHandler implements BookmarkConstants {
     private StringBuffer characters;
     /** Receives bookmarks events. */
     private BookmarkBuilder builder;
+    /** muCommander version that was used to write the bookmarks file */
+    private String version;
 
 
     /**
@@ -59,6 +62,18 @@ class BookmarkParser extends DefaultHandler implements BookmarkConstants {
         this.builder = builder;
         characters   = new StringBuffer();
         SAXParserFactory.newInstance().newSAXParser().parse(in, this);
+    }
+
+    /**
+     * Returns the muCommander version that was used to write the bookmarks file, <code>null</code> if it is unknown.
+     * <p>
+     * Note: the version attribute was introduced in muCommander 0.8.4.
+     * </p>
+     *
+     * @return the muCommander version that was used to write the bookmarks file, <code>null</code> if it is unknown.
+     */
+    public String getVersion() {
+        return version;
     }
 
 
@@ -87,7 +102,10 @@ class BookmarkParser extends DefaultHandler implements BookmarkConstants {
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         characters.setLength(0);
 
-        if(qName.equals(ELEMENT_BOOKMARK)) {
+        if(qName.equals(ELEMENT_ROOT)) {
+            version = attributes.getValue(ATTRIBUTE_VERSION);
+        }
+        else if(qName.equals(ELEMENT_BOOKMARK)) {
             // Reset parsing variables
             bookmarkName = null;
             bookmarkLocation = null;
@@ -100,7 +118,7 @@ class BookmarkParser extends DefaultHandler implements BookmarkConstants {
     public void endElement(String uri, String localName, String qName) throws SAXException {
         if(qName.equals(ELEMENT_BOOKMARK)) {
             if(bookmarkName == null || bookmarkLocation == null) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Missing value, bookmark ignored: name=" + bookmarkName + " location=" + bookmarkLocation);
+                AppLogger.info("Missing value, bookmark ignored: name=" + bookmarkName + " location=" + bookmarkLocation);
                 return;
             }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 
 package com.mucommander.ui.dnd;
+
+import com.mucommander.AppLogger;
 
 import javax.swing.*;
 import java.awt.datatransfer.DataFlavor;
@@ -56,7 +58,15 @@ public class ClipboardNotifier implements FlavorListener {
      * Toggle the action depending on the clipboard contents.
      */
     private void toggleActionState() {
-        action.setEnabled(ClipboardSupport.getClipboard().isDataFlavorAvailable(DataFlavor.javaFileListFlavor));
+        try {
+            action.setEnabled(ClipboardSupport.getClipboard().isDataFlavorAvailable(DataFlavor.javaFileListFlavor));
+        }
+        catch(Exception e) {
+            // Works around "java.lang.IllegalStateException: cannot open system clipboard" thrown when the clipboard
+            // is currently unavailable (ticket #164).
+
+            AppLogger.fine("Caught an exception while querying the clipboard for files", e);
+        }
     }
 
     ///////////////////////////////////

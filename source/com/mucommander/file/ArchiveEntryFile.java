@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,9 +56,6 @@ public class ArchiveEntryFile extends AbstractFile {
     /** The ArchiveEntry object that contains information about this entry */
     protected ArchiveEntry entry;
 
-    /** True if this entry exists in the archive */
-    protected boolean exists;
-
 
     /**
      * Creates a new ArchiveEntryFile.
@@ -66,13 +63,11 @@ public class ArchiveEntryFile extends AbstractFile {
      * @param url the FileURL instance that represents this file's location
      * @param archiveFile the AbstractArchiveFile instance that contains this entry
      * @param entry the ArchiveEntry object that contains information about this entry
-     * @param exists true if this entry exists in the archive
      */
-    protected ArchiveEntryFile(FileURL url, AbstractArchiveFile archiveFile, ArchiveEntry entry, boolean exists) {
+    protected ArchiveEntryFile(FileURL url, AbstractArchiveFile archiveFile, ArchiveEntry entry) {
         super(url);
         this.archiveFile = archiveFile;
         this.entry = entry;
-        this.exists = exists;
     }
 	
 	
@@ -142,14 +137,14 @@ public class ArchiveEntryFile extends AbstractFile {
      * Returns <code>true</code> only if the archive file that contains this entry is writable.
      */
     public boolean canChangeDate() {
-        return archiveFile.isWritableArchive();
+        return archiveFile.isWritable();
     }
 
     /**
      * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
      */
     public boolean changeDate(long lastModified) {
-        if(!(exists && archiveFile.isWritableArchive()))
+        if(!(entry.exists() && archiveFile.isWritable()))
             return false;
 
         long oldDate = entry.getDate();
@@ -168,6 +163,11 @@ public class ArchiveEntryFile extends AbstractFile {
 	
     public boolean isDirectory() {
         return entry.isDirectory();
+    }
+
+    public boolean isArchive() {
+        // Archive entries files may be wrapped by archive files but they are not archive files per se
+        return false;
     }
 
     public AbstractFile[] ls() throws IOException {
@@ -196,7 +196,7 @@ public class ArchiveEntryFile extends AbstractFile {
      * @return true if this entry exists within the archive file
      */
     public boolean exists() {
-        return exists;
+        return entry.exists();
     }
 	
     public FilePermissions getPermissions() {
@@ -210,7 +210,7 @@ public class ArchiveEntryFile extends AbstractFile {
      */
     public PermissionBits getChangeablePermissions() {
         // Todo: some writable archive implementations may not have full 'set' permissions support, or even no notion of permissions
-        return archiveFile.isWritableArchive()?PermissionBits.FULL_PERMISSION_BITS:PermissionBits.EMPTY_PERMISSION_BITS;
+        return archiveFile.isWritable()?PermissionBits.FULL_PERMISSION_BITS:PermissionBits.EMPTY_PERMISSION_BITS;
     }
 
     /**
@@ -245,7 +245,7 @@ public class ArchiveEntryFile extends AbstractFile {
 
     /**
      * Deletes this entry from the associated <code>AbstractArchiveFile</code> if it is writable (as reported by
-     * {@link com.mucommander.file.AbstractArchiveFile#isWritableArchive()}).
+     * {@link com.mucommander.file.AbstractArchiveFile#isWritable()}).
      * Throws an <code>IOException</code> in any of the following cases:
      * <ul>
      *  <li>if the associated <code>AbstractArchiveFile</code> is not writable</li>
@@ -257,7 +257,7 @@ public class ArchiveEntryFile extends AbstractFile {
      * @throws IOException in any of the cases listed above.
      */
     public void delete() throws IOException {
-        if(exists && archiveFile.isWritableArchive()) {
+        if(entry.exists() && archiveFile.isWritable()) {
             AbstractRWArchiveFile rwArchiveFile = (AbstractRWArchiveFile)archiveFile;
 
             // Throw an IOException if this entry is a non-empty directory
@@ -276,7 +276,7 @@ public class ArchiveEntryFile extends AbstractFile {
             // Non-existing entries are considered as zero-length regular files
             entry.setDirectory(false);
             entry.setSize(0);
-            exists = false;
+            entry.setExists(false);
         }
         else
             throw new IOException();
@@ -284,7 +284,7 @@ public class ArchiveEntryFile extends AbstractFile {
 
     /**
      * Creates this entry as a directory in the associated <code>AbstractArchiveFile</code> if the archive is
-     * writable (as reported by {@link com.mucommander.file.AbstractArchiveFile#isWritableArchive()}).
+     * writable (as reported by {@link com.mucommander.file.AbstractArchiveFile#isWritable()}).
      * Throws an <code>IOException</code> if it isn't, if this entry already exists in the archive or if an I/O error
      * occurred.
      *
@@ -292,7 +292,7 @@ public class ArchiveEntryFile extends AbstractFile {
      * or if an I/O error occurred
      */
     public void mkdir() throws IOException {
-        if(!exists && archiveFile.isWritableArchive()) {
+        if(!entry.exists() && archiveFile.isWritable()) {
             AbstractRWArchiveFile rwArchivefile = (AbstractRWArchiveFile)archiveFile;
             // Update the ArchiveEntry
             entry.setDirectory(true);
@@ -303,7 +303,7 @@ public class ArchiveEntryFile extends AbstractFile {
             rwArchivefile.addEntry(entry);
 
             // The entry now exists
-            exists = true;
+            entry.setExists(true);
         }
         else
             throw new IOException();
@@ -324,15 +324,16 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     /**
-     * Delegates to the archive file's {@link AbstractArchiveFile#getEntryInputStream(ArchiveEntry)}} method.
+     * Delegates to the archive file's {@link AbstractArchiveFile#getEntryInputStream(ArchiveEntry,ArchiveEntryIterator)}}
+     * method.
      */
     public InputStream getInputStream() throws IOException {
-        return archiveFile.getEntryInputStream(entry);
+        return archiveFile.getEntryInputStream(entry, null);
     }
 
     /**
      * Returns an <code>OutputStream</code> that allows to write this entry's contents if the archive is
-     * writable (as reported by {@link com.mucommander.file.AbstractArchiveFile#isWritableArchive()}).
+     * writable (as reported by {@link com.mucommander.file.AbstractArchiveFile#isWritable()}).
      * Throws an <code>IOException</code> if it isn't or if an I/O error occurred.
      *
      * <p>
@@ -344,11 +345,11 @@ public class ArchiveEntryFile extends AbstractFile {
      * or if an I/O error occurred
      */
     public OutputStream getOutputStream(boolean append) throws IOException {
-        if(archiveFile.isWritableArchive()) {
+        if(archiveFile.isWritable()) {
             if(append)
                 throw new IOException("Can't append to an existing archive entry");
 
-            if(exists) {
+            if(entry.exists()) {
                 try {
                     delete();
                 }
@@ -365,7 +366,7 @@ public class ArchiveEntryFile extends AbstractFile {
                             entry.setDate(System.currentTimeMillis());
                         }
                     });
-            exists = true;
+            entry.setExists(true);
 
             return out;
         }
@@ -408,20 +409,6 @@ public class ArchiveEntryFile extends AbstractFile {
         return entry;
     }
 
-    /**
-     * Always returns <code>false</code>: archive entries cannot run processes.
-     */
-    public boolean canRunProcess() {
-        return false;
-    }
-
-    /**
-     * Always throws an <code>IOException</code>: archive entries cannot run processes.
-     */
-    public com.mucommander.process.AbstractProcess runProcess(String[] tokens) throws IOException {
-        throw new IOException();
-    }
-
     
     ////////////////////////
     // Overridden methods //
@@ -438,18 +425,49 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     /**
+     * This method is overridden to use the archive file's absolute path as the base path of this entry file.
+     */
+    public String getAbsolutePath() {
+        // Use the archive file's absolute path and append the entry's relative path to it
+        return archiveFile.getAbsolutePath(true)+getRelativeEntryPath();
+    }
+
+    /**
      * This method is overridden to use the archive file's canonical path as the base path of this entry file.
      */
     public String getCanonicalPath() {
-        // Use the archive file's canonical path and append it with the entry's relative path
+        // Use the archive file's canonical path and append the entry's relative path to it
         return archiveFile.getCanonicalPath(true)+getRelativeEntryPath();
+    }
+
+    /**
+     * This method is overridden to return the archive's root folder.
+     */
+    public AbstractFile getRoot() {
+        return archiveFile.getRoot();
+    }
+
+    /**
+     * This method is overridden to blindly return <code>false</code>, an archive entry cannot be a root folder.
+     *
+     * @return <code>false</code>, always
+     */
+    public boolean isRoot() {
+        return false;
+    }
+
+    /**
+     * This method is overridden to return the archive's volume folder.
+     */
+    public AbstractFile getVolume() {
+        return archiveFile.getVolume();
     }
 
     /**
      * Always returns <code>false</code> only if the archive file that contains this entry is not writable.
      */
     public boolean changePermissions(int permissions) {
-        if(!(exists && archiveFile.isWritableArchive()))
+        if(!(entry.exists() && archiveFile.isWritable()))
             return false;
 
         FilePermissions oldPermissions = entry.getPermissions();
@@ -464,7 +482,7 @@ public class ArchiveEntryFile extends AbstractFile {
     }
 
     public int getMoveToHint(AbstractFile destFile) {
-        if(archiveFile.isWritableArchive())
+        if(archiveFile.isWritable())
             return SHOULD_NOT_HINT;
 
         return MUST_NOT_HINT;

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.file.util;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.io.StreamUtils;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
@@ -90,7 +90,7 @@ public class OSXFileUtils {
             return null;
         }
         catch(Exception e) {
-            if(Debug.ON) Debug.trace("Caught exception: "+e);
+            FileLogger.fine("Caught exception", e);
 
             return null;
         }

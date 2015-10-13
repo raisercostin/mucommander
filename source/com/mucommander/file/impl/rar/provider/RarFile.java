@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.file.impl.rar.provider;
 
-import com.mucommander.Debug;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.Archive;
 import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.exception.RarException;
 import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.exception.RarExceptionType;
@@ -136,7 +136,7 @@ public class RarFile {
             try {
                 closeable.close();
             } catch (Exception ex) {
-            	if(Debug.ON) Debug.trace("Warning: couldn't close a closable object of type \"" + closeable.getClass().getName() + "\"");
+            	FileLogger.fine("couldn't close a closable object of type \"" + closeable.getClass().getName() + "\"");
             }
         }
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,21 +18,25 @@
 
 package com.mucommander.file.icon.impl;
 
-import com.mucommander.Debug;
-import com.mucommander.cache.LRUCache;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.icon.CacheableFileIconProvider;
 import com.mucommander.file.icon.CachedFileIconProvider;
+import com.mucommander.file.icon.IconCache;
 import com.mucommander.file.icon.LocalFileIconProvider;
 import com.mucommander.file.impl.local.LocalFile;
+import com.mucommander.file.util.ResourceLoader;
+import com.mucommander.io.SilenceableOutputStream;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersion;
-import com.mucommander.ui.icon.IconManager;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.PrintStream;
+import java.net.URL;
 
 /**
  * Package-protected class which provides the {@link com.mucommander.file.icon.LocalFileIconProvider} and
@@ -50,16 +54,22 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
     private static JFileChooser fileChooser;
 
     /** Caches icons for directories, used only for non-local files */
-    protected static LRUCache directoryIconCache = CachedFileIconProvider.createCache();
+    protected static IconCache directoryIconCache = CachedFileIconProvider.createCache();
 
     /** Caches icons for regular files, used only for non-local files */
-    protected static LRUCache fileIconCache = CachedFileIconProvider.createCache();
+    protected static IconCache fileIconCache = CachedFileIconProvider.createCache();
 
     /** True if init has been called */
     protected static boolean initialized;
 
-    /** Transparent icon symbolizing symlinks, painted over an existing icon */
-    public final static String SYMLINK_ICON_NAME = "link.png";
+    /** Name of the 'symlink' icon resource located in the same package as this class */
+    private final static String SYMLINK_ICON_NAME = "link.png";
+
+    /** Icon that is painted over a symlink's target file icon to symbolize a symlink to the target file. */
+    protected static ImageIcon SYMLINK_OVERLAY_ICON;
+
+    /** Allows stderr to be 'silenced' when needed */
+    protected static SilenceableOutputStream errOut;
 
 
     /**
@@ -76,6 +86,16 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
             fileChooser = new JFileChooser();
         else
             fileSystemView = FileSystemView.getFileSystemView();
+
+        // Loads the symlink overlay icon
+        URL iconURL = ResourceLoader.getPackageResourceAsURL(SwingFileIconProviderImpl.class.getPackage(), SYMLINK_ICON_NAME);
+        if(iconURL==null)
+            throw new RuntimeException("Could not locate required symlink icon: "+SYMLINK_ICON_NAME);
+
+        SYMLINK_OVERLAY_ICON = new ImageIcon(iconURL);
+
+        // Replace stderr with a SilenceablePrintStream that can be 'silenced' when needed
+        System.setErr(new PrintStream(errOut = new SilenceableOutputStream(System.err, false), true));
 
         initialized = true;
     }
@@ -99,9 +119,9 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
                 // A way to workaround this odd behavior would be to test if the file exists when it is requested,
                 // but a/ this is an expensive operation (especially under Windows) and b/ it wouldn't guarantee that
                 // the file effectively exists when the icon is requested.
-                // So the workaround here is to catch exceptions and disable System.err output during the call.
+                // So the workaround here is to catch exceptions and 'silence' System.err output during the call.
 
-                Debug.setSystemErrEnabled(false);
+                errOut.setSilenced(true);
 
                 return fileSystemView.getSystemIcon(javaIoFile);
             }
@@ -110,24 +130,44 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
             }
         }
         catch(Exception e) {
-            if(Debug.ON) Debug.trace("Caught exception while retrieving system icon for file "+ javaIoFile.getAbsolutePath()+" :"+e);
+            FileLogger.finer("Caught exception while retrieving system icon for file "+ javaIoFile.getAbsolutePath(), e);
             return null;
         }
         finally {
             if(fileSystemView!=null)
-                Debug.setSystemErrEnabled(true);
+                errOut.setSilenced(false);
         }
     }
 
 
     /**
-     * Returns an icon symbolizing a symlink to the given target icon.
+     * Returns an icon symbolizing a symlink to the given target icon. The returned icon uses the specified icon as
+     * its background and overlays a 'link' icon on top of it.
      *
-     * @param targetIcon the icon representing the symlink's target
+     * @param targetFileIcon the icon representing the symlink's target
      * @return an icon symbolizing a symlink to the given target
      */
-    private static ImageIcon getSymlinkIcon(Icon targetIcon) {
-        return IconManager.getCompositeIcon(targetIcon, IconManager.getIcon(IconManager.FILE_ICON_SET, SYMLINK_ICON_NAME));
+    private static ImageIcon getSymlinkIcon(Icon targetFileIcon) {
+        BufferedImage bi = new BufferedImage(targetFileIcon.getIconWidth(), targetFileIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+
+        Graphics g = bi.getGraphics();
+        targetFileIcon.paintIcon(null, g, 0, 0);
+        SYMLINK_OVERLAY_ICON.paintIcon(null, g, 0, 0);
+
+        return new ImageIcon(bi);
+    }
+
+    /**
+     * Returns the extension of the given file using {@link AbstractFile#getExtension()}. If the extension is
+     * <code>null</code>, the empty string <code>""</code> is returned, making the returned extension safe for use
+     * in a hash map where null keys are forbidden.
+     *
+     * @param file file on which to call {@link AbstractFile#getExtension}
+     * @return the file's extension, may be the empty string but never <code>null</code>
+     */
+    private static String getCheckedExtension(AbstractFile file) {
+        String extension = file.getExtension();
+        return extension==null?"":extension;
     }
 
 
@@ -154,12 +194,12 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
             return getSwingIcon(new java.io.File("/Network"));
 
         // Look for an existing icon instance for the file's extension
-        return (Icon)(file.isDirectory()? directoryIconCache : fileIconCache).get(file.getExtension());
+        return (file.isDirectory()? directoryIconCache : fileIconCache).get(getCheckedExtension(file));
     }
 
     public void addToCache(AbstractFile file, Icon icon, Dimension preferredResolution) {
         // Map the extension onto the given icon
-        (file.isDirectory()? directoryIconCache : fileIconCache).add(file.getExtension(), icon);
+        (file.isDirectory()? directoryIconCache : fileIconCache).put(getCheckedExtension(file), icon);
     }
 
     /**

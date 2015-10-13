@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,14 +20,14 @@ package com.mucommander.ui.dialog.file;
 
 import com.mucommander.desktop.AbstractTrash;
 import com.mucommander.desktop.DesktopManager;
-import com.mucommander.file.AbstractArchiveFile;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.job.DeleteJob;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
-import com.mucommander.ui.action.DeleteAction;
-import com.mucommander.ui.action.PermanentDeleteAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.DeleteAction;
+import com.mucommander.ui.action.impl.PermanentDeleteAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.layout.InformationPane;
 import com.mucommander.ui.layout.YBoxPanel;
@@ -47,7 +47,7 @@ import java.awt.event.ItemListener;
  * if a trash is available on the current platform and capable of moving the selected files.
  * The choice (use trash or not) is saved in the preferences and reused next time this dialog is invoked.   
  *
- * @see com.mucommander.ui.action.DeleteAction
+ * @see com.mucommander.ui.action.impl.DeleteAction
  * @author Maxence Bernard
  */
 public class DeleteDialog extends JobDialog implements ItemListener, ActionListener {
@@ -67,11 +67,11 @@ public class DeleteDialog extends JobDialog implements ItemListener, ActionListe
     private JButton deleteButton;
 
     /** Dialog size constraints */
-    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(320,0);
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(360,0);
 
 
     public DeleteDialog(MainFrame mainFrame, FileSet files, boolean deletePermanently) {
-        super(mainFrame, Translator.get("delete"), files);
+        super(mainFrame, ActionProperties.getActionLabel(DeleteAction.Descriptor.ACTION_ID), files);
 
         this.mainFrame = mainFrame;
 
@@ -84,7 +84,7 @@ public class DeleteDialog extends JobDialog implements ItemListener, ActionListe
         // - the base folder can be moved to the trash (the eligibility conditions should be the same as the files to-be-deleted)
         AbstractTrash trash = DesktopManager.getTrash();
         AbstractFile baseFolder = files.getBaseFolder();
-        if(trash!=null && !(baseFolder instanceof AbstractArchiveFile) && !trash.isTrashFile(baseFolder) && trash.canMoveToTrash(baseFolder)) {
+        if(trash!=null && !baseFolder.isArchive() && !trash.isTrashFile(baseFolder) && trash.canMoveToTrash(baseFolder)) {
             moveToTrash = !deletePermanently;
 
             moveToTrashCheckBox = new JCheckBox(Translator.get("delete_dialog.move_to_trash.option"), moveToTrash);
@@ -122,7 +122,6 @@ public class DeleteDialog extends JobDialog implements ItemListener, ActionListe
         // Size dialog and show it to the screen
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);
         setResizable(false);
-        showDialog();
     }
 
 
@@ -133,7 +132,7 @@ public class DeleteDialog extends JobDialog implements ItemListener, ActionListe
         informationPane.getMainLabel().setText(Translator.get(moveToTrash?"delete_dialog.move_to_trash.confirmation":"delete_dialog.permanently_delete.confirmation"));
         informationPane.getCaptionLabel().setText(Translator.get(moveToTrash?"delete_dialog.move_to_trash.confirmation_details":"this_operation_cannot_be_undone"));
         informationPane.setIcon(moveToTrash?null: InformationPane.getPredefinedIcon(InformationPane.WARNING_ICON));
-        setTitle(ActionManager.getActionInstance(moveToTrash?DeleteAction.class:PermanentDeleteAction.class, mainFrame).getLabel());
+        setTitle(ActionManager.getActionInstance(moveToTrash?DeleteAction.Descriptor.ACTION_ID:PermanentDeleteAction.Descriptor.ACTION_ID, mainFrame).getLabel());
     }
 
 

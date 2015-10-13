@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 
 package com.mucommander.file;
 
+import com.mucommander.file.util.PathUtils;
+
 /**
  * This class represents a generic archive entry. It provides getters and setters for common archive entry attributes
  * and allows to encapsulate the entry object of a 3rd party library.
@@ -33,22 +35,14 @@ public class ArchiveEntry extends SimpleFileAttributes {
     /** Encapsulated entry object */
     protected Object entryObject;
 
+    /** Caches the computed hashcode */
+    private int hashCode;
+
 
     /**
      * Creates a new ArchiveEntry with all attributes set to their default value.
      */
     public ArchiveEntry() {
-    }
-
-    /**
-     * Creates a new ArchiveEntry using the supplied path and directory attributes.
-     *
-     * @param path the entry's path
-     * @param directory true if the entry is a directory
-     */
-    public ArchiveEntry(String path, boolean directory) {
-        setPath(path);
-        setDirectory(directory);
     }
 
     /**
@@ -58,18 +52,20 @@ public class ArchiveEntry extends SimpleFileAttributes {
      * @param directory true if the entry is a directory
      * @param date the entry's date
      * @param size the entry's size
+     * @param exists <code>true</code> if the entry exists in the archive
      */
-    public ArchiveEntry(String path, boolean directory, long date, long size) {
+    public ArchiveEntry(String path, boolean directory, long date, long size, boolean exists) {
         setPath(path);
         setDate(date);
         setSize(size);
         setDirectory(directory);
+        setExists(exists);
     }
 
 
     /**
      * Returns the depth of this entry based on the number of path delimiters ('/') its path contains.
-     * Top-level entries have a depth of 0 (minimum depth).
+     * Top-level entries have a depth of 1.
      *
      * @return the depth of this entry
      */
@@ -79,23 +75,13 @@ public class ArchiveEntry extends SimpleFileAttributes {
 
     /**
      * Returns the depth of the specified entry path, based on the number of path delimiters ('/') it contains.
-     * Top-level entries have a depth of 0 (minimum depth).
+     * Top-level entries have a depth of 1.
      *
      * @param entryPath the path for which to calculate the depth
      * @return the depth of the given entry path
      */
     public static int getDepth(String entryPath) {
-        int depth = 0;
-        int pos=0;
-
-        while ((pos=entryPath.indexOf('/', pos+1))!=-1)
-            depth++;
-
-        // Directories in archives end with a '/'
-        if(entryPath.charAt(entryPath.length()-1)=='/')
-            depth--;
-
-        return depth;
+        return PathUtils.getDepth(entryPath, "/");
     }
 
     /**
@@ -154,5 +140,50 @@ public class ArchiveEntry extends SimpleFileAttributes {
             return isDirectory()?FilePermissions.DEFAULT_DIRECTORY_PERMISSIONS:FilePermissions.DEFAULT_FILE_PERMISSIONS;
 
         return permissions;
+    }
+
+    /**
+     * Overriden to invalidates any previously computed hash code.
+     *
+     * @param path new path to set
+     */
+    public void setPath(String path) {
+        super.setPath(path);
+
+        // Invalidate any previously
+        hashCode = 0;
+    }
+
+    /**
+     * Returns <code>true</code> if the given object is an <code>ArchiveEntry</code> whose path is equal to this one,
+     * according to {@link PathUtils#pathEquals(String, String, String)} (trailing slash-insensitive comparison).
+     *
+     * @param o the object to test
+     * @return <code>true</code> if the given object is an <code>ArchiveEntry</code> whose path is equal to this one
+     * @see PathUtils#pathEquals(String, String, String)
+     */
+    public boolean equals(Object o) {
+        if(!(o instanceof ArchiveEntry))
+            return false;
+
+        return PathUtils.pathEquals(getPath(), ((ArchiveEntry)o).getPath(), "/");
+    }
+
+    /**
+     * This method is overridden to return a hash code that is consistent with {@link #equals(Object)},
+     * so that <code>url1.equals(url2)</code> implies <code>url1.hashCode()==url2.hashCode()</code>.
+     */
+    public int hashCode() {
+        if(hashCode!=0)         // Return any previously computed hashCode. Note that setPath invalidates the hashCode.
+            return hashCode;
+
+        String path = getPath();
+
+        // #equals(Object) is trailing separator insensitive, so the hashCode must be trailing separator invariant
+        hashCode = path.endsWith("/")
+                ?path.substring(0, path.length()-1).hashCode()
+                :path.hashCode();
+
+        return hashCode;
     }
 }

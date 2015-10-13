@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,34 @@
 
 package com.mucommander.ui.dialog.shell;
 
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.PrintStream;
+
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+
+import com.mucommander.AppLogger;
+import com.mucommander.file.FileProtocols;
 import com.mucommander.process.AbstractProcess;
 import com.mucommander.process.ProcessListener;
 import com.mucommander.shell.Shell;
 import com.mucommander.shell.ShellHistoryManager;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.RunCommandAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.icon.SpinningDial;
@@ -32,11 +54,6 @@ import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.theme.Theme;
 import com.mucommander.ui.theme.ThemeManager;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.io.PrintStream;
 
 /**
  * Dialog used to execute a user-defined command.
@@ -126,7 +143,7 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
         // Adds a textual description:
         // - if we're working in a local directory, 'run in current folder'.
         // - if we're working on a non-standard FS, 'run in home folder'.
-        mainPanel.add(new JLabel(mainFrame.getActiveTable().getCurrentFolder().canRunProcess() ?
+        mainPanel.add(new JLabel(mainFrame.getActiveTable().getCurrentFolder().getURL().getScheme().equals(FileProtocols.FILE)?
                                  Translator.get("run_dialog.run_command_description")+":" : Translator.get("run_dialog.run_in_home_description")+":"));
 
         // Adds the shell input combo box.
@@ -176,10 +193,10 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
      * @param mainFrame the main frame this dialog is attached to.
      */
     public RunDialog(MainFrame mainFrame) {
-        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.RunCommandAction.class), mainFrame);
+        super(mainFrame, ActionProperties.getActionLabel(RunCommandAction.Descriptor.ACTION_ID), mainFrame);
         this.mainFrame = mainFrame;
 		
-        // Initialises the dialog's UI.
+        // Initializes the dialog's UI.
         Container contentPane = getContentPane();
         contentPane.add(createInputArea(), BorderLayout.NORTH);
         contentPane.add(createOutputArea(), BorderLayout.CENTER);
@@ -212,10 +229,12 @@ public class RunDialog extends FocusDialog implements ActionListener, ProcessLis
      * @param retValue process' return code (not used).
      */	
     public void processDied(int retValue) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("process exit, return value= "+retValue);
+        AppLogger.finer("process exit, return value= "+retValue);
         currentProcess = null;
-        processInput.close();
-        processInput = null;
+        if(processInput!=null) {
+            processInput.close();
+            processInput = null;
+        }
         switchToRunState();
     }	
 

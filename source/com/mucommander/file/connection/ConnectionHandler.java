@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@
 
 package com.mucommander.file.connection;
 
-import com.mucommander.Debug;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.Credentials;
+import com.mucommander.file.FileLogger;
 import com.mucommander.file.FileURL;
 
 import java.io.IOException;
@@ -104,7 +104,7 @@ public abstract class ConnectionHandler {
      */
     public boolean checkConnection() throws IOException {
         if(!isConnected()) {
-            if(Debug.ON) Debug.trace("not connected, starting connection, this="+this);
+            FileLogger.finer("not connected, starting connection, this="+this);
             startConnection();
             return true;
         }
@@ -120,7 +120,7 @@ public abstract class ConnectionHandler {
      */
     public synchronized boolean acquireLock() {
         if(isLocked) {
-            if(Debug.ON) Debug.trace("!!!!! acquireLock() returning false, should not happen !!!!!", -1);
+            FileLogger.fine("!!!!! acquireLock() returning false, should not happen !!!!!", new Throwable());
             return false;
         }
 
@@ -134,13 +134,18 @@ public abstract class ConnectionHandler {
      *
      * @return true if it could be locked, false if it is not locked
      */
-    public synchronized boolean releaseLock() {
-        if(!isLocked) {
-            if(Debug.ON) Debug.trace("!!!!! releaseLock() returning false, should not happen !!!!!", -1);
-            return false;
+    public boolean releaseLock() {
+        synchronized(this) {
+            if(!isLocked) {
+                FileLogger.fine("!!!!! releaseLock() returning false, should not happen !!!!!", new Throwable());
+                return false;
+            }
+
+            isLocked = false;
         }
 
-        isLocked = false;
+        ConnectionPool.notifyConnectionHandlerLockReleased();
+
         return true;
     }
 
@@ -271,7 +276,7 @@ public abstract class ConnectionHandler {
      */
     public boolean equals(FileURL realm, Credentials credentials) {
 
-        if(!this.realm.equals(realm))
+        if(!this.realm.equals(realm, false, true))
             return false;
 
         // Compare credentials. One or both Credentials instances may be null.

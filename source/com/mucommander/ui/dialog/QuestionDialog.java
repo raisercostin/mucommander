@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
 
 package com.mucommander.ui.dialog;
 
+import com.mucommander.job.ui.DialogResult;
 import com.mucommander.ui.button.ButtonChoicePanel;
+import com.mucommander.ui.layout.InformationPane;
 import com.mucommander.ui.layout.YBoxPanel;
 
 import javax.swing.*;
@@ -33,7 +35,7 @@ import java.awt.event.ActionListener;
  *
  * @author Maxence Bernard
  */
-public class QuestionDialog extends FocusDialog implements ActionListener {
+public class QuestionDialog extends FocusDialog implements ActionListener, DialogResult {
 	
     /** Dialog owner */
     private JButton buttons[];
@@ -47,8 +49,11 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
      * selecting a custom action */
     public final static int DIALOG_DISPOSED_ACTION = -1;
 
-    // Dialog maximum width is 480
-    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(480,10000);
+    /** Minimum dialog size */
+    private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(360, 0);
+
+    /** Maximum dialog size */
+    private final static Dimension MAXIMUM_DIALOG_DIMENSION = new Dimension(480, 10000);
 
 
     /**
@@ -57,7 +62,7 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
      */
     public QuestionDialog(Frame owner, String title, String msg, Component locationRelative, String actionText[], int actionValues[], int maxNbCols) {
         super(owner, title, locationRelative);
-        init(owner, new JLabel(msg), actionText, actionValues, maxNbCols);
+        init(new InformationPane(msg, null, Font.PLAIN, InformationPane.QUESTION_ICON), actionText, actionValues, maxNbCols);
     }
 
     /**
@@ -66,7 +71,7 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
      */
     public QuestionDialog(Dialog owner, String title, String msg, Component locationRelative, String actionText[], int actionValues[], int maxNbCols) {
         super(owner, title, locationRelative);
-        init(owner, new JLabel(msg), actionText, actionValues, maxNbCols);
+        init(new InformationPane(msg, null, Font.PLAIN, InformationPane.QUESTION_ICON), actionText, actionValues, maxNbCols);
     }
 
     /**
@@ -75,7 +80,7 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
      */
     public QuestionDialog(Frame owner, String title, Component msgComp, Component locationRelative, String actionText[], int actionValues[], int maxNbCols) {
         super(owner, title, locationRelative);
-        init(owner, msgComp, actionText, actionValues, maxNbCols);
+        init(msgComp, actionText, actionValues, maxNbCols);
     }
 
     /**
@@ -84,7 +89,7 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
      */
     public QuestionDialog(Dialog owner, String title, Component msgComp, Component locationRelative, String actionText[], int actionValues[], int maxNbCols) {
         super(owner, title, locationRelative);
-        init(owner, msgComp, actionText, actionValues, maxNbCols);
+        init(msgComp, actionText, actionValues, maxNbCols);
     }
 
 	
@@ -97,10 +102,11 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
     }
 	
 	
-    protected void init(Container owner, Component comp, String actionText[], int actionValues[], int maxNbCols) {
+    protected void init(Component comp, String actionText[], int actionValues[], int maxNbCols) {
         this.actionValues = actionValues;
 
-        // Sets maximum dimension for this dialog
+        // Sets minimum and maximum dimensions for this dialog
+        setMinimumSize(MINIMUM_DIALOG_DIMENSION);
         setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
 
         mainPanel = new YBoxPanel();
@@ -168,5 +174,10 @@ public class QuestionDialog extends FocusDialog implements ActionListener {
             }
 	
         dispose();
+    }
+
+    public Object getUserInput() {
+        super.showDialog();
+        return new Integer(retValue);
     }
 }

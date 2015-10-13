@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ public class PathUtilsTest extends TestCase {
         assertResult(PathUtils.resolveDestination(baseRoot.getURL().toString(true), baseRoot), baseRoot, expectedType);
         // Relative paths
         assertResult(PathUtils.resolveDestination(".", baseFolder), baseFolder, expectedType);
-        assertResult(PathUtils.resolveDestination("./", baseFolder), baseFolder, expectedType);
+        assertResult(PathUtils.resolveDestination("."+baseFolder.getSeparator(), baseFolder), baseFolder, expectedType);
         assertResult(PathUtils.resolveDestination(baseFolder.getName(), baseParent), baseFolder, expectedType);
         assertResult(PathUtils.resolveDestination(baseFolder.getName()+separator, baseParent), baseFolder, expectedType);
         assertResult(PathUtils.resolveDestination("."+separator+baseFolder.getName(), baseParent), baseFolder, expectedType);
@@ -142,6 +142,116 @@ public class PathUtilsTest extends TestCase {
         if(type==PathUtils.ResolvedDestination.EXISTING_FOLDER)
             assertEquals(file, folder);
         else
-            assertEquals(file.getParentSilently(), folder);
+            assertEquals(file.getParent(), folder);
+    }
+
+    /**
+     * Tests {@link PathUtils#removeLeadingFragments(String, String, int)}.
+     */
+    public void testRemoveLeadingFragments() {
+        assertEquals("home/maxence/", PathUtils.removeLeadingFragments("/home/maxence/", "/", 0));
+        assertEquals("maxence/", PathUtils.removeLeadingFragments("/home/maxence/", "/", 1));
+        assertEquals("", PathUtils.removeLeadingFragments("/home/maxence/", "/", 2));
+        assertEquals("", PathUtils.removeLeadingFragments("/home/maxence/", "/", 3));
+        assertEquals("", PathUtils.removeLeadingFragments("/home/maxence/", "\\", 1));
+    }
+
+    /**
+     * Tests {@link PathUtils#getDepth(String, String)}.
+     */
+    public void testGetDepth() {
+        assertEquals(0, PathUtils.getDepth("/", "/"));
+        assertEquals(0, PathUtils.getDepth("", "/"));
+        assertEquals(1, PathUtils.getDepth("/home", "/"));
+        assertEquals(1, PathUtils.getDepth("/home/", "/"));
+        assertEquals(2, PathUtils.getDepth("/home/maxence", "/"));
+        assertEquals(2, PathUtils.getDepth("/home/maxence/", "/"));
+
+        assertEquals(1, PathUtils.getDepth("/home/maxence", "\\"));
+        assertEquals(1, PathUtils.getDepth("C:", "\\")); 
+        assertEquals(1, PathUtils.getDepth("C:\\", "\\"));
+        assertEquals(2, PathUtils.getDepth("C:\\home", "\\"));
+        assertEquals(2, PathUtils.getDepth("C:\\home\\", "\\"));
+        assertEquals(3, PathUtils.getDepth("C:\\home\\maxence", "\\"));
+        assertEquals(3, PathUtils.getDepth("C:\\home\\maxence\\", "\\"));
+    }
+
+
+    /**
+     * Tests {@link PathUtils#removeLeadingSeparator(String, String)}.
+     */
+    public void testRemoveLeadingSeparator() {
+        assertEquals(PathUtils.removeLeadingSeparator("/home/", "/"), "home/");
+        assertEquals(PathUtils.removeLeadingSeparator("/home/maxence", "/"), "home/maxence");
+        assertEquals(PathUtils.removeLeadingSeparator("home/", "/"), "home/");
+        assertEquals(PathUtils.removeLeadingSeparator("/home/", "\\"), "/home/");
+        assertEquals(PathUtils.removeLeadingSeparator("/", "/"), "");
+
+        assertEquals(PathUtils.removeLeadingSeparator("C:\\home\\", "\\"), "C:\\home\\");
+        assertEquals(PathUtils.removeLeadingSeparator("C:\\home\\", "/"), "C:\\home\\");
+
+        assertEquals(PathUtils.removeLeadingSeparator("--home--", "--"), "home--");
+        assertEquals(PathUtils.removeLeadingSeparator("--home--maxence", "--"), "home--maxence");
+        assertEquals(PathUtils.removeLeadingSeparator("home--", "--"), "home--");
+        assertEquals(PathUtils.removeLeadingSeparator("--home--", "/"), "--home--");
+        assertEquals(PathUtils.removeLeadingSeparator("--", "--"), "");
+    }
+
+    /**
+     * Tests {@link PathUtils#removeTrailingSeparator(String, String)}. 
+     */
+    public void testRemoveTrailingSeparator() {
+        assertEquals(PathUtils.removeTrailingSeparator("/home/", "/"), "/home");
+        assertEquals(PathUtils.removeTrailingSeparator("/home/maxence", "/"), "/home/maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("/home/maxence/", "/"), "/home/maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("/home/", "\\"), "/home/");
+        assertEquals(PathUtils.removeTrailingSeparator("/", "/"), "");
+
+        assertEquals(PathUtils.removeTrailingSeparator("C:\\home", "\\"), "C:\\home");
+        assertEquals(PathUtils.removeTrailingSeparator("C:\\home\\", "\\"), "C:\\home");
+        assertEquals(PathUtils.removeTrailingSeparator("C:\\home\\maxence", "\\"), "C:\\home\\maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("C:\\home\\maxence", "\\"), "C:\\home\\maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("C:\\home\\", "/"), "C:\\home\\");
+
+        assertEquals(PathUtils.removeTrailingSeparator("--home--", "--"), "--home");
+        assertEquals(PathUtils.removeTrailingSeparator("--home--maxence", "--"), "--home--maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("--home--maxence--", "--"), "--home--maxence");
+        assertEquals(PathUtils.removeTrailingSeparator("--home--", "/"), "--home--");
+        assertEquals(PathUtils.removeTrailingSeparator("--", "--"), "");
+    }
+
+    /**
+     * Tests {@link PathUtils#pathEquals(String, String, String)}.
+     */
+    public void testPathEquals() {
+        assertTrue(PathUtils.pathEquals("/home/", "/home/", "/"));
+        assertTrue(PathUtils.pathEquals("/home", "/home", "/"));
+        assertTrue(PathUtils.pathEquals("/home/", "/home/", "\\"));
+        assertTrue(PathUtils.pathEquals("/home/", "/home", "/"));
+        assertTrue(PathUtils.pathEquals("/home", "/home/", "/"));
+
+        assertTrue(PathUtils.pathEquals("C:\\home\\", "C:\\home\\", "\\"));
+        assertTrue(PathUtils.pathEquals("C:\\home", "C:\\home", "\\"));
+        assertTrue(PathUtils.pathEquals("C:\\home\\", "C:\\home\\", "/"));
+        assertTrue(PathUtils.pathEquals("C:\\home\\", "C:\\home", "\\"));
+        assertTrue(PathUtils.pathEquals("C:\\home", "C:\\home\\", "\\"));
+
+        assertTrue(PathUtils.pathEquals("--home--", "--home--", "--"));
+        assertTrue(PathUtils.pathEquals("--home", "--home", "--"));
+        assertTrue(PathUtils.pathEquals("--home--", "--home--", "/"));
+        assertTrue(PathUtils.pathEquals("--home--", "--home", "--"));
+        assertTrue(PathUtils.pathEquals("--home", "--home--", "--"));
+
+        assertFalse(PathUtils.pathEquals("/", "/home", "/"));
+        assertFalse(PathUtils.pathEquals("/home", "/home/", "\\"));
+        assertFalse(PathUtils.pathEquals("/home/", "/home", "\\"));
+
+        assertFalse(PathUtils.pathEquals("C:\\", "C:\\home", "\\"));
+        assertFalse(PathUtils.pathEquals("C:\\home", "C:\\home\\", "/"));
+        assertFalse(PathUtils.pathEquals("C:\\home\\", "C:\\home", "/"));
+
+        assertFalse(PathUtils.pathEquals("--", "--home", "--"));
+        assertFalse(PathUtils.pathEquals("--home", "--home--", "/"));
+        assertFalse(PathUtils.pathEquals("--home--", "--home", "/"));
     }
 }

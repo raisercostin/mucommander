@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@ package com.mucommander.shell;
  */
 interface ShellHistoryConstants {
     /** Name of the XML file's root element. */
-    public static final String ROOT_ELEMENT    = "history";
+    static final String ROOT_ELEMENT    = "history";
     /** Name of a command element in the XML file. */
-    public static final String COMMAND_ELEMENT = "command";
+    static final String COMMAND_ELEMENT = "command";
+    /** Name of the root element's attribute containing the muCommander version that was used to create the shell history file */
+    static final String ATTRIBUTE_VERSION      = "version";
 }

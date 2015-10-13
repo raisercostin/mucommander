@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.text;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.util.ResourceLoader;
 import com.mucommander.io.bom.BOMReader;
@@ -28,20 +28,23 @@ import java.util.*;
 
 
 /**
- * This class takes care of all text localization issues by loading all text entries from 
- * a dictionary file on startup and translating them into the current language on demand.
+ * This class takes care of all text localization issues by loading all text entries from a dictionary file on startup
+ * and translating them into the current language on demand.
  *
- * <p>All public methods are static to make it easy to call them throughout the application</p>
+ * <p>All public methods are static to make it easy to call them throughout the application.</p>
  *
- * <p>See dictionary file for more information about dictionary file grammar.</p>
+ * <p>See dictionary file for more information about th dictionary file format.</p>
  *
  * @author Maxence Bernard
  */
 public class Translator {
 
-    /** Hashtable that maps text keys to values */
+    /** Contains key/value pairs for the current language */
     private static Hashtable dictionary;
 
+    /** Contains key/value pairs for the default language, for entries that are not defined in the current language */
+    private static Hashtable defaultDictionary;
+    
     /** List of all available languages in the dictionary file */
     private static Vector availableLanguages;
 
@@ -66,8 +69,11 @@ public class Translator {
      * <p>
      * If the language set in the preferences or the system's language is not available, the default language as
      * defined by {@link #DEFAULT_LANGUAGE} will be used.
+     * </p>
+     *
+     * @param availableLanguages list of available languages
      */
-    private static void determineCurrentLanguage(Vector availableLanguages) {
+    private static void setCurrentLanguage(Vector availableLanguages) {
         String lang = MuConfiguration.getVariable(MuConfiguration.LANGUAGE);
 
         if(lang==null) {
@@ -75,10 +81,10 @@ public class Translator {
             // Try to match language with the system's language, only if the system's language
             // has values in dictionary, otherwise use default language (English).
             lang = Locale.getDefault().getLanguage();
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Language not set in preferences, trying to match system's language ("+lang+")");
+            AppLogger.info("Language not set in preferences, trying to match system's language ("+lang+")");
         }
         else {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Language in prefs: "+lang);
+            AppLogger.info("Using language set in preferences: "+lang);
         }
 
         // Determines if the list of available languages contains the language (case-insensitive)
@@ -96,37 +102,43 @@ public class Translator {
         if(containsLanguage) {
             // Language is available
             Translator.language = lang;
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Language "+lang+" is available.");
+            AppLogger.fine("Language "+lang+" is available.");
         }
         else {
             // Language is not available, fall back to default language (English)
             Translator.language = DEFAULT_LANGUAGE;
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Language "+lang+" is not available, falling back to default language "+DEFAULT_LANGUAGE);
+            AppLogger.fine("Language "+lang+" is not available, falling back to default language "+DEFAULT_LANGUAGE);
         }
 		
         // Set preferred language in configuration file
         MuConfiguration.setVariable(MuConfiguration.LANGUAGE, Translator.language);
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Current language has been set to "+Translator.language);
+        AppLogger.config("Current language has been set to "+Translator.language);
     }
 
     /**
      * Loads the default dictionary file.
-     * @exception IOException thrown if an IO error occurs.
+     *
+     * @throws IOException thrown if an IO error occurs.
      */
-    public static void loadDictionaryFile() throws IOException {loadDictionaryFile(com.mucommander.RuntimeConstants.DICTIONARY_FILE);}
+    public static void loadDictionaryFile() throws IOException {
+        loadDictionaryFile(com.mucommander.RuntimeConstants.DICTIONARY_FILE);
+    }
 
     /**
-     * Reads the dictionary file which contains localized text entries.
-     * @exception IOException thrown if an IO error occurs.
+     * Loads the specified dictionary file, which contains localized text entries.
+     *
+     * @param filePath path to the dictionary file
+     * @throws IOException thrown if an IO error occurs.
      */
     public static void loadDictionaryFile(String filePath) throws IOException {
         availableLanguages = new Vector();
         dictionary         = new Hashtable();
+        defaultDictionary  = new Hashtable();
 
         BufferedReader br = new BufferedReader(new BOMReader(ResourceLoader.getResourceAsStream(filePath)));
         String line;
-        String key;
+        String keyLC;
         String lang;
         String text;
         StringTokenizer st;
@@ -137,20 +149,20 @@ public class Translator {
 
                 try {
                     // Sets delimiter to ':'
-                    key = st.nextToken(":").trim();
+                    keyLC = st.nextToken(":").trim().toLowerCase();
 
                     // Special key that lists available languages, must
                     // be defined before any other entry
-                    if(Translator.language==null && key.equals(AVAILABLE_LANGUAGES_KEY)) {
+                    if(Translator.language==null && keyLC.equals(AVAILABLE_LANGUAGES_KEY)) {
                         // Parse comma separated languages
                         st = new StringTokenizer(st.nextToken(), ",\n");
                         while(st.hasMoreTokens())
                             availableLanguages.add(st.nextToken().trim());
 
-                        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Available languages= "+availableLanguages);
+                        AppLogger.finer("Available languages= "+availableLanguages);
 
-                        // Determines current language based on available languages and preferred language (if set) or sytem's language 
-                        determineCurrentLanguage(availableLanguages);
+                        // Determines current language based on available languages and preferred language (if set) or system's language
+                        setCurrentLanguage(availableLanguages);
 
                         continue;
                     }
@@ -167,22 +179,25 @@ public class Translator {
                     while ((pos = text.indexOf("\\n", pos))!=-1)
                         text = text.substring(0, pos)+"\n"+text.substring(pos+2, text.length());
 
-                    // Replace "\\uxxxx" unicode charcter strings by the designated character
+                    // Replace "\\uxxxx" unicode strings by the designated character
                     pos = 0;
 
                     while ((pos = text.indexOf("\\u", pos))!=-1)
                         text = text.substring(0, pos)+(char)(Integer.parseInt(text.substring(pos+2, pos+6), 16))+text.substring(pos+6, text.length());
 
                     // Add entry for current language, or for default language if a value for current language wasn't already set
-                    if(lang.equalsIgnoreCase(language) || (lang.equalsIgnoreCase(DEFAULT_LANGUAGE) && dictionary.get(key)==null))
-                        put(key, text);
+                    if(lang.equalsIgnoreCase(language)) {
+                        dictionary.put(keyLC, text);
+                        // Remove the default dictionary entry as it will not be used (saves some memory).
+                        defaultDictionary.remove(keyLC);
+                    }
+                    else if(lang.equalsIgnoreCase(DEFAULT_LANGUAGE) && dictionary.get(keyLC)==null) {
+                        defaultDictionary.put(keyLC, text);
+                    }
                 }
                 catch(Exception e) {
-                    if(com.mucommander.Debug.ON) {
-                        e.printStackTrace();
-                        com.mucommander.Debug.trace("error in line " + line + " (" + e + ")");
-                    }
-                    throw new IOException("Syntax error line " + line);
+                    AppLogger.info("error in line " + line + " (" + e + ")");
+                    throw new IOException("Syntax error in line " + line);
                 }
             }
         }
@@ -214,40 +229,45 @@ public class Translator {
 
 
     /**
-     * Returns true if the given key exists (has a corresponding value) in the current language.
+     * Returns <code>true</code> if the given entry's key has a value in the current language.
+     * If the <code>useDefaultLanguage</code> parameter is <code>true</code>, entries that have no value in the 
+     * {@link #getLanguage() current language} but one in the {@link #DEFAULT_LANGUAGE} will be considered as having
+     * a value (<code>true</code> will be returned).
+     *
+     * @param key key of the requested dictionary entry (case-insensitive)
+     * @param useDefaultLanguage if <code>true</code>, entries that have no value in the {@link #getLanguage() current
+     * language} but one in the {@link #DEFAULT_LANGUAGE} will be considered as having a value
+     * @return <code>true</code> if the given key has a corresponding value in the current language.
      */
-    public static boolean entryExists(String key) {
-        return dictionary.get(key.toLowerCase())!=null;
+    public static boolean hasValue(String key, boolean useDefaultLanguage) {
+        return dictionary.get(key.toLowerCase())!=null
+                || (useDefaultLanguage && defaultDictionary.get(key.toLowerCase())!=null);
     }
 
-
     /**
-     * Adds the key/text value to the dictionary.
+     * Returns the localized text String for the given key expressd in the current language, or in the default language
+     * if there is no value for the current language. Entry parameters (%1, %2, ...), if any, are replaced by the
+     * specified values.
      *
-     * @param key a case-insensitive key.
-     * @param text localized text.
-     */
-    private static void put(String key, String text) {
-        // Adds a new entry to the dictionary
-        dictionary.put(key.toLowerCase(), text);
-    }
-
-
-    /**
-     * Returns the localized text String corresponding to the given key and
-     * current language (or default language if a value for current language is not available),
-     * and replaces  the %1, %2... parameters by their given value.
-     *
-     * @param key a case-insensitive key.
+     * @param key key of the requested dictionary entry (case-insensitive)
      * @param paramValues array of parameters which will be used as values for variables.
+     * @return the localized text String for the given key expressd in the current language
      */
     public static String get(String key, String paramValues[]) {
         // Returns the localized text
         String text = (String)dictionary.get(key.toLowerCase());
 
         if (text==null) {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Unknown key "+key, -1);
-            return key;
+            text = (String)defaultDictionary.get(key.toLowerCase()); 
+
+            if(text==null) {
+                AppLogger.fine("No value for "+key+", returning key");
+                return key;
+            }
+            else {
+                AppLogger.fine("No value for "+key+" in language "+language+", using "+DEFAULT_LANGUAGE+" value");
+                // Don't return yet, parameters need to be replaced
+            }
         }
 
         // Replace %1, %2 ... parameters by their value
@@ -277,7 +297,8 @@ public class Translator {
     /**
      * Convenience method, equivalent to <code>get(key, (String[])null)</code>.
      *
-     * @param key a case-insensitive key.
+     * @param key key of the requested dictionary entry (case-insensitive)
+     * @return the localized text String for the given key expressd in the current language
      */
     public static String get(String key) {
         return get(key, (String[])null);
@@ -287,8 +308,9 @@ public class Translator {
     /**
      * Convenience method, equivalent to <code>get(key, new String[]{paramValue1})</code>)</code>.
      *
-     * @param key a case-insensitive key.
+     * @param key key of the requested dictionary entry (case-insensitive)
      * @param paramValue1 first parameter which will be used to replace %1 variables.
+     * @return the localized text String for the given key expressd in the current language
      */
     public static String get(String key, String paramValue1) {
         return get(key, new String[] {paramValue1});
@@ -298,9 +320,10 @@ public class Translator {
     /**
      * Convenience method, equivalent to <code>get(key, new String[]{paramValue1, paramValue2})</code>)</code>.
      *
-     * @param key a case-insensitive key.
+     * @param key key of the requested dictionary entry (case-insensitive)
      * @param paramValue1 first parameter which will be used to replace %1 variables.
      * @param paramValue2 second parameter which will be used to replace %2 variables.
+     * @return the localized text String for the given key expressd in the current language
      */
     public static String get(String key, String paramValue1, String paramValue2) {
         return get(key, new String[] {paramValue1, paramValue2});
@@ -310,10 +333,11 @@ public class Translator {
     /**
      * Convenience method, equivalent to <code>get(key, new String[]{paramValue1, paramValue2, paramValue3})</code>)</code>.
      *
-     * @param key a case-insensitive key.
+     * @param key key of the requested dictionary entry (case-insensitive)
      * @param paramValue1 first parameter which will be used to replace %1 variables.
      * @param paramValue2 second parameter which will be used to replace %2 variables.
      * @param paramValue3 third parameter which will be used to replace %3 variables.
+     * @return the localized text String for the given key expressd in the current language
      */
     public static String get(String key, String paramValue1, String paramValue2, String paramValue3) {
         return get(key, new String[] {
@@ -466,6 +490,7 @@ public class Translator {
      * @param newLanguageFile dictionary file containing new language entries
      * @param resultingFile merged dictionary file
      * @param newLanguage new language
+     * @throws IOException if an I/O error occurred
      */
     private static void addLanguageToDictionary(String originalFile, String newLanguageFile, String resultingFile, String newLanguage) throws IOException {
         // Initialize streams
@@ -501,7 +526,7 @@ public class Translator {
                 lineNum++;
             }
             catch(Exception e) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("caught "+e+" at line "+lineNum);
+                AppLogger.warning("caught "+e+" at line "+lineNum);
                 return;
             }
         }
@@ -516,7 +541,7 @@ public class Translator {
                     String newLanguageValue = (String)newLanguageEntries.get(currentKey);
                     if(newLanguageValue!=null) {
                         // Insert new language's entry in resulting file
-                        if(Debug.ON) Debug.trace("New language entry for key="+currentKey+" value="+newLanguageValue);
+                        AppLogger.info("New language entry for key="+currentKey+" value="+newLanguageValue);
                         pw.println(currentKey+":"+newLanguage+":"+newLanguageValue);
                     }
 
@@ -545,12 +570,12 @@ public class Translator {
 
                     if(newLanguageValue!=null) {
                         if(!existingNewLanguageValue.equals(newLanguageValue))
-                            if(Debug.ON) Debug.trace("Warning: found an updated value for key="+currentKey+", using new value="+newLanguageValue+" existing value="+existingNewLanguageValue);
+                            AppLogger.warning("Warning: found an updated value for key="+currentKey+", using new value="+newLanguageValue+" existing value="+existingNewLanguageValue);
 
                         pw.println(currentKey+":"+newLanguage+":"+newLanguageValue);
                     }
                     else {
-                        if(Debug.ON) Debug.trace("Warning: existing dictionary has a value for key="+currentKey+" that is missing in the new dictionary file, using existing value= "+existingNewLanguageValue);
+                        AppLogger.warning("Existing dictionary has a value for key="+currentKey+" that is missing in the new dictionary file, using existing value= "+existingNewLanguageValue);
                         pw.println(currentKey+":"+newLanguage+":"+existingNewLanguageValue);
                     }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +18,19 @@
 
 package com.mucommander.ui.dialog.startup;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.VersionChecker;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.FileFactory;
 import com.mucommander.job.SelfUpdateJob;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.GoToWebsiteAction;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.GoToWebsiteAction;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
+import com.mucommander.ui.layout.InformationPane;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
@@ -84,7 +86,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         Container contentPane = getContentPane();
         contentPane.setLayout(new BorderLayout());
         
-        String         text;
+        String         message;
         String         title;
         VersionChecker version;
         URL            downloadURL = null;
@@ -92,12 +94,12 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         String         jarURL = null;
 
         try {
-            if(Debug.ON) Debug.trace("Checking for new version...");            
+            AppLogger.fine("Checking for new version...");
 
             version = VersionChecker.getInstance();
             // A newer version is available
             if(version.isNewVersionAvailable()) {
-                if(Debug.ON) Debug.trace("A new version is available!");            
+                AppLogger.info("A new version is available!");
 
                 title = Translator.get("version_dialog.new_version_title");
 
@@ -108,17 +110,17 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
                 // If the platform is not capable of opening a new browser window,
                 // display the download URL.
                 if(downloadOption) {
-                    text = Translator.get("version_dialog.new_version");
+                    message = Translator.get("version_dialog.new_version");
                 }
                 else {
-                    text = Translator.get("version_dialog.new_version_url", downloadURL.toString());
+                    message = Translator.get("version_dialog.new_version_url", downloadURL.toString());
                 }
 
                 jarURL = version.getJarURL();
             }
             // We're already running latest version
             else {
-                if(Debug.ON) Debug.trace("No new version.");            
+                AppLogger.fine("No new version.");
 
                 // If the version check was not iniated by the user (i.e. was automatic),
                 // we do not need to inform the user that he already has the latest version
@@ -128,7 +130,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
                 }
                 
                 title = Translator.get("version_dialog.no_new_version_title");
-                text = Translator.get("version_dialog.no_new_version");
+                message = Translator.get("version_dialog.no_new_version");
             }
         }
         // Check failed
@@ -141,7 +143,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
             }
 
             title = Translator.get("version_dialog.not_available_title");
-            text = Translator.get("version_dialog.not_available");
+            message = Translator.get("version_dialog.not_available");
         }
 
         // Set title
@@ -157,7 +159,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         // 'Go to website' choice (if available)
         if(downloadOption) {
             actionsV.add(new Integer(GO_TO_WEBSITE_ACTION));
-            labelsV.add(MuAction.getStandardLabel(GoToWebsiteAction.class));
+            labelsV.add(ActionProperties.getActionLabel(GoToWebsiteAction.Descriptor.ACTION_ID));
         }
 
 //        // 'Install and restart' choice (if available)
@@ -175,7 +177,7 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
             labels[i] = (String)labelsV.elementAt(i);
         }
 
-        init(mainFrame, new JLabel(text),
+        init(new InformationPane(message, null, Font.PLAIN, InformationPane.INFORMATION_ICON),
              labels,
              actions,
              0);
@@ -191,8 +193,12 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         int action = getActionValue();
 
         if(action==GO_TO_WEBSITE_ACTION) {
-            try {DesktopManager.executeOperation(DesktopManager.BROWSE, new Object[] {downloadURL});}
-            catch(Exception e) {JOptionPane.showMessageDialog(this, Translator.get("generic_error"), Translator.get("error"), JOptionPane.ERROR_MESSAGE);}
+            try {
+                DesktopManager.executeOperation(DesktopManager.BROWSE, new Object[] {downloadURL});
+            }
+            catch(Exception e) {
+                InformationDialog.showErrorDialog(this);
+            }
         }
         else if(action==INSTALL_AND_RESTART_ACTION) {
             ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("Installing new version"));

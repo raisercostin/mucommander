@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,28 +18,27 @@
 
 package com.mucommander.ui.main;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.AuthenticationTypes;
 import com.mucommander.auth.CredentialsManager;
 import com.mucommander.auth.CredentialsMapping;
-import com.mucommander.conf.ConfigurationEvent;
-import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.desktop.DesktopManager;
-import com.mucommander.file.*;
-import com.mucommander.file.filter.AndFileFilter;
-import com.mucommander.file.filter.AttributeFileFilter;
-import com.mucommander.file.filter.DSStoreFileFilter;
-import com.mucommander.file.filter.SystemFileFilter;
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileProtocols;
+import com.mucommander.file.FileURL;
 import com.mucommander.file.impl.CachedFile;
+import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionKeymap;
 import com.mucommander.ui.action.ActionManager;
-import com.mucommander.ui.action.CycleBackwardThruFolderPanelAction;
-import com.mucommander.ui.action.CycleForwardThruFolderPanelAction;
+import com.mucommander.ui.action.impl.FocusNextAction;
+import com.mucommander.ui.action.impl.FocusPreviousAction;
 import com.mucommander.ui.border.MutableLineBorder;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.auth.AuthDialog;
 import com.mucommander.ui.dialog.file.DownloadDialog;
@@ -66,7 +65,6 @@ import java.awt.event.*;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.HashSet;
-import java.util.Iterator;
 
 /**
  * Folder pane that contains the table that displays the contents of the current directory and allows navigation, the
@@ -74,13 +72,14 @@ import java.util.Iterator;
  *
  * @author Maxence Bernard
  */
-public class FolderPanel extends JPanel implements FocusListener, ConfigurationListener, ThemeListener {
+public class FolderPanel extends JPanel implements FocusListener, ThemeListener {
 
     private MainFrame  mainFrame;
 
     private AbstractFile currentFolder;
     private ChangeFolderThread changeFolderThread;
 
+    private long lastFolderChangeTime;
     private FolderChangeMonitor folderChangeMonitor;
 
     private LocationManager locationManager = new LocationManager(this);
@@ -106,9 +105,8 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     private Color unfocusedBackgroundColor;
     private Color unmatchedBackgroundColor;
 
-    /** Contains all the registered FileFilter instances (if any) used to filter out unwanted files when listing
-     * folder contents */
-    private AndFileFilter chainedFileFilter;
+    /** Filters out unwanted files when listing folder contents */
+    private ConfigurableFolderFilter configurableFolderFilter = new ConfigurableFolderFilter();
 
     /** The lock object used to prevent simultaneous folder change operations */
     private final Object FOLDER_CHANGE_LOCK = new Object();
@@ -144,7 +142,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     FolderPanel(MainFrame mainFrame, AbstractFile initialFolder, FileTableConfiguration conf) {
         super(new BorderLayout());
 
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(" initialFolder="+initialFolder);
+        AppLogger.finest(" initialFolder="+initialFolder);
         this.mainFrame = mainFrame;
 
         // No decoration for this panel
@@ -184,33 +182,16 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                 recentExecutedFilesQL,
                 bookmarksQL};
 
-        // Init chained file filters used to filter out files in the current directory.
-        // AndFileFilter is used, that means files must satisfy all the filters in order to be displayed.
-        chainedFileFilter = new AndFileFilter();
-
-        // Filters out hidden files, null when 'show hidden files' option is enabled
-        if(!MuConfiguration.getVariable(MuConfiguration.SHOW_HIDDEN_FILES, MuConfiguration.DEFAULT_SHOW_HIDDEN_FILES))
-            // This filter is inverted and matches non-hidden files
-            chainedFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.HIDDEN, true));
-
-        // Filters out Mac OS X .DS_Store files, null when 'show DS_Store files' option is enabled
-        if(!MuConfiguration.getVariable(MuConfiguration.SHOW_DS_STORE_FILES, MuConfiguration.DEFAULT_SHOW_DS_STORE_FILES))
-            chainedFileFilter.addFileFilter(new DSStoreFileFilter());
-
-        /** Filters out Mac OS X system folders, null when 'show system folders' option is enabled */
-        if(!MuConfiguration.getVariable(MuConfiguration.SHOW_SYSTEM_FOLDERS, MuConfiguration.DEFAULT_SHOW_SYSTEM_FOLDERS))
-            chainedFileFilter.addFileFilter(new SystemFileFilter());
-
         try {
             // Set initial folder to current directory
-            setCurrentFolder(initialFolder, initialFolder.ls(chainedFileFilter), null);
+            setCurrentFolder(initialFolder, initialFolder.ls(configurableFolderFilter), null);
         }
         catch(Exception e) {
-            AbstractFile rootFolders[] = RootFolders.getRootFolders();
+            AbstractFile rootFolders[] = LocalFile.getVolumes();
             // If that failed, try to read any other drive
             for(int i=0; i<rootFolders.length; i++) {
                 try  {
-                    setCurrentFolder(rootFolders[i], rootFolders[i].ls(chainedFileFilter), null);
+                    setCurrentFolder(rootFolders[i], rootFolders[i].ls(configurableFolderFilter), null);
                     break;
                 }
                 catch(IOException e2) {
@@ -237,6 +218,11 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         fileTable.setBackground(unfocusedBackgroundColor);
         backgroundColor          = ThemeManager.getCurrentColor(Theme.FILE_TABLE_BACKGROUND_COLOR);
         unmatchedBackgroundColor = ThemeManager.getCurrentColor(Theme.FILE_TABLE_UNMATCHED_BACKGROUND_COLOR);
+
+        // Remove default action mappings that conflict with corresponding mu actions
+        InputMap inputMap = scrollPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        inputMap.clear();
+        inputMap.setParent(null);
 
         // Catch mouse events on the ScrollPane
         scrollPane.addMouseListener(new MouseAdapter() {
@@ -265,8 +251,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         treeSplitPane.setBorder(null);
         add(treeSplitPane, BorderLayout.CENTER);
                 
-        // Listens to some configuration variables
-        MuConfiguration.addConfigurationListener(this);
+        // Listens to theme events
         ThemeManager.addCurrentThemeListener(this);
 
         // Disable Ctrl+Tab and Shift+Ctrl+Tab focus traversal keys
@@ -318,19 +303,19 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     }
 
     /**
-     * Registers the {@link com.mucommander.ui.action.CycleForwardThruFolderPanelAction} and
-     * {@link com.mucommander.ui.action.CycleBackwardThruFolderPanelAction actions onto the given component's input map.
+     * Registers the {@link FocusNextAction} and {@link FocusPreviousAction} actions onto the given component's
+     * input map.
      *  
      * @param component the component for which to register the cycle actions
      */
     private void registerCycleThruFolderPanelAction(JComponent component) {
         ActionKeymap.registerActionAccelerators(
-                ActionManager.getActionInstance(CycleForwardThruFolderPanelAction.class, mainFrame),
+                ActionManager.getActionInstance(FocusNextAction.Descriptor.ACTION_ID, mainFrame),
                 component,
                 JComponent.WHEN_FOCUSED);
 
         ActionKeymap.registerActionAccelerators(
-                ActionManager.getActionInstance(CycleBackwardThruFolderPanelAction.class, mainFrame),
+                ActionManager.getActionInstance(FocusPreviousAction.Descriptor.ACTION_ID, mainFrame),
                 component,
                 JComponent.WHEN_FOCUSED);
     }
@@ -430,7 +415,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * Displays a popup dialog informing the user that the requested folder doesn't exist or isn't available.
      */
     private void showFolderDoesNotExistDialog() {
-        JOptionPane.showMessageDialog(mainFrame, Translator.get("folder_does_not_exist"), Translator.get("table.folder_access_error_title"), JOptionPane.ERROR_MESSAGE);
+        InformationDialog.showErrorDialog(mainFrame, Translator.get("table.folder_access_error_title"), Translator.get("folder_does_not_exist"));
     }
 
 
@@ -440,10 +425,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * @param e the Exception that was caught while changing the folder
      */
     private void showAccessErrorDialog(Exception e) {
-        String exceptionMsg = e==null?null:e.getMessage();
-        String errorMsg = Translator.get("table.folder_access_error")+(exceptionMsg==null?"":": "+exceptionMsg);
-
-        JOptionPane.showMessageDialog(mainFrame, errorMsg, Translator.get("table.folder_access_error_title"), JOptionPane.ERROR_MESSAGE);
+        InformationDialog.showErrorDialog(mainFrame, Translator.get("table.folder_access_error_title"), Translator.get("table.folder_access_error"), e==null?null:e.getMessage(), e);
     }
 
 
@@ -475,7 +457,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         fileSet.add(file);
 		
         // Show confirmation/path modification dialog
-        new DownloadDialog(mainFrame, fileSet);
+        new DownloadDialog(mainFrame, fileSet).showDialog();
     }
 	
     /**
@@ -485,7 +467,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param folder the folder to be made current folder
@@ -497,14 +479,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
     }
 
     /**
-     * Tries to change current folder to the new specified one, and select the given file after the folder has been
+     * Tries to change current folder to the new specified one, and selects the given file after the folder has been
      * changed. The user is notified by a dialog if the folder could not be changed.
      *
      * <p>This method spawns a separate thread that takes care of the actual folder change and returns it.
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param folder the folder to be made current folder
@@ -512,13 +494,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * @return the thread that performs the actual folder change, null if another folder change is already underway  
      */
     public ChangeFolderThread tryChangeCurrentFolder(AbstractFile folder, AbstractFile selectThisFileAfter) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("folder="+folder+" selectThisFileAfter="+selectThisFileAfter, 3);
+        AppLogger.finer("folder="+folder+" selectThisFileAfter="+selectThisFileAfter);
 
         synchronized(FOLDER_CHANGE_LOCK) {
-            // Make sure there is not an existing thread running,
-            // this should not normally happen but if it does, report the error
+            // Make sure a folder change is not already taking place. This can happen under rare but normal
+            // circumstances, if this method is called before the folder change thread has had the time to call
+            // MainFrame#setNoEventsMode.
             if(changeFolderThread!=null) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(">>>>>>>>> THREAD NOT NULL = "+changeFolderThread, -1);
+                AppLogger.fine("A folder change is already taking place ("+changeFolderThread+"), returning null");
                 return null;
             }
 
@@ -539,7 +522,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * path could not be resolved.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param folderPath path to the new current folder. If this path does not resolve into a file, an error message will be displayed.
@@ -564,7 +547,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param folderURL location to the new current folder. If this URL does not resolve into a file, an error message will be displayed.
@@ -583,7 +566,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param folderURL folder's URL to be made current folder. If this URL does not resolve into an existing file, an error message will be displayed.
@@ -591,13 +574,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * @return the thread that performs the actual folder change, null if another folder change is already underway
      */
     public ChangeFolderThread tryChangeCurrentFolder(FileURL folderURL, CredentialsMapping credentialsMapping) {
-        if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("folderURL="+folderURL, 3);
+        AppLogger.finer("folderURL="+folderURL);
 
         synchronized(FOLDER_CHANGE_LOCK) {
-            // Make sure there is not an existing thread running,
-            // this should not normally happen but if it does, report the error
+            // Make sure a folder change is not already taking place. This can happen under rare but normal
+            // circumstances, if this method is called before the folder change thread has had the time to call
+            // MainFrame#setNoEventsMode.
             if(changeFolderThread!=null) {
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace(">>>>>>>>> THREAD NOT NULL = "+changeFolderThread, -1);
+                AppLogger.fine("A folder change is already taking place ("+changeFolderThread+"), returning null");
                 return null;
             }
 
@@ -616,7 +600,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @return the thread that performs the actual folder change, null if another folder change is already underway
@@ -633,7 +617,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * It does nothing and returns <code>null</code> if another folder change is already underway.</p>
      *
      * <p>
-     * This method is <b>not</b> I/O-bound and returns immmediately without any chance of locking the calling thread.
+     * This method is <b>not</b> I/O-bound and returns immediately, without any chance of locking the calling thread.
      * </p>
      *
      * @param selectThisFileAfter file to be selected after the folder has been refreshed (if it exists in the folder), can be null in which case FileTable rules will be used to select current file 
@@ -657,22 +641,24 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
      * @param fileToSelect file to be selected after the folder has been refreshed (if it exists in the folder), can be null in which case FileTable rules will be used to select current file
      */
     private void setCurrentFolder(AbstractFile folder, AbstractFile children[], AbstractFile fileToSelect) {
-        synchronized(FOLDER_CHANGE_LOCK) {
-            // Change the current folder in the table and select the given file if not null
-            if(fileToSelect == null)
-                fileTable.setCurrentFolder(folder, children);
-            else
-                fileTable.setCurrentFolder(folder, children, fileToSelect);
+        // Update the timestamp right before the folder is set in case FolderChangeMonitor checks the timestamp
+        // while FileTable#setCurrentFolder is being called. 
+        lastFolderChangeTime = System.currentTimeMillis();
 
-            // Update the current folder's value now that it is set
-            this.currentFolder = folder;
+        // Change the current folder in the table and select the given file if not null
+        if(fileToSelect == null)
+            fileTable.setCurrentFolder(folder, children);
+        else
+            fileTable.setCurrentFolder(folder, children, fileToSelect);
 
-            // Add the folder to history
-            folderHistory.addToHistory(folder);
+        // Update the current folder's value now that it is set
+        this.currentFolder = folder;
 
-            // Notify listeners that the location has changed
-            locationManager.fireLocationChanged(folder.getURL());
-        }
+        // Add the folder to history
+        folderHistory.addToHistory(folder);
+
+        // Notify listeners that the location has changed
+        locationManager.fireLocationChanged(folder.getURL());
     }
 
 
@@ -685,6 +671,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
         return changeFolderThread!=null;
     }
 
+    /**
+     * Returns the time at which the last folder change completed successfully.
+     *
+     * @return the time at which the last folder change completed successfully.
+     */
+    public long getLastFolderChangeTime() {
+        return lastFolderChangeTime;
+    }
 
     /**
      * Returns the thread that is currently changing the current folder, <code>null</code> is the folder is not being
@@ -781,56 +775,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
             scrollPane.getViewport().setBackground(unfocusedBackgroundColor);
             fileTable.setBackground(unfocusedBackgroundColor);
         }
-        fileTable.getQuickSearch().cancel();
-    }
-	
-	 
-    ///////////////////////////////////
-    // ConfigurationListener methods //
-    ///////////////////////////////////
-
-    /** 
-     * Listens to certain configuration variables.
-     */
-    public void configurationChanged(ConfigurationEvent event) {
-    	String var = event.getVariable();
-
-        // Show or hide hidden files
-        if (var.equals(MuConfiguration.SHOW_HIDDEN_FILES)) {
-            if(event.getBooleanValue())
-                removeFileFilter(AttributeFileFilter.class);
-            else
-                // This filter is inverted and matches non-hidden files
-                chainedFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.HIDDEN, true));
-        }
-        // Show or hide .DS_Store files (Mac OS X option)
-        else if (var.equals(MuConfiguration.SHOW_DS_STORE_FILES)) {
-            if(event.getBooleanValue())
-                removeFileFilter(DSStoreFileFilter.class);
-            else
-                chainedFileFilter.addFileFilter(new DSStoreFileFilter());
-        }
-        // Show or hide system folders (Mac OS X option)
-        else if (var.equals(MuConfiguration.SHOW_SYSTEM_FOLDERS)) {
-            if(event.getBooleanValue())
-                removeFileFilter(SystemFileFilter.class);
-            else
-                chainedFileFilter.addFileFilter(new SystemFileFilter());
-        }
-
-        // Do not try and refresh folder here as this method can be called several times in a row on the same folder
-        // if several variables have changed. This would then try to refresh the folder potentially before the previous
-        // refresh has finished and cause deadlocks.
-    }
-
-
-    private void removeFileFilter(Class c) {
-        Iterator iterator = chainedFileFilter.getFileFilterIterator();
-        while(iterator.hasNext()) {
-            Object o = iterator.next();
-            if(o.getClass().equals(c))
-                iterator.remove();
-        }
+        fileTable.getQuickSearch().stop();
     }
 
 
@@ -942,15 +887,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
          * @return true if an attempt was made to stop this thread.
          */
         public boolean tryKill() {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("called");
             synchronized(KILL_LOCK) {
                 if(killedByStop) {
-                    if(Debug.ON) Debug.trace("Thread already killed by #interrupt() and #stop(), there's nothing we can do, returning");
+                    AppLogger.fine("Thread already killed by #interrupt() and #stop(), there's nothing we can do, returning");
                     return false;
                 }
 
                 if(doNotKill) {
-                    if(Debug.ON) Debug.trace("Can't kill thread now, it's too late, returning");
+                    AppLogger.fine("Can't kill thread now, it's too late, returning");
                     return false;
                 }
 
@@ -963,7 +907,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                 // InterruptedException or ClosedByInterruptException will be thrown and thus need to be catched by
                 // #run().
                 if(!killedByInterrupt) {
-                    if(Debug.ON) Debug.trace("Killing thread using #interrupt()");
+                    AppLogger.fine("Killing thread using #interrupt()");
 
                     // This field needs to be set before actually interrupting the thread, #run() relies on it
                     killedByInterrupt = true;
@@ -971,7 +915,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                 }
                 // Call Thread#stop() the first time this method is called
                 else {
-                    if(Debug.ON) Debug.trace("Killing thread using #stop()");
+                    AppLogger.fine("Killing thread using #stop()");
 
                     killedByStop = true;
                     super.stop();
@@ -995,7 +939,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
 
 
         public void run() {
-            if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("starting folder change...");
+            AppLogger.finer("starting folder change...");
             boolean folderChangedSuccessfully = false;
 
             // Show some progress in the progress bar to give hope
@@ -1055,7 +999,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
 
                             synchronized(KILL_LOCK) {
                                 if(killed) {
-                                    if(Debug.ON) Debug.trace("this thread has been killed, returning");
+                                    AppLogger.fine("this thread has been killed, returning");
                                     break;
                                 }
                             }
@@ -1158,7 +1102,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                         
                         synchronized(KILL_LOCK) {
                             if(killed) {
-                                if(Debug.ON) Debug.trace("this thread has been killed, returning");
+                                AppLogger.fine("this thread has been killed, returning");
                                 break;
                             }
                         }
@@ -1166,7 +1110,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                         // File tested -> 50% complete
                         locationTextField.setProgressValue(50);
 
-                        if(Debug.ON) Debug.trace("calling ls()");
+                        AppLogger.finer("calling ls()");
 
                         /* TODO branch 
                         AbstractFile children[] = new AbstractFile[0];
@@ -1177,12 +1121,12 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                         } else {
                             children = folder.ls(chainedFileFilter);                            
                         } */
-                        AbstractFile children[] = folder.ls(chainedFileFilter);                            
+                        AbstractFile children[] = folder.ls(configurableFolderFilter);
                         
 
                         synchronized(KILL_LOCK) {
                             if(killed) {
-                                if(Debug.ON) Debug.trace("this thread has been killed, returning");
+                                AppLogger.fine("this thread has been killed, returning");
                                 break;
                             }
                             // From now on, thread cannot be killed (would comprise table integrity)
@@ -1192,7 +1136,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                         // files listed -> 75% complete
                         locationTextField.setProgressValue(75);
 
-                        if(Debug.ON) Debug.trace("calling setCurrentFolder");
+                        AppLogger.finer("calling setCurrentFolder");
 
                         // Change the file table's current folder and select the specified file (if any)
                         setCurrentFolder(folder, children, fileToSelect);
@@ -1212,8 +1156,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                         break;
                     }
                     catch(Exception e) {
-                        if(Debug.ON) Debug.trace("Caught Exception: "+e);
-                        //e.printStackTrace();
+                        AppLogger.fine("Caught exception", e);
 
                         if(killed) {
                             // If #tryKill() called #interrupt(), the exception we just caught was most likely
@@ -1224,7 +1167,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                             // or any other exception thrown by some code that swallowed the original exception
                             // and threw a new one.
 
-                            if(Debug.ON) Debug.trace("Thread was interrupted, ignoring exception");
+                            AppLogger.fine("Thread was interrupted, ignoring exception");
                             break;
                         }
 
@@ -1281,7 +1224,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                AppLogger.fine("Caught exception", e);
             }
         }
         */
@@ -1290,14 +1233,14 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
             // Ensures that this method is called only once
             synchronized(KILL_LOCK) {
                 if(disposed) {
-                    if(Debug.ON) Debug.trace("already called, returning");
+                    AppLogger.fine("already called, returning");
                     return;
                 }
 
                 disposed = true;
             }
 
-            if(Debug.ON) Debug.trace("cleaning up, folderChangedSuccessfully="+folderChangedSuccessfully);
+            AppLogger.finer("cleaning up, folderChangedSuccessfully="+folderChangedSuccessfully);
 
             // Clear the interrupted flag in case this thread has been killed using #interrupt().
             // Not doing this could cause some of the code called by this method to be interrupted (because this thread
@@ -1430,7 +1373,7 @@ public class FolderPanel extends JPanel implements FocusListener, ConfigurationL
 
 
     /**
-     * Enables/disables a directory tree visibility. Invoked by {@link com.mucommander.ui.action.ToggleTreeAction}.
+     * Enables/disables a directory tree visibility. Invoked by {@link com.mucommander.ui.action.impl.ToggleTreeAction}.
      */
     public void setTreeVisible(boolean treeVisible) {
     	if (this.treeVisible != treeVisible) {

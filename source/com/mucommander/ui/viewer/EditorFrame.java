@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 package com.mucommander.ui.viewer;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
@@ -26,6 +27,7 @@ import com.mucommander.job.FileCollisionChecker;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.DialogToolkit;
+import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.helper.FocusRequester;
@@ -83,12 +85,25 @@ public class EditorFrame extends JFrame implements ActionListener {
         this.mainFrame = mainFrame;
         this.file = file;
 		
-        // Create default menu
+        // Call #dispose() on close (default is hide)
+        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+        setResizable(true);
+
+        initContentPane();
+    }
+
+    /**
+     * Creates a minimalist menu bar that allows to close the frame, and returns it.
+     *
+     * @return a minimalist menu bar that allows to close the frame
+     */
+    private JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
         MnemonicHelper menuMnemonicHelper = new MnemonicHelper();
         MnemonicHelper menuItemMnemonicHelper = new MnemonicHelper();
 
         // File menu
-        JMenuBar menuBar = new JMenuBar();
         JMenu menu = MenuToolkit.addMenu(Translator.get("file_editor.file_menu"), menuMnemonicHelper, null);
         saveItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.save"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_MASK), this);
         saveAsItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.save_as"), menuItemMnemonicHelper, null, this);
@@ -96,14 +111,7 @@ public class EditorFrame extends JFrame implements ActionListener {
         closeItem = MenuToolkit.addMenuItem(menu, Translator.get("file_editor.close"), menuItemMnemonicHelper, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), this);
 		menuBar.add(menu);
 
-        setJMenuBar(menuBar);
-        
-        // Call #dispose() on close (default is hide)
-        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-
-        setResizable(true);
-
-        initContentPane();
+        return menuBar;
     }
 
     private void initContentPane() {
@@ -114,13 +122,20 @@ public class EditorFrame extends JFrame implements ActionListener {
                     if(editor==null)
                         throw new Exception("No suitable editor found");
 
+                    // Set the editor's fields
                     editor.setFrame(EditorFrame.this);
+                    JMenuBar menuBar = createMenuBar();
+                    editor.setMenuBar(menuBar);
                     editor.setCurrentFile(file);
 
+                    // Ask the editor to edit the file
                     editor.edit(file);
+
+                    // Set the menu bar, only when it has been fully populated (see ticket #243)
+                    EditorFrame.this.setJMenuBar(menuBar);
                 }
                 catch(Exception e) {
-                    if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Exception caught: "+e);
+                    AppLogger.fine("Exception caught", e);
 
                     // May be a UserCancelledException if the user cancelled (refused to confirm the operation after a warning)
                     if(!(e instanceof UserCancelledException))
@@ -170,7 +185,7 @@ public class EditorFrame extends JFrame implements ActionListener {
     }
 
     public void showGenericEditErrorDialog() {
-        JOptionPane.showMessageDialog(mainFrame, Translator.get("file_editor.edit_error"), Translator.get("file_editor.edit_error_title"), JOptionPane.ERROR_MESSAGE);
+        InformationDialog.showErrorDialog(mainFrame, Translator.get("file_editor.edit_error_title"), Translator.get("file_editor.edit_error"));
     }
 
 
@@ -199,7 +214,7 @@ public class EditorFrame extends JFrame implements ActionListener {
                 destFile = FileFactory.getFile(fileChooser.getSelectedFile().getAbsolutePath(), true);
             }
             catch(IOException e) {
-                JOptionPane.showMessageDialog(this, Translator.get("file_editor.cannot_write"), Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+                InformationDialog.showErrorDialog(this, Translator.get("write_error"), Translator.get("file_editor.cannot_write"));
                 return;
             }
 
@@ -235,7 +250,7 @@ public class EditorFrame extends JFrame implements ActionListener {
             return true;
         }
         catch(IOException e) {
-            JOptionPane.showMessageDialog(this, Translator.get("file_editor.cannot_write"), Translator.get("write_error"), JOptionPane.ERROR_MESSAGE);
+            InformationDialog.showErrorDialog(this, Translator.get("write_error"), Translator.get("file_editor.cannot_write"));
             return false;
         }
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@ import com.mucommander.file.util.FileSet;
 import com.mucommander.job.SendMailJob;
 import com.mucommander.text.SizeFormat;
 import com.mucommander.text.Translator;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.EmailAction;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.dialog.pref.general.GeneralPreferencesDialog;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
@@ -70,7 +72,7 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
 	
 	
     public EmailFilesDialog(MainFrame mainFrame, FileSet files) {
-        super(mainFrame, Translator.get("email_dialog.title"), files);
+        super(mainFrame, ActionProperties.getActionLabel(EmailAction.Descriptor.ACTION_ID), files);
 
         // Notifies the user that mail preferences are not set and brings the preferences dialog 
         if(!SendMailJob.mailPreferencesSet()) {
@@ -155,8 +157,6 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
             // Packs dialog
             setMinimumSize(MINIMUM_DIALOG_DIMENSION);
             setMaximumSize(MAXIMUM_DIALOG_DIMENSION);
-		
-            showDialog();
         }
         catch(IOException e) {
             showErrorDialog(Translator.get("email_dialog.read_error"), Translator.get("email_dialog.error_title"));

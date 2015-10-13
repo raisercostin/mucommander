@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
@@ -82,7 +83,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         this.digest = digest;
         this.useSfvFormat = digest.getAlgorithm().equalsIgnoreCase("CRC32");
 
-        this.baseSourcePath = baseSourceFolder.getAbsolutePath(true);
+        this.baseSourcePath = getBaseSourceFolder().getAbsolutePath(true);
     }
 
 
@@ -167,7 +168,7 @@ public class CalculateChecksumJob extends TransferFileJob {
                 if(getState()==INTERRUPTED || wasCurrentFileSkipped())
                     return false;
 
-                if(com.mucommander.Debug.ON) com.mucommander.Debug.trace("Caught IOException: "+e);
+                AppLogger.fine("Caught IOException", e);
                 
                 int ret = showErrorDialog(Translator.get("error"), Translator.get("error_while_transferring", file.getAbsolutePath()));
                 // Retry loops
@@ -186,7 +187,7 @@ public class CalculateChecksumJob extends TransferFileJob {
 
     protected boolean hasFolderChanged(AbstractFile folder) {
         // This job modifies the folder where the checksum file is
-        return folder.equals(checksumFile.getParentSilently());     // Note: parent may be null
+        return folder.equalsCanonical(checksumFile.getParent());     // Note: parent may be null
     }
 
 
@@ -202,7 +203,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         if(collision!=FileCollisionChecker.NO_COLLOSION) {
             // File already exists in destination, ask the user what to do (cancel, overwrite,...) but
             // do not offer the multiple files mode options such as 'skip' and 'apply to all'.
-            int choice = waitForUserResponse(new FileCollisionDialog(progressDialog, mainFrame, collision, null, checksumFile, false, false));
+            int choice = waitForUserResponse(new FileCollisionDialog(getProgressDialog(), getMainFrame(), collision, null, checksumFile, false, false));
 
             // Overwrite file
             if (choice== FileCollisionDialog.OVERWRITE_ACTION) {
@@ -246,7 +247,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         super.jobCompleted();
 
         // Open the checksum file in a viewer
-        ViewerRegistrar.createViewerFrame(mainFrame, checksumFile, IconManager.getImageIcon(checksumFile.getIcon()).getImage());
+        ViewerRegistrar.createViewerFrame(getMainFrame(), checksumFile, IconManager.getImageIcon(checksumFile.getIcon()).getImage());
     }
 
     protected void jobStopped() {

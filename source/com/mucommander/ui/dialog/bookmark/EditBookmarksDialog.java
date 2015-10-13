@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,28 @@
 
 package com.mucommander.ui.dialog.bookmark;
 
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.text.Document;
+
 import com.mucommander.bookmark.Bookmark;
 import com.mucommander.bookmark.BookmarkManager;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.ActionProperties;
+import com.mucommander.ui.action.impl.EditBookmarksAction;
 import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.layout.XAlignedComponentPanel;
@@ -32,16 +50,6 @@ import com.mucommander.ui.list.SortableListPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.FilePathField;
 import com.mucommander.util.AlteredVector;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.text.Document;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 
 /**
@@ -81,7 +89,7 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
 
 
     public EditBookmarksDialog(MainFrame mainFrame) {
-        super(mainFrame, MuAction.getStandardLabel(com.mucommander.ui.action.EditBookmarksAction.class), mainFrame);
+        super(mainFrame, ActionProperties.getActionLabel(EditBookmarksAction.Descriptor.ACTION_ID), mainFrame);
 
         this.mainFrame = mainFrame;
 
@@ -225,9 +233,6 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
      * @param sourceDocument the javax.swing.text.Document of the JTextField that was modified
      */
     private void modifyBookmark(Document sourceDocument) {
-//if(Debug.ON) Debug.trace("starts, currentBookmarkSave="+currentBookmarkSave+" currentListIndex="+currentListIndex+" ignoreDocumentListenerEvents="+ignoreDocumentListenerEvents+", selectedIndex="+bookmarkList.getSelectedIndex());
-
-
         if(ignoreDocumentListenerEvents || bookmarks.size()==0)
             return;
 
@@ -261,8 +266,6 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
         else {
             selectedBookmark.setLocation(locationField.getText());
         }
-
-//if(Debug.ON) Debug.trace("ends, currentBookmarkSave="+currentBookmarkSave+" currentListIndex="+currentListIndex);
     }
 
 
@@ -319,8 +322,6 @@ public class EditBookmarksDialog extends FocusDialog implements ActionListener, 
 
         // Rollback current bookmark's modifications if the dialog was cancelled
         if(currentBookmarkSave!=null) {
-//if(Debug.ON) Debug.trace("currentBookmarkSave="+currentBookmarkSave+" currentListIndex="+currentListIndex);
-
             bookmarks.setElementAt(currentBookmarkSave, currentListIndex);
             currentBookmarkSave = null;
         }

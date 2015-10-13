@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2008 Maxence Bernard
+ * Copyright (C) 2002-2009 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 package com.mucommander.ui.dialog.about;
 
-import com.mucommander.Debug;
+import com.mucommander.AppLogger;
 import com.mucommander.RuntimeConstants;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.FocusDialog;
@@ -155,7 +155,9 @@ public class LicenseDialog extends FocusDialog implements ActionListener {
             while((count = in.read(buffer)) != -1)
                 text.append(buffer, 0, count);
         }
-        catch(Exception e) {if(Debug.ON) Debug.trace("Failed to read /license.txt");}
+        catch(Exception e) {
+            AppLogger.warning("Failed to read license file", e);
+        }
         finally {
             if(in != null) {
                 try {in.close();}
