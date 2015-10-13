@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ public class DebugConsoleHandler extends Handler {
     private int bufferSize;
 
     /** Contains the last LogRecord instances. */
-    private LinkedList logRecords;
+    private LinkedList<LogRecord> logRecords;
 
     /** Singleton instance of DebugConsoleHandler */
     private static DebugConsoleHandler INSTANCE;
@@ -54,7 +54,7 @@ public class DebugConsoleHandler extends Handler {
         setFormatter(new SingleLineFormatter());
 
         bufferSize = MuConfiguration.getVariable(MuConfiguration.LOG_BUFFER_SIZE, MuConfiguration.DEFAULT_LOG_BUFFER_SIZE);
-        logRecords = new LinkedList();
+        logRecords = new LinkedList<LogRecord>();
 
         INSTANCE = this;
     }
@@ -85,6 +85,7 @@ public class DebugConsoleHandler extends Handler {
     // Handler implementation //
     ////////////////////////////
 
+    @Override
     public synchronized void publish(LogRecord record) {
         if(logRecords.size()== bufferSize)
             logRecords.removeFirst();
@@ -92,9 +93,11 @@ public class DebugConsoleHandler extends Handler {
         logRecords.add(record);
     }
 
+    @Override
     public synchronized void flush() {
     }
 
+    @Override
     public synchronized void close() throws SecurityException {
         logRecords.clear();
     }

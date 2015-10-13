@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.util.Iterator;
 import java.util.WeakHashMap;
 
 /**
@@ -47,7 +46,7 @@ public class SizeChooser extends JPanel {
     private JComboBox unitComboBox;
 
     /** Contains all registered listeners, stored as weak references */
-    private WeakHashMap listeners = new WeakHashMap();
+    private WeakHashMap<ChangeListener, ?> listeners = new WeakHashMap<ChangeListener, Object>();
 
     /** Maximum value allowed by the spinner */
     private final static int MAX_SPINNER_VALUE = Integer.MAX_VALUE;
@@ -106,7 +105,7 @@ public class SizeChooser extends JPanel {
      * @return the current value expressed in bytes
      */
     public long getValue() {
-        return SizeFormat.getUnitBytes(unitComboBox.getSelectedIndex())*((Integer)valueSpinner.getValue()).intValue();
+        return SizeFormat.getUnitBytes(unitComboBox.getSelectedIndex())* (Integer) valueSpinner.getValue();
     }
 
 
@@ -136,10 +135,8 @@ public class SizeChooser extends JPanel {
      * of a change in the spinner or the combo box.
      */
     public synchronized void fireChangeEvent() {
-        // Iterate on all listeners
-        Iterator iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ChangeListener)iterator.next()).stateChanged(new ChangeEvent(this));
+        for (ChangeListener listener : listeners.keySet())
+            listener.stateChanged(new ChangeEvent(this));
     }
 
 
@@ -147,6 +144,7 @@ public class SizeChooser extends JPanel {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public void setEnabled(boolean enabled) {
         valueSpinner.setEnabled(enabled);
         unitComboBox.setEnabled(enabled);

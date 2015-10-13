@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ import java.util.Vector;
 public class BufferPool {
 
     /** List of BufferContainer instances that wraps available buffers */
-    private static Vector bufferContainers = new Vector();
+    private static Vector<BufferContainer> bufferContainers = new Vector<BufferContainer>();
 
     /** The initial default buffer size */
     public final static int INITIAL_DEFAULT_BUFFER_SIZE = 65536;
@@ -216,7 +216,7 @@ public class BufferPool {
 
         // Looks for a buffer container in the pool that matches the specified size and buffer class.
         for(int i=0; i<nbBuffers; i++) {
-            bufferContainer = (BufferContainer) bufferContainers.elementAt(i);
+            bufferContainer = bufferContainers.elementAt(i);
             buffer = bufferContainer.getBuffer();
 
             // Caution: mind the difference between BufferContainer#getLength() and BufferContainer#getSize()
@@ -372,7 +372,7 @@ public class BufferPool {
         int count = 0;        
         int nbBuffers = bufferContainers.size();
         for(int i=0; i<nbBuffers; i++) {
-            if(factory.matchesBufferClass(((BufferContainer)bufferContainers.elementAt(i)).getBuffer().getClass())) {
+            if(factory.matchesBufferClass(bufferContainers.elementAt(i).getBuffer().getClass())) {
                 count ++;
             }
         }
@@ -504,7 +504,7 @@ public class BufferPool {
          * @return true if the class returned by <code>#getBufferClass()</code> is equal or a superclass/superinterface
          * of the specified buffer class
          */
-        public boolean matchesBufferClass(Class bufferClass) {
+        public boolean matchesBufferClass(Class<?> bufferClass) {
             return getBufferClass().isAssignableFrom(bufferClass);
         }
 
@@ -529,30 +529,35 @@ public class BufferPool {
          *
          * @return the Class of buffer instances this factory creates
          */
-        public abstract Class getBufferClass();
+        public abstract Class<?> getBufferClass();
     }
 
     /**
      * This class is a {@link BufferFactory} implementation for byte array (<code>byte[]</code>) buffers.
      */
     public static class ByteArrayFactory extends BufferFactory {
+        @Override
         public Object newBuffer(int size) {
             return new byte[size];
         }
 
+        @Override
         public BufferContainer newBufferContainer(Object buffer) {
             return new BufferContainer(buffer) {
+                @Override
                 protected int getLength() {
                     return ((byte[])buffer).length;
                 }
 
+                @Override
                 protected int getSize() {
                     return getLength();
                 }
             };
         }
 
-        public Class getBufferClass() {
+        @Override
+        public Class<?> getBufferClass() {
             return byte[].class;
         }
     }
@@ -561,23 +566,28 @@ public class BufferPool {
      * This class is a {@link BufferFactory} implementation for char array (<code>char[]</code>) buffers.
      */
     public static class CharArrayFactory extends BufferFactory {
+        @Override
         public Object newBuffer(int size) {
             return new char[size];
         }
 
+        @Override
         public BufferContainer newBufferContainer(Object buffer) {
             return new BufferContainer(buffer) {
+                @Override
                 protected int getLength() {
                     return ((char[])buffer).length;
                 }
 
+                @Override
                 protected int getSize() {
                     return 2*getLength();
                 }
             };
         }
 
-        public Class getBufferClass() {
+        @Override
+        public Class<?> getBufferClass() {
             return char[].class;
         }
     }
@@ -589,25 +599,30 @@ public class BufferPool {
      * {@link #getBufferClass()}.
      */
     public static class ByteBufferFactory extends BufferFactory {
+        @Override
         public Object newBuffer(int size) {
             // Note: the returned instance is actually a java.nio.DirectByteBuffer, this is why it's important to
             // compare classes using Class#isAssignableFrom(Class)
             return ByteBuffer.allocateDirect(size);
         }
 
+        @Override
         public BufferContainer newBufferContainer(Object buffer) {
             return new BufferContainer(buffer) {
+                @Override
                 protected int getLength() {
                     return ((ByteBuffer)buffer).capacity();
                 }
 
+                @Override
                 protected int getSize() {
                     return getLength();
                 }
             };
         }
 
-        public Class getBufferClass() {
+        @Override
+        public Class<?> getBufferClass() {
             return ByteBuffer.class;
         }
     }
@@ -616,23 +631,28 @@ public class BufferPool {
      * This class is a {@link BufferFactory} implementation for <code>java.nio.CharBuffer</code> buffers.
      */
     public static class CharBufferFactory extends BufferFactory {
+        @Override
         public Object newBuffer(int size) {
             return CharBuffer.allocate(size);
         }
 
+        @Override
         public BufferContainer newBufferContainer(Object buffer) {
             return new BufferContainer(buffer) {
+                @Override
                 protected int getLength() {
                     return ((CharBuffer)buffer).capacity();
                 }
 
+                @Override
                 protected int getSize() {
                     return 2*getLength();
                 }
             };
         }
 
-        public Class getBufferClass() {
+        @Override
+        public Class<?> getBufferClass() {
             return CharBuffer.class;
         }
     }

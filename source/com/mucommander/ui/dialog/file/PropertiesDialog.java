@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
     public PropertiesDialog(MainFrame mainFrame, FileSet files) {
         super(mainFrame,
               files.size() > 1 ? ActionProperties.getActionLabel(ShowFilePropertiesAction.Descriptor.ACTION_ID) :
-              Translator.get("properties_dialog.file_properties", files.fileAt(0).getName()), mainFrame);
+              Translator.get("properties_dialog.file_properties", files.elementAt(0).getName()), mainFrame);
 
         this.job = new PropertiesJob(files, mainFrame);
 		
@@ -91,7 +91,7 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
 
         Icon icon;
         boolean isSingleFile = files.size()==1;
-        AbstractFile singleFile = isSingleFile?files.fileAt(0):null;
+        AbstractFile singleFile = isSingleFile?files.elementAt(0):null;
         if(isSingleFile) {
             icon = FileIcons.getFileIcon(singleFile, ICON_DIMENSION);
         }
@@ -211,6 +211,7 @@ public class PropertiesDialog extends FocusDialog implements Runnable, ActionLis
     // Overridden WindowListener methods // 
     ///////////////////////////////////////
 
+    @Override
     public void windowClosed(WindowEvent e) {
         super.windowClosed(e);
 		

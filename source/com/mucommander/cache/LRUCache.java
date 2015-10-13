@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 package com.mucommander.cache;
 
 import com.mucommander.commons.CommonsLogger;
-import com.mucommander.runtime.JavaVersions;
 
 
 /**
@@ -35,14 +34,6 @@ import com.mucommander.runtime.JavaVersions;
  * items added. When the time-to-live of an item expires, the item is automatically removed from the cache and won't
  * be returned by the {@link #get(Object) get()} method anymore.</p>
  *
- * <p>Two implementations are provided, for use with the following Java runtimes:
- * <ul>
- * <li>{@link com.mucommander.cache.FastLRUCache} for Java 1.4 and above
- * <li>{@link com.mucommander.cache.LegacyLRUCache} for Java 1.3
- * </ul>
- * Use the {@link #createInstance(int) createInstance()} method to retrieve an instance of the best implementation
- * for the current Java runtime.</p>
- *
  * <p><b>Implementation note:</b> checking for expired items can be an expensive operation so it doesn't have
  * to be done as soon as the item has expired, the expired items can live a bit longer in the cache if necessary.
  * <br>The LRUCache implementation must however guarantee two things :
@@ -54,7 +45,7 @@ import com.mucommander.runtime.JavaVersions;
  *
  * @author Maxence Bernard
  */
-public abstract class LRUCache {
+public abstract class LRUCache<K, V> {
 
     /** Cache capacity: maximum number of items this cache can contain */
     protected int capacity;
@@ -106,22 +97,6 @@ public abstract class LRUCache {
     }
 
 
-    /**
-     * Creates and returns a new LRUCache using the best implementation for the current
-     * Java runtime version: {@link com.mucommander.cache.FastLRUCache} for Java 1.4 and above, 
-     * {@link com.mucommander.cache.LegacyLRUCache} for Java 1.3.
-     *
-     * @param capacity the new LRUCache's capacity
-     * @return an instance of the best LRUCache implementation for the current Java runtime 
-     */
-    public static LRUCache createInstance(int capacity) {
-        if(JavaVersions.JAVA_1_4.isCurrentOrHigher())
-            return new FastLRUCache(capacity);
-        else
-            return new LegacyLRUCache(capacity);
-    }
-	
-	
     ///////////////////////
     // Absctract methods //
     ///////////////////////
@@ -140,7 +115,7 @@ public abstract class LRUCache {
      * @return the cached value corresponding to the specified key, or <code>null</code> if a value could not
      * found or has expired
      */
-    public abstract Object get(Object key);
+    public abstract V get(K key);
 	
     /**
      * Adds a new key/value pair to the cache and marks it as the most recently used.
@@ -156,13 +131,13 @@ public abstract class LRUCache {
      * @param timeToLive the time-to-live of the object in the cache in milliseconds, or -1 for no time-to-live,
      * the object will just be removed when it becomes the least recently used one.
      */
-    public abstract void add(Object key, Object value, long timeToLive);
+    public abstract void add(K key, V value, long timeToLive);
 
 
     /**
      * Convenience method, equivalent to add(key, value, -1).
      */
-    public synchronized void add(Object key, Object value) {
+    public synchronized void add(K key, V value) {
         add(key, value, -1);
     }
 	
@@ -195,7 +170,7 @@ public abstract class LRUCache {
      * Test method : simple test case + stress/sanity test
      */
     public static void main(String args[]) {
-        LRUCache cache;
+        LRUCache<Integer, Integer> cache;
         /*
         // Simple test case
         cache = new FastLRUCache(3);
@@ -228,18 +203,18 @@ public abstract class LRUCache {
 
         // Stress test to see if everything looks OK after a few thousand iterations
         int capacity = 1000;
-        cache = new FastLRUCache(capacity);
+        cache = new FastLRUCache<Integer, Integer>(capacity);
         java.util.Random random = new java.util.Random();
         for(int i=0; i<100000; i++) {
             // 50% chance to add a new element with a random value and expiration date (50% chance for no expiration date)
             if(cache.size()==0 || random.nextBoolean()) {
                 //				System.out.println("cache.add()");				
-                cache.add(new Integer(random.nextInt(capacity)), new Integer(random.nextInt()), random.nextBoolean()?-1:random.nextInt(10));
+                cache.add(random.nextInt(capacity), random.nextInt(), random.nextBoolean()?-1:random.nextInt(10));
             }
             // 50% chance to retrieve a random existing element
             else {
                 //				System.out.println("cache.get()");
-                cache.get(new Integer(random.nextInt(capacity)));
+                cache.get(random.nextInt(capacity));
             }
 		
             try {

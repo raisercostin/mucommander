@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ package com.mucommander.ui.viewer;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
@@ -28,8 +27,8 @@ import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
 
-import java.awt.*;
-import java.util.Iterator;
+import java.awt.Frame;
+import java.awt.Image;
 import java.util.Vector;
 
 /**
@@ -41,7 +40,7 @@ import java.util.Vector;
 public class ViewerRegistrar {
 	
     /** List of registered file viewers */ 
-    private final static Vector viewerFactories = new Vector();
+    private final static Vector<ViewerFactory> viewerFactories = new Vector<ViewerFactory>();
 
     static {
         registerFileViewer(new com.mucommander.ui.viewer.image.ImageFactory());
@@ -71,7 +70,7 @@ public class ViewerRegistrar {
         ViewerFrame frame = new ViewerFrame(mainFrame, file, icon);
 
         // Use new Window decorations introduced in Mac OS X 10.5 (Leopard)
-        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher()) {
             // Displays the document icon in the window title bar, works only for local files
             if(file.getURL().getScheme().equals(FileProtocols.FILE))
                 frame.getRootPane().putClientProperty("Window.documentFile", file.getUnderlyingFileObject()); 
@@ -93,13 +92,7 @@ public class ViewerRegistrar {
      * @throws UserCancelledException if the user has been asked to confirm the operation and cancelled
      */
     public static FileViewer createFileViewer(AbstractFile file) throws UserCancelledException {
-        Iterator      iterator;
-        ViewerFactory factory;
-
-        iterator = viewerFactories.iterator();
-        while(iterator.hasNext()) {
-            factory = (ViewerFactory)iterator.next();
-
+        for(ViewerFactory factory : viewerFactories) {
             try {
                 if(factory.canViewFile(file))
                     return factory.createFileViewer();

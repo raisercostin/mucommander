@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
     private static GeneralPreferencesDialog singleton;
     /** Stores the components in the dialog that were changed and their current value is different 
      *  then their saved value at MuConfiguration **/
-    private Set modifiedComponents;
+    private Set<PrefComponent> modifiedComponents;
 
 
     // - Dimensions -------------------------------------------------------------
@@ -98,7 +98,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
      */
     private GeneralPreferencesDialog() {
         super(WindowManager.getCurrentMainFrame(), Translator.get("prefs_dialog.title"));
-        modifiedComponents = new LinkedHashSet();
+        modifiedComponents = new LinkedHashSet<PrefComponent>();
 
         // Adds the preference tabs.
         addPreferencesPanel(new GeneralPanel(this),    GENERAL_ICON);
@@ -123,6 +123,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
     /**
      * Commits the changes and writes the configuration file if necessary.
      */
+    @Override
     public void commit() {
         super.commit();
         try {
@@ -136,6 +137,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
     /**
      * Releases the singleton.
      */
+    @Override
     public void dispose() {
         releaseSingleton(getSelectedPanelIndex());
         super.dispose();
@@ -175,6 +177,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
         lastTabIndex = lastTab;
     }
 
+    @Override
     public void componentChanged(PrefComponent component) {
 		if (component.hasChanged())
 			modifiedComponents.add(component);
@@ -184,6 +187,7 @@ public class GeneralPreferencesDialog extends PreferencesDialog {
 		setCommitButtonsEnabled(modifiedComponents.size() != 0);
 	}
     
+    @Override
     protected void setCommitButtonsEnabled(boolean enable) {
     	super.setCommitButtonsEnabled(enable);
     	// if "commit buttons" are disabled that's mean that there is no change in any component

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@ import com.mucommander.file.*;
 import com.mucommander.file.connection.ConnectionHandler;
 import com.mucommander.file.connection.ConnectionHandlerFactory;
 import com.mucommander.file.connection.ConnectionPool;
-import com.mucommander.io.*;
+import com.mucommander.io.ByteUtils;
+import com.mucommander.io.FilteredOutputStream;
+import com.mucommander.io.RandomAccessInputStream;
+import com.mucommander.io.RandomAccessOutputStream;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPConnectionClosedException;
 import org.apache.commons.net.ftp.FTPReply;
@@ -274,10 +277,12 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     // AbstractFile methods implementation //
     /////////////////////////////////////////
 
+    @Override
     public boolean isSymlink() {
         return file.isSymbolicLink();
     }
 
+    @Override
     public long getDate() {
         if(isSymlink())
             return ((org.apache.commons.net.ftp.FTPFile)getCanonicalFile().getUnderlyingFileObject()).getTimestamp().getTimeInMillis();
@@ -286,39 +291,21 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
     /**
-     * Date can be changed only if the <i>'SITE UTIME'</i> FTP command is supported by the remote server.
-     * This method returns <code>false</code> if the <i>'SITE UTIME'</i> is not supported by the remote server, i.e. if
-     * the command was sent once and the server didn't understand it or replied that the command is not implemented. 
-     *
-     * @return false if the <i>'SITE UTIME'</i> is not supported by the remote server
-     */
-    public boolean canChangeDate() {
-        // Return false if we know the 'SITE UTIME' command is not supported by the server
-        try {
-            // Do not lock the connection handler, not needed.
-            return ((FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, false)).utimeCommandSupported;
-        }
-        catch(InterruptedIOException e) {
-            // Should not happen in practice
-            return false;
-        }
-    }
-
-    /**
      * Attempts to change this file's date using the <i>'SITE UTIME'</i> FTP command.
      * This command seems to be implemeted by modern FTP servers such as ProFTPd or PureFTP Server but since it is not
      * part of the basic FTP command set, it may as well not be supported by the remote server.
      */
-    public boolean changeDate(long lastModified) {
+    @Override
+    public void changeDate(long lastModified) throws IOException, UnsupportedFileOperationException {
         // Note: FTPFile.setTimeStamp only changes the instance's date, but doesn't change it on the server-side.
         FTPConnectionHandler connHandler = null;
         try {
             // Retrieve a ConnectionHandler and lock it
             connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
 
-            // Return false if we know the 'SITE UTIME' command is not supported by the server
+            // Throw UnsupportedFileOperationException if we know the 'SITE UTIME' command is not supported by the server
             if(!connHandler.utimeCommandSupported)
-                return false;
+                throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);
 
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
@@ -345,16 +332,16 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
                     FileLogger.fine("marking UTIME command as unsupported");
                     connHandler.utimeCommandSupported = false;
                 }
-            }
 
-            return success;
+                throw new IOException();
+            }
         }
         catch(IOException e) {
             // Checks if the IOException corresponds to a socket error and in that case, closes the connection
             if(connHandler!=null)
                 connHandler.checkSocketException(e);
 
-            return false;
+            throw e;
         }
         finally {
             // Release the lock on the ConnectionHandler
@@ -363,6 +350,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
     }
 
+    @Override
     public long getSize() {
         if(isSymlink())
             return ((org.apache.commons.net.ftp.FTPFile)getCanonicalFile().getUnderlyingFileObject()).getSize();
@@ -371,12 +359,13 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
 
+    @Override
     public AbstractFile getParent() {
         if(!parentValSet) {
             FileURL parentFileURL = this.fileURL.getParent();
             if(parentFileURL!=null) {
                 try {
-                    parent = new FTPFile(parentFileURL, createFTPFile(parentFileURL.getFilename(), true));
+                    parent = FileFactory.getFile(parentFileURL, null, createFTPFile(parentFileURL.getFilename(), true));
                 }
                 catch(IOException e) {
                     // No parent, that's all
@@ -390,16 +379,19 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
 
+    @Override
     public void setParent(AbstractFile parent) {
         this.parent = parent;
         this.parentValSet = true;
     }
 
 
+    @Override
     public boolean exists() {
         return this.fileExists;
     }
 
+    @Override
     public FilePermissions getPermissions() {
         if(isSymlink())
             return ((FTPFile)getCanonicalFile().getAncestor(FTPFile.class)).permissions;
@@ -407,8 +399,9 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         return permissions;
     }
 
-    public boolean changePermission(int access, int permission, boolean enabled) {
-        return changePermissions(ByteUtils.setBit(permissions.getIntValue(), (permission << (access*3)), enabled));
+    @Override
+    public void changePermission(int access, int permission, boolean enabled) throws IOException, UnsupportedFileOperationException {
+        changePermissions(ByteUtils.setBit(permissions.getIntValue(), (permission << (access*3)), enabled));
     }
 
     /**
@@ -418,6 +411,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
      * @return {@link PermissionBits#FULL_PERMISSION_BITS} if the server supports the 'site chmod' command (not all
      * servers do), {@link PermissionBits#EMPTY_PERMISSION_BITS} otherwise
      */
+    @Override
     public PermissionBits getChangeablePermissions() {
         try {
             // Do not lock the connection handler, not needed.
@@ -431,22 +425,27 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
     }
 
+    @Override
     public String getOwner() {
         return file.getUser();
     }
 
+    @Override
     public boolean canGetOwner() {
         return true;
     }
 
+    @Override
     public String getGroup() {
         return file.getGroup();
     }
 
+    @Override
     public boolean canGetGroup() {
         return true;
     }
 
+    @Override
     public boolean isDirectory() {
         // org.apache.commons.net.ftp.FTPFile#isDirectory() returns false if the file is a symlink pointing to a
         // directory, this is a limitation of the Commons-net library.
@@ -466,40 +465,48 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         return file.isDirectory();
     }
 
+    @Override
     public InputStream getInputStream() throws IOException {
         return getInputStream(0);
     }
 
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        return new FTPOutputStream(append);
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return new FTPOutputStream(false);
     }
 
-    public boolean hasRandomAccessInputStream() {
-        // No random access for FTP files unfortunately
-        return false;
+    @Override
+    public OutputStream getAppendOutputStream() throws IOException {
+        return new FTPOutputStream(true);
     }
 
-    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
-        throw new IOException();
+    /**
+     * Always throws an {@link UnsupportedFileOperationException}: random read access is not available.
+     *
+     * @throws UnsupportedFileOperationException always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessInputStream getRandomAccessInputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RANDOM_READ_FILE);
     }
 
-//    public boolean hasRandomAccessInputStream() {
-//        return true;
-//    }
-//
 //    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
 //        return new FTPRandomAccessInputStream();
 //    }
 
-    public boolean hasRandomAccessOutputStream() {
-        // No random access for FTP files unfortunately
-        return false;
+    /**
+     * Always throws an {@link UnsupportedFileOperationException}: random write access is not available.
+     *
+     * @throws UnsupportedFileOperationException always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RANDOM_WRITE_FILE);
     }
 
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-        throw new IOException();
-    }
-
+    @Override
     public void delete() throws IOException {
         // Retrieve a ConnectionHandler and lock it
         FTPConnectionHandler connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
@@ -529,6 +536,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
 
+    @Override
     public AbstractFile[] ls() throws IOException {
         // Retrieve a ConnectionHandler and lock it
         FTPConnectionHandler connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
@@ -573,8 +581,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             if(childName.equals(".") || childName.equals(".."))
                 continue;
 
-            child = FileFactory.wrapArchive(new FTPFile(childURL, files[i]));
-            child.setParent(this);
+            child = FileFactory.getFile(childURL, this, files[i]);
             children[fileCount++] = child;
         }
 
@@ -589,6 +596,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
 
+    @Override
     public void mkdir() throws IOException {
         // Retrieve a ConnectionHandler and lock it
         FTPConnectionHandler connHandler = (FTPConnectionHandler)ConnectionPool.getConnectionHandler(this, fileURL, true);
@@ -616,20 +624,32 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
     }
 
-
-    public long getFreeSpace() {
-        // No way to retrieve this information with J2SSH, return -1 (not available)
-        return -1;
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getFreeSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_FREE_SPACE);
     }
 
-    public long getTotalSpace() {
-        // No way to retrieve this information with J2SSH, return -1 (not available)
-        return -1;
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);
     }
 
     /**
      * Returns an <code>org.apache.commons.net.FTPFile</code> instance corresponding to this file.
      */
+    @Override
     public Object getUnderlyingFileObject() {
         return file;
     }
@@ -639,13 +659,17 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     // Overridden methods //
     ////////////////////////
 
-    public boolean changePermissions(int permissions) {
-        // Changes permissions using the SITE CHMOD FTP command.
-
-        // This command is optional but seems to be supported by modern FTP servers such as ProFTPd or PureFTP Server.
-        // But it may as well not be supported by the remote FTP server as it is not part of the basic FTP command set.
-
-        // Implementation note: FTPFile.setPermission only changes the instance's permissions, but doesn't change it on the server-side.
+    /**
+     * Changes permissions using the SITE CHMOD FTP command.
+     *
+     * This command is optional but seems to be supported by modern FTP servers such as ProFTPd or PureFTP Server.
+     * But it may as well not be supported by the remote FTP server as it is not part of the basic FTP command set.
+     *
+     * Implementation note: FTPFile.setPermission only changes the instance's permissions, but doesn't change it on the
+     * server-side.
+     */
+    @Override
+    public void changePermissions(int permissions) throws IOException, UnsupportedFileOperationException {
         FTPConnectionHandler connHandler = null;
         try {
             // Retrieve a ConnectionHandler and lock it
@@ -653,7 +677,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
 
             // Return if we know the CHMOD command is not supported by the server
             if(!connHandler.chmodCommandSupported)
-                return false;
+                throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);
 
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
@@ -674,16 +698,16 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
                     FileLogger.fine("marking CHMOD command as unsupported");
                     connHandler.chmodCommandSupported = false;
                 }
-            }
 
-            return success;
+                throw new IOException();
+            }
         }
         catch(IOException e) {
             // Checks if the IOException corresponds to a socket error and in that case, closes the connection
             if(connHandler!=null)
                 connHandler.checkSocketException(e);
 
-            return false;
+            throw e;
         }
         finally {
             // Release the lock on the ConnectionHandler
@@ -693,23 +717,24 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
     /**
-     * Overrides {@link AbstractFile#moveTo(AbstractFile)} to support server-to-server move if the destination file
-     * uses FTP and is located on the same host.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public boolean moveTo(AbstractFile destFile) throws FileTransferException {
-        // If destination file is an FTP file located on the same server, tell the server to rename the file.
-
-        // Use the default moveTo() implementation if the destination file doesn't use FTP
-        // or is not on the same host
-        if(!destFile.getURL().getScheme().equals(FileProtocols.FTP) || !destFile.getURL().getHost().equals(this.fileURL.getHost())) {
-            return super.moveTo(destFile);
-        }
-
-        // If destination file is not an FTPFile nor has a FTPFile ancestor (for instance an archive entry),
-        // server renaming won't work so use default moveTo() implementation instead
-        if(!(destFile.getTopAncestor() instanceof FTPFile)) {
-            return super.moveTo(destFile);
-        }
+    @Override
+    @UnsupportedFileOperation
+    public void copyRemotelyTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.COPY_REMOTELY);
+    }
+    
+    /**
+     * Implementation notes: server-to-server renaming will work if the destination file also uses the 'FTP' scheme
+     * and is located on the same host.
+     */
+    @Override
+    public void renameTo(AbstractFile destFile) throws IOException {
+        // Throw an exception if the file cannot be renamed to the specified destination
+        checkRenamePrerequisites(destFile, false, false);
 
         FTPConnectionHandler connHandler = null;
         try {
@@ -718,14 +743,15 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             // Makes sure the connection is started, if not starts it
             connHandler.checkConnection();
 
-            return connHandler.ftpClient.rename(absPath, destFile.getURL().getPath());
+            if(!connHandler.ftpClient.rename(absPath, destFile.getURL().getPath()))
+                throw new IOException();
         }
         catch(IOException e) {
             // Checks if the IOException corresponds to a socket error and in that case, closes the connection
             if(connHandler!=null)
                 connHandler.checkSocketException(e);
 
-            throw new FileTransferException(FileTransferException.UNKNOWN_REASON);    // Report that move failed
+            throw e;
         }
         finally {
             // Release the lock on the ConnectionHandler
@@ -735,10 +761,12 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
     }
 
 
+    @Override
     public InputStream getInputStream(long offset) throws IOException {
         return new FTPInputStream(offset);
     }
 
+    @Override
     public AbstractFile getCanonicalFile() {
         if(!isSymlink())
             return this;
@@ -906,6 +934,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             }
         }
 
+        @Override
         public void close() throws IOException {
             // Make sure this method is only executed once, otherwise FTPClient#completePendingCommand() would lock
             if(isClosed)
@@ -956,6 +985,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             this.in = new FTPInputStream(0);
         }
 
+        @Override
         public int read() throws IOException {
             int read = in.read();
 
@@ -965,6 +995,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             return read;
         }
 
+        @Override
         public int read(byte b[], int off, int len) throws IOException {
             int nbRead = in.read(b, off, len);
 
@@ -992,6 +1023,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             this.offset = offset;
         }
 
+        @Override
         public void close() throws IOException {
             in.close();
         }
@@ -1034,6 +1066,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
             }
         }
 
+        @Override
         public void close() throws IOException {
             // Make sure this method is only executed once, otherwise FTPClient#completePendingCommand() would lock
             if(isClosed)
@@ -1193,6 +1226,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         // ConnectionHandler implementation //
         //////////////////////////////////////
 
+        @Override
         public void startConnection() throws IOException {
             FileLogger.fine("connecting to "+getRealm().getHost());
 
@@ -1303,6 +1337,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
 
 
+        @Override
         public boolean isConnected() {
             // FTPClient#isConnected() will always return true once it is connected and does not detect socket
             // disconnections. Furthermore, retrieving the underlying Socket instance does not help any more:
@@ -1323,6 +1358,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
 
 
+        @Override
         public void closeConnection() {
             if(ftpClient!=null) {
                 // Try to logout, this may fail if the connection is broken
@@ -1338,6 +1374,7 @@ public class FTPFile extends ProtocolFile implements ConnectionHandlerFactory {
         }
 
 
+        @Override
         public void keepAlive() {
             // Send a NOOP command to the server to keep the connection alive.
             // Note: not all FTP servers support the NOOP command.

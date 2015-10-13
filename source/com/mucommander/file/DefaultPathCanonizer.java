@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ public class DefaultPathCanonizer implements PathCanonizer {
             int separatorLen = separator.length();
             String dir;		// Current directory
             String dirWS;	// Current directory without trailing separator
-            Vector pathV = new Vector();	// Will contain directory hierachy
+            Vector<String> pathV = new Vector<String>();	// Will contain directory hierachy
             while((pos=pos2)!=-1) {
                 // Get the index of the next path separator occurrence
                 pos2 = path.indexOf(separator, pos);

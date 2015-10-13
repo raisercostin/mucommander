@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,11 +68,11 @@ public class XmlResourceTest extends TestCase {
      */
     private void testXMLFiles(AbstractFile folder) throws SAXException, IOException, ParserConfigurationException {
         AbstractFile children[] = folder.ls();
-        for(int i=0; i<children.length; i++) {
-            if(children[i].isBrowsable())
-                testXMLFiles(children[i]);
-            else if("xml".equals(children[i].getExtension()))
-                testXMLDocument(children[i]);
+        for (AbstractFile bhild : children) {
+            if (bhild.isBrowsable())
+                testXMLFiles(bhild);
+            else if ("xml".equals(bhild.getExtension()))
+                testXMLDocument(bhild);
         }
     }
 
@@ -97,16 +97,19 @@ public class XmlResourceTest extends TestCase {
      */
     private static class SAXErrorHandler extends DefaultHandler {
 
+        @Override
         public void warning(SAXParseException e) throws SAXException {
             printSAXError(e, "warning");
             throw e;
         }
 
+        @Override
         public void error(SAXParseException e) throws SAXException {
             printSAXError(e, "error");
             throw e;
         }
 
+        @Override
         public void fatalError(SAXParseException e) throws SAXException {
             printSAXError(e, "fatal error");
             throw e;

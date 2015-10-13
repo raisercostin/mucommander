@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,14 +56,10 @@ public class FileMonitorTest extends TestCase implements FileMonitorConstants {
     public void testDateAttribute() throws IOException {
         setUp(DATE_ATTRIBUTE);
 
-        if(!file.changeDate(file.getDate()-2000))
-            throw new IOException();
-
+        file.changeDate(file.getDate()-2000);
         assertTrue(hasAttributeChanged(DATE_ATTRIBUTE));
 
-        if(!file.changeDate(file.getDate()+2000))
-            throw new IOException();
-
+        file.changeDate(file.getDate()+2000);
         assertTrue(hasAttributeChanged(DATE_ATTRIBUTE));
     }
 
@@ -98,8 +94,8 @@ public class FileMonitorTest extends TestCase implements FileMonitorConstants {
     public void testPermissionsAttribute() throws IOException {
         setUp(PERMISSIONS_ATTRIBUTE);
 
-        if(file.changePermission(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION, !file.getPermissions().getBitValue(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION)))
-            assertTrue(hasAttributeChanged(PERMISSIONS_ATTRIBUTE));
+        file.changePermission(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION, !file.getPermissions().getBitValue(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION));
+        assertTrue(hasAttributeChanged(PERMISSIONS_ATTRIBUTE));
     }
 
     /**
@@ -145,6 +141,7 @@ public class FileMonitorTest extends TestCase implements FileMonitorConstants {
     /**
      * Called after each test, stops monitoring file changes.
      */
+    @Override
     protected void tearDown() {
         fileMonitor.stopMonitoring();
     }

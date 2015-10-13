@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,11 +45,13 @@ public class CombineFilesJob extends AbstractCopyJob {
         this.errorDialogTitle = Translator.get("combine_files_dialog.error_title");
 	}
 
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return baseDestFolder.isParentOf(folder);
 	}
 
-	protected boolean processFile(AbstractFile file, Object recurseParams) {
+	@Override
+    protected boolean processFile(AbstractFile file, Object recurseParams) {
         if (destFile == null) {
         	// executed only on first part
         	createDestFile(file);
@@ -93,7 +95,7 @@ public class CombineFilesJob extends AbstractCopyJob {
         }
         
         try {
-    		out = destFile.getOutputStream(false);
+    		out = destFile.getOutputStream();
         } catch(IOException e) {
         	AppLogger.fine("Caught exception", e);
             showErrorDialog(errorDialogTitle,
@@ -120,12 +122,14 @@ public class CombineFilesJob extends AbstractCopyJob {
 		}
 	}
 
-	protected void jobStopped() {
+	@Override
+    protected void jobStopped() {
 		super.jobStopped();
 		closeOutputStream();
 	}
 	
-	protected void jobCompleted() {
+	@Override
+    protected void jobCompleted() {
 		super.jobCompleted();
 		closeOutputStream();
 		checkCRC();

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 
 package com.mucommander.desktop.kde;
 
-import com.mucommander.runtime.JavaVersion;
-
 /**
  * 'Configured' desktop adapter for KDE 3. The availability of this desktop depends on the presence of the
  * <code>KDE_FULL_SESSION</code> environment variable.
@@ -30,14 +28,16 @@ public class ConfiguredKde3DesktopAdapter extends Kde3DesktopAdapter {
 
     private static final String KDE_FULL_SESSION_VAR = "KDE_FULL_SESSION";
 
+    @Override
     protected String getConfiguredEnvVariable(String name) {
-        return JavaVersion.JAVA_1_4.isCurrentOrLower()?System.getProperty(name):System.getenv(name);
+        return System.getenv(name);
     }
 
     public String toString() {
         return "KDE 3 Desktop";
     }
 
+    @Override
     public boolean isAvailable() {
         String var = getConfiguredEnvVariable(KDE_FULL_SESSION_VAR);
         return var != null && !var.trim().equals("");

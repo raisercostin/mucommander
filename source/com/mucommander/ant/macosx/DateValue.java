@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -71,7 +71,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's year.
      */
-    public void setYear(int i) {year = new Integer(i);}
+    public void setYear(int i) {year = i;}
 
     /**
      * Allows Ant to set the date's month.
@@ -80,7 +80,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's month.
      */
-    public void setMonth(int i) {month = new Integer(i);}
+    public void setMonth(int i) {month = i;}
 
     /**
      * Allows Ant to set the date's day.
@@ -90,7 +90,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's month.
      */
-    public void setDay(int i) {day = new Integer(i);}
+    public void setDay(int i) {day = i;}
 
     /**
      * Allows Ant to set the date's hours.
@@ -100,7 +100,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's hour.
      */
-    public void setHours(int i) {hours = new Integer(i);}
+    public void setHours(int i) {hours = i;}
 
     /**
      * Allows Ant to set the date's minutes.
@@ -113,7 +113,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's minutes.
      */
-    public void setMinutes(int i) {minutes = new Integer(i);}
+    public void setMinutes(int i) {minutes = i;}
 
     /**
      * Allows Ant to set the date's seconds.
@@ -122,7 +122,7 @@ public class DateValue implements InfoElement {
      * </p>
      * @param i date's seconds.
      */
-    public void setSeconds(int i) {seconds = new Integer(i);}
+    public void setSeconds(int i) {seconds = i;}
 
 
 
@@ -141,33 +141,33 @@ public class DateValue implements InfoElement {
         // Makes sure year is initialised properly.
         if(year == null) {
             // Uses default values where applicable.
-            year = new Integer(now.get(Calendar.YEAR));
+            year = now.get(Calendar.YEAR);
             if(month == null) {
-                month = new Integer(getMonthNumber(now.get(Calendar.MONTH)));
+                month = getMonthNumber(now.get(Calendar.MONTH));
                 if(day == null)
-                    day = new Integer(now.get(Calendar.DAY_OF_MONTH));
+                    day = now.get(Calendar.DAY_OF_MONTH);
             }
         }
-        else if(year.intValue() < 0)
+        else if(year < 0)
             throw new BuildException("Illegal year value: " + year);
 
         // Makes sure month is initialised properly.
         if(month != null) {
-            if(month.intValue() < 1 || month.intValue() > 12)
+            if(month < 1 || month > 12)
                 throw new BuildException("Illegal month value: " + month);
             // Makes sure day is initialised properly.
-            if(day != null && (day.intValue() < 0 || !checkDay(year.intValue(), month.intValue(), day.intValue())))
+            if(day != null && (day < 0 || !checkDay(year, month, day)))
                 throw new BuildException("Illegal day value: " + day);
         }
 
         // Makes sure time is initialised properly.
         if(hours != null) {
-            if(hours.intValue() < 0 || hours.intValue() > 24)
+            if(hours < 0 || hours > 24)
                 throw new BuildException("Illegal hours value: " + hours);
             if(minutes != null) {
-                if(minutes.intValue() < 0 || minutes.intValue() > 60)
+                if(minutes < 0 || minutes > 60)
                     throw new BuildException("Illegal minutes value: " + minutes);
-                if(seconds != null && (seconds.intValue() < 0 || seconds.intValue() > 60))
+                if(seconds != null && (seconds < 0 || seconds > 60))
                     throw new BuildException("Illegal seconds value: " + seconds);
             }
         }

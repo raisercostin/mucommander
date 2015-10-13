@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParserFactory;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.io.InputStream;
 import java.util.StringTokenizer;
 
@@ -134,6 +136,7 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
     /**
      * Notifies the reader that a new XML element is starting.
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         // Ignores the content of unknown elements.
         if(unknownElement != null) {
@@ -594,6 +597,7 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
     /**
      * Notifies the reader that the current element declaration is over.
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         // If we're in an unknown element....
         if(unknownElement != null) {
@@ -744,9 +748,9 @@ class ThemeReader extends DefaultHandler implements ThemeXmlConstants {
 
 	// Looks for the specified font.
 	availableFonts = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-	for(int i = 0; i < availableFonts.length; i++)
-	    if(availableFonts[i].equalsIgnoreCase(font))
-		return true;
+    for (String availableFont : availableFonts)
+        if (availableFont.equalsIgnoreCase(font))
+            return true;
 
 	// Font doesn't exist on the system.
 	return false;

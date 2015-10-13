@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,14 +19,16 @@
 package com.mucommander.ui.action.impl;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
 import com.mucommander.file.filter.AttributeFileFilter;
 import com.mucommander.file.filter.FileFilter;
+import com.mucommander.file.filter.FileOperationFilter;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.ui.action.*;
 import com.mucommander.ui.dialog.file.CombineFilesDialog;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
+import javax.swing.KeyStroke;
 import java.util.Hashtable;
 
 /**
@@ -36,10 +38,13 @@ import java.util.Hashtable;
  */
 public class CombineFilesAction extends SelectedFilesAction implements InvokesDialog {
 	
-    public CombineFilesAction(MainFrame mainFrame, Hashtable properties) {
+    public CombineFilesAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
+
+        setSelectedFileFilter(new FileOperationFilter(FileOperation.READ_FILE));
     }
 
+    @Override
     public void performAction() {
     	FileSet files = mainFrame.getActiveTable().getSelectedFiles();
 
@@ -56,7 +61,7 @@ public class CombineFilesAction extends SelectedFilesAction implements InvokesDi
 
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new CombineFilesAction(mainFrame, properties);
 		}
     }

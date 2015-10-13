@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,65 +18,57 @@
 
 package com.mucommander.file.filter;
 
-import com.mucommander.util.StringUtils;
-
 /**
- * This {@link FilenameFilter} matches filenames ending with one of several specified extensions.
- * The filter can be made case-sensitive or case-insensitive, this behavior is specified at creation time.
+ * This {@link FilenameFilter} matches files whose path end with one of several specified extensions.
  *
  * <p>The extension(s) may be any string, but when used in the traditional sense of a file extension (e.g. zip extension)
  * the '.' character must be included in the specified extension (e.g. ".zip" must be used, not just "zip").</p>
  * 
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class ExtensionFilenameFilter extends FilenameFilter {
-    /** File extensions to match against filenames */
-    private char[][] extensions;
+public class ExtensionFilenameFilter extends AbstractExtensionFilter implements FilenameFilter {
 
     /**
-     * Creates a new <code>ExtensionFilenameFilter</code> that matches filenames ending with the specified extension.
-     * By default, new <code>FilenameFilter</code> are case-insensitive.
+     * Creates a case-insensitive <code>ExtensionFilenameFilter</code> matching filenames ending with the specified
+     * extension and operating in non-inverted mode.
+     *
      * @param extension the extension to match
      */
-    public ExtensionFilenameFilter(String extension) {this(new String[]{extension});}
+    public ExtensionFilenameFilter(String extension) {
+        this(extension, false, false);
+    }
 
     /**
-     * Creates a new <code>ExtensionFilenameFilter</code> that matches filenames ending with one of the specified
-     * extensions. By default, new <code>FilenameFilter</code> are case-insensitive.
+     * Creates a <code>ExtensionFilenameFilter</code> matching filenames ending with the specified extension
+     * and operating in the specified modes.
+     *
+     * @param extension the extension to match
+     * @param caseSensitive if true, this FilenameFilter will be case-sensitive
+     * @param inverted if true, this filter will operate in inverted mode.
+     */
+    public ExtensionFilenameFilter(String extension, boolean caseSensitive, boolean inverted) {
+        this(new String[]{extension}, caseSensitive, inverted);
+    }
+
+    /**
+     * Creates a case-insensitive <code>ExtensionFilenameFilter</code> matching filenames ending with one of the
+     * specified extensions and operating in the specified mode.
+     *
      * @param ext the extensions to match
      */
     public ExtensionFilenameFilter(String[] ext) {
-        extensions = new char[ext.length][];
-        for(int i = 0; i < ext.length; i++)
-            extensions[i] = ext[i].toCharArray();
+        this(ext, false, false);
     }
 
-
-    ///////////////////////////////////
-    // FilenameFilter implementation //
-    ///////////////////////////////////
-
-    public boolean accept(String filename) {
-        int i;
-        int nameLength; // Filename's length.
-
-        nameLength = filename.length();
-
-        // If case isn't important, a simple String.endsWith is enough.
-        if(isCaseSensitive()) {
-            for(i = 0; i < extensions.length; i++)
-                if(StringUtils.matches(filename, extensions[i], nameLength))
-                    return true;
-        }
-
-        // If case is important, we have to be a bit more creative and
-        // use String.regionMatches.
-        else {
-            // Matches the file name to each extension.
-            for(i = 0; i < extensions.length; i++)
-                if(StringUtils.matchesIgnoreCase(filename, extensions[i], nameLength))
-                    return true;
-        }
-        return false; 
+    /**
+     * Creates a new <code>ExtensionFilenameFilter</code> matching filenames ending with one of the specified
+     * extensions and operating in the specified modes.
+     *
+     * @param ext the extensions to match
+     * @param caseSensitive if true, this FilenameFilter will be case-sensitive
+     * @param inverted if true, this filter will operate in inverted mode.
+     */
+    public ExtensionFilenameFilter(String[] ext, boolean caseSensitive, boolean inverted) {
+        super(new FilenameGenerator(), ext, caseSensitive, inverted);
     }
 }

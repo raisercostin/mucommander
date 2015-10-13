@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,30 +18,26 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
+import com.mucommander.ui.action.*;
+import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.KeyStroke;
-
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
-import com.mucommander.ui.main.MainFrame;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * This action recalls the previous folder in the current FolderPanel's history.
  *
  * @author Maxence Bernard
  */
-public class GoBackAction extends GoToAction {
+public class GoBackAction extends ParentFolderAction {
 
-    public GoBackAction(MainFrame mainFrame, Hashtable properties) {
+    public GoBackAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
 
+    @Override
     public void performAction() {
         mainFrame.getActivePanel().getFolderHistory().goBack();
     }
@@ -51,13 +47,14 @@ public class GoBackAction extends GoToAction {
      * Enables or disables this action based on the history of the currently active FolderPanel: if there is a previous
      * folder in the history, this action will be enabled, if not it will be disabled.
      */
+    @Override
     protected void toggleEnabledState() {
         setEnabled(mainFrame.getActivePanel().getFolderHistory().hasBackFolder());
     }
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new GoBackAction(mainFrame, properties);
 		}
     }

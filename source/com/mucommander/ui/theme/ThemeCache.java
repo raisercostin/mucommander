@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 package com.mucommander.ui.theme;
 
-import java.awt.*;
-import java.util.Iterator;
+import java.awt.Color;
+import java.awt.Font;
 import java.util.WeakHashMap;
 
 
@@ -120,7 +120,7 @@ public class ThemeCache implements ThemeListener {
 
    
     /** Listeners. */
-    private static WeakHashMap listeners = new WeakHashMap();
+    private static WeakHashMap<ThemeListener, ?> listeners = new WeakHashMap<ThemeListener, Object>();
     
 
     private ThemeCache() {
@@ -135,15 +135,13 @@ public class ThemeCache implements ThemeListener {
     }
     
     private static void fireColorChanged(ColorChangedEvent event) {
-        Iterator iterator = listeners.keySet().iterator();
-        while (iterator.hasNext())
-            ((ThemeListener)iterator.next()).colorChanged(event);
+        for(ThemeListener listener : listeners.keySet())
+            listener.colorChanged(event);
     }
     
     private static void fireFontChanged(FontChangedEvent event) {
-        Iterator iterator = listeners.keySet().iterator();
-        while (iterator.hasNext())
-            ((ThemeListener)iterator.next()).fontChanged(event);
+        for(ThemeListener listener : listeners.keySet())
+            listener.fontChanged(event);
     }
     
 

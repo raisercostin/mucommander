@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,19 +21,35 @@ package com.mucommander.file.filter;
 import com.mucommander.file.AbstractFile;
 
 /**
- * OrFileFilter is a {@link ChainedFileFilter} that matches a file if one of its registered filters matches it.
+ * <code>OrFileFilter</code> is a {@link ChainedFileFilter} that matches a file if one of its registered filters 
+ * matches it.
  *
  * @author Maxence Bernard
  */
 public class OrFileFilter extends ChainedFileFilter {
 
     /**
-     * Creates a new AndFileFilter that contains no {@link FileFilter} initially.
+     * Creates a new <code>OrFileFilter</code> operating in non-inverted mode and containing the specified filters,
+     * if any.
+     *
+     * @param filters filters to add to this chained filter.
      */
-    public OrFileFilter() {
+    public OrFileFilter(FileFilter... filters) {
+        this(false, filters);
     }
 
-    
+    /**
+     * Creates a new <code>OrFileFilter</code> operating in the specified mode and containing the specified filters,
+     * if any.
+     *
+     * @param inverted if true, this filter will operate in inverted mode.
+     * @param filters filters to add to this chained filter.
+     */
+    public OrFileFilter(boolean inverted, FileFilter... filters) {
+        super(inverted, filters);
+    }
+
+
     ///////////////////////////////
     // FileFilter implementation //
     ///////////////////////////////
@@ -54,7 +70,7 @@ public class OrFileFilter extends ChainedFileFilter {
             return true;
 
         for(int i=0; i<nbFilters; i++)
-            if(((FileFilter)filters.elementAt(i)).match(file))
+            if((filters.elementAt(i)).match(file))
                 return true;
 
         return false;

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -100,6 +100,7 @@ public class OSXTrash extends QueuedTrash {
     /**
      * Implementation notes: returns <code>true</code> only for local files that are not archive entries.
      */
+    @Override
     public boolean canMoveToTrash(AbstractFile file) {
         return file.getTopAncestor() instanceof LocalFile;
     }
@@ -107,14 +108,17 @@ public class OSXTrash extends QueuedTrash {
     /**
      * Implementation notes: always returns <code>true</code>.
      */
+    @Override
     public boolean canEmpty() {
         return true;
     }
 
+    @Override
     public boolean empty() {
         return AppleScript.execute(EMPTY_TRASH_APPLESCRIPT, null);
     }
 
+    @Override
     public boolean isTrashFile(AbstractFile file) {
         return (file.getTopAncestor() instanceof LocalFile)
             && (file.getAbsolutePath(true).indexOf("/.Trash/") != -1);
@@ -124,6 +128,7 @@ public class OSXTrash extends QueuedTrash {
      * Implementation notes: this method is implemented and returns <code>-1</code> only if an error ocurred while
      * retrieving the trash item count.
      */
+    @Override
     public int getItemCount() {
         StringBuffer output = new StringBuffer();
         if(!AppleScript.execute(COUNT_TRASH_ITEMS_APPLESCRIPT, output))
@@ -138,6 +143,7 @@ public class OSXTrash extends QueuedTrash {
         }
     }
 
+    @Override
     public void open() {
         AppleScript.execute(REVEAL_TRASH_APPLESCRIPT, null);
     }
@@ -145,6 +151,7 @@ public class OSXTrash extends QueuedTrash {
     /**
      * Implementation notes: always returns <code>true</code>.
      */
+    @Override
     public boolean canOpen() {
         return true;
     }
@@ -171,7 +178,8 @@ public class OSXTrash extends QueuedTrash {
      * is more efficient to regroup files to be moved and execute only one AppleScript.
      * </ul>
      */
-    protected boolean moveToTrash(Vector queuedFiles) {
+    @Override
+    protected boolean moveToTrash(Vector<AbstractFile> queuedFiles) {
         String appleScript;
 
         // Simple script for AppleScript versions with Unicode support, i.e. that allows Unicode characters in the
@@ -180,7 +188,7 @@ public class OSXTrash extends QueuedTrash {
             int nbFiles = queuedFiles.size();
             appleScript = "tell application \"Finder\" to move {";
             for(int i=0; i<nbFiles; i++) {
-                appleScript += "posix file \""+((AbstractFile)queuedFiles.elementAt(i)).getAbsolutePath()+"\"";
+                appleScript += "posix file \""+queuedFiles.elementAt(i).getAbsolutePath()+"\"";
                 if(i<nbFiles-1)
                     appleScript += ", ";
             }
@@ -198,10 +206,10 @@ public class OSXTrash extends QueuedTrash {
                 // EOL characters. The file must NOT end with a trailing EOL.
                 int nbFiles = queuedFiles.size();
                 tmpFile = FileFactory.getTemporaryFile("trash_files.muco", false);
-                tmpOut = new OutputStreamWriter(tmpFile.getOutputStream(false), "utf-8");
+                tmpOut = new OutputStreamWriter(tmpFile.getOutputStream(), "utf-8");
 
                 for(int i=0; i<nbFiles; i++) {
-                    tmpOut.write(((AbstractFile)queuedFiles.elementAt(i)).getAbsolutePath());
+                    tmpOut.write(queuedFiles.elementAt(i).getAbsolutePath());
                     if(i<nbFiles-1)
                         tmpOut.write("\n");
                 }

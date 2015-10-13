@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ public class UnpackDialog extends TransferDestinationDialog {
     // TransferDestinationDialog implementation //
     //////////////////////////////////////////////
 
+    @Override
     protected PathFieldContent computeInitialPath(FileSet files) {
         AbstractFile destFolder = mainFrame.getInactiveTable().getCurrentFolder();
         String fieldText;
@@ -72,6 +73,7 @@ public class UnpackDialog extends TransferDestinationDialog {
         return new PathFieldContent(fieldText);
     }
 
+    @Override
     protected TransferFileJob createTransferFileJob(ProgressDialog progressDialog, PathUtils.ResolvedDestination resolvedDest, int defaultFileExistsAction) {
         int destinationType = resolvedDest.getDestinationType();
         if(destinationType==PathUtils.ResolvedDestination.EXISTING_FILE) {
@@ -87,6 +89,7 @@ public class UnpackDialog extends TransferDestinationDialog {
                 defaultFileExistsAction);
     }
 
+    @Override
     protected String getProgressDialogTitle() {
         return Translator.get("unpack_dialog.unpacking");
     }

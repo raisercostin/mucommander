@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 
 package com.mucommander.ui.viewer.text;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
 import com.mucommander.ui.viewer.EditorFrame;
 import com.mucommander.ui.viewer.FileEditor;
 
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Insets;
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -50,19 +53,28 @@ class TextEditor extends FileEditor implements DocumentListener {
     // FileEditor implementation //
     ///////////////////////////////
 
+    @Override
     protected void saveAs(AbstractFile destFile) throws IOException {
         OutputStream out;
 
         out = null;
 
         try {
-            out = destFile.getOutputStream(false);
+            out = destFile.getOutputStream();
             textEditorImpl.write(out);
 
             setSaveNeeded(false);
 
             // Change the parent folder's date to now, so that changes are picked up by folder auto-refresh (see ticket #258)
-            destFile.getParent().changeDate(System.currentTimeMillis());
+            if(destFile.isFileOperationSupported(FileOperation.CHANGE_DATE)) {
+                try {
+                    destFile.getParent().changeDate(System.currentTimeMillis());
+                }
+                catch (IOException e) {
+                    AppLogger.fine("failed to change the date of "+destFile, e);
+                    // Fail silently
+                }
+            }
         }
         finally {
             if(out != null) {
@@ -74,6 +86,7 @@ class TextEditor extends FileEditor implements DocumentListener {
         }
     }
 
+    @Override
     public void edit(AbstractFile file) throws IOException {
         textEditorImpl.startEditing(file, this);
 
@@ -104,10 +117,12 @@ class TextEditor extends FileEditor implements DocumentListener {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public Insets getInsets() {
         return new Insets(4, 3, 4, 3);
     }
 
+    @Override
     public void requestFocus() {
         textEditorImpl.requestFocus();
     }

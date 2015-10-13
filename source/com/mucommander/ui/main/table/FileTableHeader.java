@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,9 @@ import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.action.impl.ToggleAutoSizeAction;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.JSeparator;
 import javax.swing.table.JTableHeader;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -47,6 +49,7 @@ public class FileTableHeader extends JTableHeader implements MouseListener {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public boolean getReorderingAllowed() {
         return true;
     }

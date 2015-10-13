@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,12 @@ import com.mucommander.io.SilenceableOutputStream;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersion;
 
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileSystemView;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.PrintStream;
 import java.net.URL;
@@ -206,6 +209,7 @@ class SwingFileIconProviderImpl extends LocalFileIconProvider implements Cacheab
      * <i>Implementation note:</i> only one resolution is available (usually 16x16) and blindly returned, the
      * <code>preferredResolution</code> argument is simply ignored.
      */
+    @Override
     public Icon getLocalFileIcon(LocalFile localFile, AbstractFile originalFile, Dimension preferredResolution) {
         // Initialize the Swing object the first time this method is called
         checkInit();

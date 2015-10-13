@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ package com.mucommander.file.impl.smb;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.Credentials;
 import com.mucommander.file.*;
-import com.mucommander.io.FileTransferException;
+import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
 import jcifs.smb.*;
@@ -204,6 +204,7 @@ import java.net.MalformedURLException;
     // AbstractFile methods implementation //
     /////////////////////////////////////////
 
+    @Override
     public long getDate() {
         try {
             return file.lastModified();
@@ -213,21 +214,12 @@ import java.net.MalformedURLException;
         }
     }
 
-    public boolean canChangeDate() {
-        return true;
+    @Override
+    public void changeDate(long lastModified) throws IOException, UnsupportedFileOperationException {
+        file.setLastModified(lastModified);
     }
 
-    public boolean changeDate(long lastModified) {
-        try {
-            file.setLastModified(lastModified);
-            return true;
-        }
-        catch(SmbException e) {
-            FileLogger.fine("Exception caught while changing date, returning false", e);
-            return false;
-        }
-    }
-
+    @Override
     public long getSize() {
         try {
             return file.length();
@@ -237,16 +229,13 @@ import java.net.MalformedURLException;
         }
     }
 
+    @Override
     public AbstractFile getParent() {
         if(!parentValSet) {
             FileURL parentURL = fileURL.getParent();
             if(parentURL!=null) {
-                try {
-                    parent = new SMBFile(parentURL, null);
-                }
-                catch(IOException e) {
-                    // No parent, that's all
-                }
+                parent = FileFactory.getFile(parentURL);
+                // Note: parent may be null if it can't be resolved
             }
             // Note: do not make the special smb:// file a parent of smb://host/, this would cause parent unit tests to fail
 
@@ -256,11 +245,13 @@ import java.net.MalformedURLException;
         return parent;
     }
 
+    @Override
     public void setParent(AbstractFile parent) {
         this.parent = parent;
         this.parentValSet = true;
     }
 
+    @Override
     public boolean exists() {
         // Unlike java.io.File, SmbFile.exists() can throw an SmbException
         try {
@@ -273,34 +264,31 @@ import java.net.MalformedURLException;
         }
     }
 
+    @Override
     public FilePermissions getPermissions() {
         return permissions;
     }
 
+    @Override
     public PermissionBits getChangeablePermissions() {
         return CHANGEABLE_PERMISSIONS;
     }
 
-    public boolean changePermission(int access, int permission, boolean enabled) {
+    @Override
+    public void changePermission(int access, int permission, boolean enabled) throws IOException {
         if(access!=USER_ACCESS || permission!=WRITE_PERMISSION)
-            return false;
+            throw new IOException();
 
-        try {
-            if(enabled)
-                file.setReadWrite();
-            else
-                file.setReadOnly();
-
-            return true;
-        }
-        catch(SmbException e) {
-            return false;
-        }
+        if(enabled)
+            file.setReadWrite();
+        else
+            file.setReadOnly();
     }
 
     /**
      * Always returns <code>null</code>, this information is not available unfortunately.
      */
+    @Override
     public String getOwner() {
         return null;
     }
@@ -308,6 +296,7 @@ import java.net.MalformedURLException;
     /**
      * Always returns <code>false</code>, this information is not available unfortunately.
      */
+    @Override
     public boolean canGetOwner() {
         return false;
     }
@@ -315,6 +304,7 @@ import java.net.MalformedURLException;
     /**
      * Always returns <code>null</code>, this information is not available unfortunately.
      */
+    @Override
     public String getGroup() {
         return null;
     }
@@ -322,10 +312,12 @@ import java.net.MalformedURLException;
     /**
      * Always returns <code>false</code>, this information is not available unfortunately.
      */
+    @Override
     public boolean canGetGroup() {
         return false;
     }
 
+    @Override
     public boolean isDirectory() {
         try {
             return file.isDirectory();
@@ -335,52 +327,145 @@ import java.net.MalformedURLException;
         }
     }
 
+    @Override
     public boolean isSymlink() {
         // Symlinks are not supported by jCIFS (or maybe by CIFS/SMB?)
         return false;
     }
 
+    @Override
     public InputStream getInputStream() throws IOException {
         return new SmbFileInputStream(file);
     }
 
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        return new SmbFileOutputStream(file, append);
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return new SmbFileOutputStream(file, false);
     }
 
-    public boolean hasRandomAccessInputStream() {
-        return true;
+    @Override
+    public OutputStream getAppendOutputStream() throws IOException {
+        return new SmbFileOutputStream(file, true);
     }
 
+    @Override
     public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
-        // This needs to be checked explicitely (SmbRandomAccessFile can be created even if the file does not exist)
+        // This needs to be checked explicitly (SmbRandomAccessFile can be created even if the file does not exist)
         if(!exists())
             throw new IOException();
 
-//        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
+//        // Explicitly allow the file to be read/write/delete by another random access file while this one is open
 //        return new SMBRandomAccessInputStream(new SmbRandomAccessFile(fileURL.toString(true), "r", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
         return new SMBRandomAccessInputStream(new SmbRandomAccessFile(file, "r"));
     }
 
-    public boolean hasRandomAccessOutputStream() {
-        return true;
-    }
-
+    @Override
     public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-//        // Explicitely allow the file to be read/write/delete by another random access file while this one is open
+//        // Explicitly allow the file to be read/write/delete by another random access file while this one is open
 //        return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(fileURL.toString(true), "rw", SmbFile.FILE_SHARE_READ | SmbFile.FILE_SHARE_WRITE | SmbFile.FILE_SHARE_DELETE));
         return new SMBRandomAccessOutputStream(new SmbRandomAccessFile(file, "rw"));
     }
 
+    @Override
     public void delete() throws IOException {
         file.delete();
         checkSmbFile(false);
     }
 
-
+    @Override
     public AbstractFile[] ls() throws IOException {
+        return ls(null);
+    }
+
+    @Override
+    public void mkdir() throws IOException {
+        // Ensure that the jcifs.smb.SmbFile's path ends with a '/' otherwise it will throw an exception
+        checkSmbFile(true);
+
+        // Note: unlike java.io.File.mkdir(), SmbFile does not return a boolean value
+        // to indicate if the folder could be created
+        file.mkdir();
+    }
+
+    @Override
+    public void copyRemotelyTo(AbstractFile destFile) throws IOException {
+        // Throw an exception if the file cannot be renamed to the specified destination.
+        // This method fails in situations where SmbFile#copyTo() doesn't, for instance:
+        // - when the destination file exists (the destination is simply overwritten)
+        // - when the source file doesn't exist
+        checkCopyRemotelyPrerequisites(destFile, false, false);
+
+        // Reuse the destination SmbFile instance
+        SmbFile destSmbFile = ((SMBFile)destFile).file;
+
+        // Remotely copy the file
+        file.copyTo(destSmbFile);
+
+        // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
+        ((SMBFile)destFile).checkSmbFile(file.isDirectory());
+    }
+
+    /**
+     * Implementation notes: server-to-server renaming will work if the destination file also uses the 'SMB' scheme.
+     * Hosts do not necessarily have to be the same for this operation to succeed.
+     */
+    @Override
+    public void renameTo(AbstractFile destFile) throws IOException {
+        // Throw an exception if the file cannot be renamed to the specified destination.
+        // This method fails in situations where SFTPFile#renameTo() doesn't, for instance:
+        // - when the source and destination are the same
+        // - when the source file doesn't exist
+        checkRenamePrerequisites(destFile, true, true);
+
+        // Attempt to move the file using jcifs.smb.SmbFile#renameTo.
+
+        boolean isDirectory = file.isDirectory();
+
+        // SmbFile#renameTo() throws an IOException if the destination exists (instead of overwriting the file)
+        if(destFile.exists())
+            destFile.delete();
+
+        // Rename the file
+        file.renameTo(((SMBFile)destFile).file);
+
+        // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
+        ((SMBFile)destFile).checkSmbFile(isDirectory);
+    }
+
+    @Override
+    public long getFreeSpace() throws IOException {
+        return file.getDiskFreeSpace();
+    }
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {
+        // No way to retrieve this information with jCIFS
+        throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);
+    }
+
+    /**
+     * Returns a <code>jcifs.smb.SmbFile</code> instance corresponding to this file.
+     */
+    @Override
+    public Object getUnderlyingFileObject() {
+        return file;
+    }
+
+
+    ////////////////////////
+    // Overridden methods //
+    ////////////////////////
+
+    @Override
+    public AbstractFile[] ls(FilenameFilter filenameFilter) throws IOException {
         try {
-            SmbFile smbFiles[] = file.listFiles();
+            SmbFile smbFiles[] = file.listFiles(filenameFilter==null?null:new SMBFilenameFilter(filenameFilter));
 
             if(smbFiles==null)
                 throw new IOException();
@@ -407,18 +492,14 @@ import java.net.MalformedURLException;
                 smbFileType = smbFile.getType();
                 if(smbFileType==SmbFile.TYPE_PRINTER || smbFileType==SmbFile.TYPE_NAMED_PIPE || smbFileType==SmbFile.TYPE_COMM)
                     continue;
-                
+
                 // Note: properties and credentials are cloned for every children's url
                 childURL = (FileURL)fileURL.clone();
                 childURL.setHost(smbFile.getServer());
                 childURL.setPath(smbFile.getURL().getPath());
 
                 // Use SMBFile private constructor to recycle the SmbFile instance
-                children[currentIndex] = FileFactory.wrapArchive(new SMBFile(childURL, smbFile));
-                children[currentIndex].setParent(this);
-                currentIndex++;
-
-//                children[currentIndex++] = FileFactory.getFile(childURL, this);
+                children[currentIndex++] = FileFactory.getFile(childURL, this, smbFile);
             }
 
             return children;
@@ -428,44 +509,7 @@ import java.net.MalformedURLException;
         }
     }
 
-
-    public void mkdir() throws IOException {
-        // Ensure that the jcifs.smb.SmbFile's path ends with a '/' otherwise it will throw an exception
-        checkSmbFile(true);
-
-        // Note: unlike java.io.File.mkdir(), SmbFile does not return a boolean value
-        // to indicate if the folder could be created
-        file.mkdir();
-    }
-
-
-    public long getFreeSpace() {
-        try {
-            return file.getDiskFreeSpace();
-        }
-        catch(SmbException e) {
-            // Error occured, return -1 (not available)
-            return -1;
-        }
-    }
-
-    public long getTotalSpace() {
-        // No way to retrieve this information with jCIFS/SMB, return -1 (not available)
-        return -1;
-    }
-
-    /**
-     * Returns a <code>jcifs.smb.SmbFile</code> instance corresponding to this file.
-     */
-    public Object getUnderlyingFileObject() {
-        return file;
-    }
-
-
-    ////////////////////////
-    // Overridden methods //
-    ////////////////////////
-
+    @Override
     public boolean isHidden() {
         try {
             return file.isHidden();
@@ -476,88 +520,7 @@ import java.net.MalformedURLException;
     }
 
 
-    public boolean copyTo(AbstractFile destFile) throws FileTransferException {
-        // File can only be copied by SMB if the destination is on an SMB share (but not necessarily on the same host)
-        if(!destFile.getURL().getScheme().equals(FileProtocols.SMB)) {
-            return super.copyTo(destFile);
-        }
-
-        // If destination file is not an SMBFile nor has an SMBFile ancestor (for instance an archive entry),
-        // SmbFile.copyTo() won't work so use the default copyTo() implementation instead
-        destFile = destFile.getTopAncestor();
-        if(!(destFile instanceof SMBFile)) {
-            return super.copyTo(destFile);
-        }
-
-        // Reuse the destination SmbFile instance
-        SmbFile destSmbFile = ((SMBFile)destFile).file;
-
-        // Special tests to fail in situations where SmbFile#copyTo() does not, for instance:
-        // - when the destination file exists (the destination is simply overwritten)
-        // - when the source file doesn't exist
-        checkCopyPrerequisites(destFile, false);
-
-        // Everything cool, proceed with the copy
-        try {
-            // Copy the SMB file
-            file.copyTo(destSmbFile);
-
-            // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
-            ((SMBFile)destFile).checkSmbFile(file.isDirectory());
-
-            return true;
-        }
-        catch(SmbException e) {
-            throw new FileTransferException(FileTransferException.UNKNOWN_REASON);
-        }
-    }
-
-
-    /**
-     * Overrides {@link AbstractFile#moveTo(AbstractFile)} to support server-to-server move if the destination file
-     * uses SMB.
-     */
-    public boolean moveTo(AbstractFile destFile) throws FileTransferException  {
-        // File can only be moved directly if the destination if it is on an SMB share
-        // (but not necessarily on the same host).
-        // Use the default moveTo() implementation if the destination file doesn't use the same scheme
-        // or is not on the same host
-        if(!destFile.getURL().getScheme().equals(FileProtocols.SMB)) {
-            return super.moveTo(destFile);
-        }
-
-        // If destination file is not an SMBFile nor has an SMBFile ancestor (for instance an archive entry),
-        // SmbFile.renameTo() won't work, so use the default moveTo() implementation instead
-        destFile = destFile.getTopAncestor();
-        if(!(destFile instanceof SMBFile)) {
-            return super.moveTo(destFile);
-        }
-
-        // Special tests to fail in situations where SmbFile#renameTo() does not, for instance:
-        // - when the source and destination are the same
-        // - when the source file doesn't exist
-        checkCopyPrerequisites(destFile, true);
-
-        // Attempt to move the file using jcifs.smb.SmbFile#renameTo.
-        try {
-            boolean isDirectory = file.isDirectory();
-
-            // SmbFile#renameTo() throws an IOException if the destination exists (instead of overwriting the file)
-            if(destFile.exists())
-                destFile.delete();
-
-            file.renameTo(((SMBFile)destFile).file);
-
-            // Ensure that the destination jcifs.smb.SmbFile's path is consistent with its new directory/non-directory state
-            ((SMBFile)destFile).checkSmbFile(isDirectory);
-
-            return true;
-        }
-        catch(IOException e) {
-            throw new FileTransferException(FileTransferException.UNKNOWN_REASON);
-        }
-    }
-
+    @Override
     public boolean equalsCanonical(Object f) {
         if(!(f instanceof SMBFile))
             return super.equalsCanonical(f);		// could be equal to an AbstractArchiveFile
@@ -583,14 +546,17 @@ import java.net.MalformedURLException;
             this.raf = raf;
         }
 
+        @Override
         public int read() throws IOException {
             return raf.read();
         }
 
+        @Override
         public int read(byte b[], int off, int len) throws IOException {
             return raf.read(b, off, len);
         }
 
+        @Override
         public void close() throws IOException {
             raf.close();
         }
@@ -619,18 +585,22 @@ import java.net.MalformedURLException;
             this.raf = raf;
         }
 
+        @Override
         public void write(int i) throws IOException {
             raf.write(i);
         }
 
+        @Override
         public void write(byte b[]) throws IOException {
             raf.write(b);
         }
 
+        @Override
         public void write(byte b[], int off, int len) throws IOException {
             raf.write(b, off, len);
         }
 
+        @Override
         public void close() throws IOException {
             raf.close();
         }
@@ -647,6 +617,7 @@ import java.net.MalformedURLException;
             raf.seek(offset);
         }
 
+        @Override
         public void setLength(long newLength) throws IOException {
             raf.setLength(newLength);
 
@@ -691,6 +662,28 @@ import java.net.MalformedURLException;
 
         public PermissionBits getMask() {
             return MASK;
+        }
+    }
+
+
+    /**
+     * Turns a {@link FilenameFilter} into a {@link jcifs.smb.SmbFilenameFilter}.
+     */
+    private static class SMBFilenameFilter implements jcifs.smb.SmbFilenameFilter {
+
+        private FilenameFilter filter;
+
+        private SMBFilenameFilter(FilenameFilter filter) {
+            this.filter = filter;
+        }
+
+
+        ////////////////////////////////////////////////
+        // jicfs.smb.SmbFilenameFilter implementation //
+        ////////////////////////////////////////////////
+
+        public boolean accept(SmbFile dir, String name) throws SmbException {
+            return filter.accept(name);
         }
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,13 @@ package com.mucommander.ui.autocomplete;
 
 import com.mucommander.ui.autocomplete.completers.Completer;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JList;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.*;
+import java.awt.Color;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
@@ -72,7 +75,8 @@ public abstract class CompletionType {
 			this.delayTime = delayTime;
 		}
 		
-		public void run() {
+		@Override
+        public void run() {
 			// Hide the auto-completion popup window.
 			hideAutocompletionPopup();
 			

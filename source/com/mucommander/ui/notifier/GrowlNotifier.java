@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,11 +86,13 @@ public class GrowlNotifier extends AbstractNotifier {
     // AbstractNotifier implementation //
     /////////////////////////////////////
 
+    @Override
     public String getPrettyName() {
         return "Growl";
     }
 
 
+    @Override
     public boolean setEnabled(boolean enabled) {
         if(enabled) {
             // No need to bother if the OS is not Mac OS X
@@ -136,10 +138,12 @@ public class GrowlNotifier extends AbstractNotifier {
         }
     }
 
+    @Override
     public boolean isEnabled() {
         return isEnabled;
     }
 
+    @Override
     public boolean displayNotification(int notificationType, String title, String description) {
         AppLogger.finer("notificationType="+notificationType+" title="+title+" description="+description);
 

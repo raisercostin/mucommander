@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,7 @@
 
 package com.mucommander.file.impl;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FilePermissions;
-import com.mucommander.file.FileURL;
-import com.mucommander.file.PermissionBits;
+import com.mucommander.file.*;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.io.FileTransferException;
@@ -31,6 +28,7 @@ import com.mucommander.io.RandomAccessOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -84,106 +82,132 @@ public abstract class ProxyFile extends AbstractFile {
     // AbstractFile implementation //
     /////////////////////////////////
 
+    @Override
     public long getDate() {
         return file.getDate();
     }
 
-    public boolean canChangeDate() {
-        return file.canChangeDate();
+    @Override
+    public void changeDate(long lastModified) throws IOException, UnsupportedFileOperationException {
+        file.changeDate(lastModified);
     }
 
-    public boolean changeDate(long lastModified) {
-        return file.changeDate(lastModified);
-    }
-
+    @Override
     public long getSize() {
         return file.getSize();
     }
 
+    @Override
     public AbstractFile getParent() {
         return file.getParent();
     }
 
+    @Override
     public void setParent(AbstractFile parent) {
         file.setParent(parent);
     }
 
+    @Override
     public boolean exists() {
         return file.exists();
     }
 
-    public boolean changePermission(int access, int permission, boolean enabled) {
-        return file.changePermission(access, permission, enabled);
+    @Override
+    public void changePermission(int access, int permission, boolean enabled) throws IOException, UnsupportedFileOperationException {
+        file.changePermission(access, permission, enabled);
     }
 
+    @Override
     public String getOwner() {
         return file.getOwner();
     }
 
+    @Override
     public boolean canGetOwner() {
         return file.canGetOwner();
     }
 
+    @Override
     public String getGroup() {
         return file.getGroup();
     }
 
+    @Override
     public boolean canGetGroup() {
         return file.canGetGroup();
     }
 
+    @Override
     public boolean isDirectory() {
         return file.isDirectory();
     }
 
+    @Override
     public boolean isSymlink() {
         return file.isSymlink();
     }
 
-    public AbstractFile[] ls() throws IOException {
+    @Override
+    public AbstractFile[] ls() throws IOException, UnsupportedFileOperationException {
         return file.ls();
     }
 
-    public void mkdir() throws IOException {
+    @Override
+    public void mkdir() throws IOException, UnsupportedFileOperationException {
         file.mkdir();
     }
 
-    public InputStream getInputStream() throws IOException {
+    @Override
+    public InputStream getInputStream() throws IOException, UnsupportedFileOperationException {
         return file.getInputStream();
     }
 
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        return file.getOutputStream(append);
+    @Override
+    public OutputStream getOutputStream() throws IOException, UnsupportedFileOperationException {
+        return file.getOutputStream();
     }
 
-    public boolean hasRandomAccessInputStream() {
-        return file.hasRandomAccessInputStream();
+    @Override
+    public OutputStream getAppendOutputStream() throws IOException, UnsupportedFileOperationException {
+        return file.getAppendOutputStream();
     }
 
-    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
+    @Override
+    public RandomAccessInputStream getRandomAccessInputStream() throws IOException, UnsupportedFileOperationException {
         return file.getRandomAccessInputStream();
     }
 
-    public boolean hasRandomAccessOutputStream() {
-        return file.hasRandomAccessOutputStream();
-    }
-
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
+    @Override
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException, UnsupportedFileOperationException {
         return file.getRandomAccessOutputStream();
     }
 
-    public void delete() throws IOException {
+    @Override
+    public void delete() throws IOException, UnsupportedFileOperationException {
         file.delete();
     }
 
-    public long getFreeSpace() {
+    @Override
+    public void copyRemotelyTo(AbstractFile destFile) throws IOException, UnsupportedFileOperationException {
+        file.copyRemotelyTo(destFile);
+    }
+
+    @Override
+    public void renameTo(AbstractFile destFile) throws IOException, UnsupportedFileOperationException {
+        file.renameTo(destFile);
+    }
+
+    @Override
+    public long getFreeSpace() throws IOException, UnsupportedFileOperationException {
         return file.getFreeSpace();
     }
 
-    public long getTotalSpace() {
+    @Override
+    public long getTotalSpace() throws IOException, UnsupportedFileOperationException {
         return file.getTotalSpace();
     }
 
+    @Override
     public Object getUnderlyingFileObject() {
         return file.getUnderlyingFileObject();
     }
@@ -193,126 +217,145 @@ public abstract class ProxyFile extends AbstractFile {
     // Overridden AbstractFile methods //
     /////////////////////////////////////
 
+    @Override
+    public final boolean isFileOperationSupported(FileOperation op) {
+        Class<? extends AbstractFile> thisClass = getClass();
+        Method opMethod = op.getCorrespondingMethod(thisClass);
+        // If the method corresponding to the file operation has been overridden by this class (a ProxyFile subclass),
+        // check the presence of the UnsupportedFileOperation annotation in this class.
+        try {
+            if(!thisClass.getMethod(opMethod.getName(), opMethod.getParameterTypes()).getDeclaringClass().equals(ProxyFile.class))
+                return AbstractFile.isFileOperationSupported(op, thisClass);
+        }
+        catch(Exception e) {
+            // Should never happen, unless AbstractFile method signatures have changed and FileOperation has not been updated
+            FileLogger.warning("Exception caught, this should not have happened", e);
+        }
+
+        // Otherwise, check for the presence of the UnsupportedFileOperation annotation in the wrapped AbstractFile.
+        return file.isFileOperationSupported(op);
+    }
+
+    @Override
     public FileURL getURL() {
         return file.getURL();
     }
 
+    @Override
     public URL getJavaNetURL() throws MalformedURLException {
         return file.getJavaNetURL();
     }
 
+    @Override
     public String getName() {
         return file.getName();
     }
 
+    @Override
     public String getExtension() {
         return file.getExtension();
     }
 
+    @Override
     public String getAbsolutePath() {
         return file.getAbsolutePath();
     }
 
+    @Override
     public String getCanonicalPath() {
         return file.getCanonicalPath();
     }
 
+    @Override
     public AbstractFile getCanonicalFile() {
         return file.getCanonicalFile();
     }
 
+    @Override
     public String getSeparator() {
         return file.getSeparator();
     }
 
+    @Override
     public boolean isArchive() {
         return file.isArchive();
     }
 
+    @Override
     public boolean isHidden() {
         return file.isHidden();
     }
 
+    @Override
     public FilePermissions getPermissions() {
         return file.getPermissions();
     }
 
-    public boolean changePermissions(int permissions) {
-        return file.changePermissions(permissions);
+    @Override
+    public void changePermissions(int permissions) throws IOException, UnsupportedFileOperationException {
+        file.changePermissions(permissions);
     }
 
+    @Override
     public PermissionBits getChangeablePermissions() {
         return file.getChangeablePermissions();
     }
 
+    @Override
     public String getPermissionsString() {
         return file.getPermissionsString();
     }
 
+    @Override
     public AbstractFile getRoot() {
         return file.getRoot();
     }
 
+    @Override
     public boolean isRoot() {
         return file.isRoot();
     }
 
+    @Override
     public AbstractFile getVolume() {
         return file.getVolume();
     }
 
-    public InputStream getInputStream(long offset) throws IOException {
+    @Override
+    public InputStream getInputStream(long offset) throws IOException, UnsupportedFileOperationException {
         return file.getInputStream(offset);
     }
 
-    public void copyStream(InputStream in, boolean append) throws FileTransferException {
-        file.copyStream(in, append);
+    @Override
+    public void copyStream(InputStream in, boolean append, long length) throws FileTransferException {
+        file.copyStream(in, append, length);
     }
 
-    public boolean copyTo(AbstractFile destFile) throws FileTransferException {
-        return file.copyTo(destFile);
-    }
-
-    public int getCopyToHint(AbstractFile destFile) {
-        return file.getCopyToHint(destFile);
-    }
-
-    public boolean moveTo(AbstractFile destFile) throws FileTransferException {
-        return file.moveTo(destFile);
-    }
-
-    public int getMoveToHint(AbstractFile destFile) {
-        return file.getMoveToHint(destFile);
-    }
-
-    public AbstractFile[] ls(FileFilter filter) throws IOException {
+    @Override
+    public AbstractFile[] ls(FileFilter filter) throws IOException, UnsupportedFileOperationException {
         return file.ls(filter);
     }
 
-    public AbstractFile[] ls(FilenameFilter filter) throws IOException {
+    @Override
+    public AbstractFile[] ls(FilenameFilter filter) throws IOException, UnsupportedFileOperationException {
         return file.ls(filter);
     }
 
-    public void mkfile() throws IOException {
+    @Override
+    public void mkfile() throws IOException, UnsupportedFileOperationException {
         file.mkfile();
     }
 
-    public void deleteRecursively() throws IOException {
+    @Override
+    public void deleteRecursively() throws IOException, UnsupportedFileOperationException {
         file.deleteRecursively();
-    }
-
-    public void importPermissions(AbstractFile sourceFile) {
-        file.importPermissions(sourceFile);
-    }
-
-    public void importPermissions(AbstractFile sourceFile, FilePermissions defaultPermissions) {
-        file.importPermissions(sourceFile, defaultPermissions);
     }
 
     public boolean equals(Object f) {
         return file.equals(f);
     }
 
+    @Override
     public boolean equalsCanonical(Object f) {
         return file.equalsCanonical(f);
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,8 +50,8 @@ public class CompoundInputStreamTest extends TestCase {
     
     static {
         StringBuffer sb = new StringBuffer();
-        for(int i=0; i<TEST_STRINGS.length; i++)
-            sb.append(TEST_STRINGS[i]);
+        for (String testString : TEST_STRINGS)
+            sb.append(testString);
 
         TEST_FLATTENED_STRINGS = sb.toString();
     }
@@ -62,11 +62,11 @@ public class CompoundInputStreamTest extends TestCase {
      *
      * @return a test InputStream iterator.
      */
-    private static Iterator getTestInputStreamIterator() {
-        Vector v = new Vector();
+    private static Iterator<ByteArrayInputStream> getTestInputStreamIterator() {
+        Vector<ByteArrayInputStream> v = new Vector<ByteArrayInputStream>();
 
-        for(int i=0; i<TEST_STRINGS.length; i++)
-            v.add(new ByteArrayInputStream(TEST_STRINGS[i].getBytes()));
+        for (String testString : TEST_STRINGS) 
+            v.add(new ByteArrayInputStream(testString.getBytes()));
 
         return v.iterator();
     }

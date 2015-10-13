@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ public class CommandAction extends MuAction {
      * @param properties ignored.
      * @param command    command to run when this action is called.
      */
-    public CommandAction(MainFrame mainFrame, Hashtable properties, Command command) {
+    public CommandAction(MainFrame mainFrame, Hashtable<String,Object> properties, Command command) {
         super(mainFrame, properties);
         this.command = command;
         setLabel(command.getDisplayName());
@@ -62,6 +62,7 @@ public class CommandAction extends MuAction {
 
     // - Action code -----------------------------------------------------------
     // -------------------------------------------------------------------------
+    @Override
     public void performAction() {
         FileSet selectedFiles;
 

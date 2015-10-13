@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 
 package com.mucommander.ui.progress;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JTextField;
+import java.awt.Color;
+import java.awt.Graphics;
 
 
 /**
@@ -83,6 +84,7 @@ public class ProgressTextField extends JTextField {
     /**
      * Override JTextField's paint method to show progress information.
      */
+    @Override
     public void paint(Graphics g) {
         super.paint(g);
 

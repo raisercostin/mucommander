@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ public abstract class SortByAction extends MuAction implements ActivePanelListen
     /** Index of the FileTable column this action operates on */ 
     protected int columnIndex;
 
-    public SortByAction(MainFrame mainFrame, Hashtable properties, int columnIndex) {
+    public SortByAction(MainFrame mainFrame, Hashtable<String,Object> properties, int columnIndex) {
         super(mainFrame, properties);
 
         this.columnIndex = columnIndex;
@@ -71,6 +71,7 @@ public abstract class SortByAction extends MuAction implements ActivePanelListen
     // MuAction implementation //
     /////////////////////////////
 
+    @Override
     public void performAction() {
         mainFrame.getActiveTable().sortBy(columnIndex);
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.mucommander.job;
 import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileOperation;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.io.BufferPool;
 import com.mucommander.io.RandomAccessOutputStream;
@@ -82,6 +83,7 @@ public class MkdirJob extends FileJob {
     /**
      * Creates the new directory in the destination folder.
      */
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Stop if interrupted (although there is no way to stop the job at this time)
         if(getState()==INTERRUPTED)
@@ -122,13 +124,13 @@ public class MkdirJob extends FileJob {
                         OutputStream mkfileOut = null;
                         try {
                             // using RandomAccessOutputStream if we can have one
-                            if(file.hasRandomAccessOutputStream()) {
+                            if(file.isFileOperationSupported(FileOperation.RANDOM_WRITE_FILE)) {
                                 mkfileOut = file.getRandomAccessOutputStream();
                                 ((RandomAccessOutputStream)mkfileOut).setLength(allocateSpace);
                             }
                             // manually otherwise
                             else {
-                                mkfileOut = file.getOutputStream(false);
+                                mkfileOut = file.getOutputStream();
 
                                 // Use BufferPool to avoid excessive memory allocation and garbage collection
                                 byte buffer[] = BufferPool.getByteArray();
@@ -197,6 +199,7 @@ public class MkdirJob extends FileJob {
     /**
      * Folders only needs to be refreshed if it is the destination folder
      */
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return destFolder.equalsCanonical(folder);
     }
@@ -206,6 +209,7 @@ public class MkdirJob extends FileJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public String getStatusString() {
         return Translator.get("creating_file", getCurrentFilename());
     }

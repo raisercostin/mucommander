@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,10 @@ package com.mucommander.ui.action.impl;
 
 import com.mucommander.command.Command;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
+import com.mucommander.file.filter.AndFileFilter;
 import com.mucommander.file.filter.AttributeFileFilter;
+import com.mucommander.file.filter.FileOperationFilter;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.job.TempOpenWithJob;
 import com.mucommander.process.ProcessRunner;
@@ -44,11 +47,14 @@ abstract class AbstractViewerAction extends SelectedFileAction {
      * @param mainFrame  frame to which the action is attached.
      * @param properties action's properties.
      */
-    public AbstractViewerAction(MainFrame mainFrame, Hashtable properties) {
+    public AbstractViewerAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
 
-        // Enable this action only when the currently selected file is not a directory.
-        setSelectedFileFilter(new AttributeFileFilter(AttributeFileFilter.DIRECTORY, true));
+        // Enable this action only if the currently selected file is not a directory and can be read.
+        setSelectedFileFilter(new AndFileFilter(
+            new FileOperationFilter(FileOperation.READ_FILE),
+            new AttributeFileFilter(AttributeFileFilter.DIRECTORY, true)
+        ));
     }
 
 
@@ -58,6 +64,7 @@ abstract class AbstractViewerAction extends SelectedFileAction {
     /**
      * Edits the currently selected file.
      */
+    @Override
     public synchronized void performAction() {
         AbstractFile file;
         Command      customCommand;

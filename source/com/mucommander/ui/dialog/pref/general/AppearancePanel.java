@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -137,15 +137,15 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     // - Misc. fields --------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** System icon combobox. */
-    private PrefComboBox 		   useSystemFileIconsComboBox;
+    private PrefComboBox 	 useSystemFileIconsComboBox;
     /** Identifier of 'yes' actions in question dialogs. */
-    private final static int       YES_ACTION = 0;
+    private final static int YES_ACTION = 0;
     /** Identifier of 'no' actions in question dialogs. */
-    private final static int       NO_ACTION = 1;
+    private final static int NO_ACTION = 1;
     /** Identifier of 'cancel' actions in question dialogs. */
-    private final static int       CANCEL_ACTION = 2;
+    private final static int CANCEL_ACTION = 2;
     /** All known custom look and feels. */
-    private              Vector    customLookAndFeels;
+    private Vector<String>   customLookAndFeels;
 
 
 
@@ -251,6 +251,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 			}
         };
         lookAndFeelComboBox.setRenderer(new BasicComboBoxRenderer() {
+                @Override
                 public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     JLabel label;
 
@@ -368,6 +369,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         lockIcon        = IconManager.getIcon(IconManager.PREFERENCES_ICON_SET, "lock.png");
         transparentIcon = new ImageIcon(new BufferedImage(lockIcon.getIconWidth(), lockIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB));
         themeComboBox.setRenderer(new BasicComboBoxRenderer() {
+                @Override
                 public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     JLabel label;
                     Theme  theme;
@@ -410,7 +412,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     }
 
     private void populateThemes(Theme currentTheme) {
-        Iterator  themes;
+        Iterator<Theme>  themes;
 
         ignoreComboChanges = true;
 
@@ -475,8 +477,8 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
 			}
     	};
 
-        for(int i=0; i<ICON_SIZES.length; i++)
-            iconSizeCombo.addItem(ICON_SIZES[i]);
+        for (String iconSize : ICON_SIZES)
+            iconSizeCombo.addItem(iconSize);
 
         float scaleFactor = MuConfiguration.getVariable(confVar, defaultValue);
         int index = 0;
@@ -495,6 +497,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     ///////////////////////
     // PrefPanel methods //
     ///////////////////////
+    @Override
     protected void commit() {
         // Look and Feel
         if(MuConfiguration.setVariable(MuConfiguration.LOOK_AND_FEEL, lookAndFeels[lookAndFeelComboBox.getSelectedIndex()].getClassName())) {
@@ -606,9 +609,9 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         // Copies the content of lookAndFeels into buffer, skipping over the look and feel to uninstall.
         buffer      = new UIManager.LookAndFeelInfo[lookAndFeels.length - 1];
         bufferIndex = 0;
-        for(int i = 0; i < lookAndFeels.length; i++) {
-            if(!selection.getClassName().equals(lookAndFeels[i].getClassName())) {
-                buffer[bufferIndex] = lookAndFeels[i];
+        for (UIManager.LookAndFeelInfo lookAndFeel : lookAndFeels) {
+            if (!selection.getClassName().equals(lookAndFeel.getClassName())) {
+                buffer[bufferIndex] = lookAndFeel;
                 bufferIndex++;
             }
         }
@@ -722,7 +725,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
     }
 
     public void run() {
-        Vector newLookAndFeels;
+        Vector<Class<?>> newLookAndFeels;
 
         setLookAndFeelsLoading(true);
         try {
@@ -734,11 +737,11 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
                 String currentName;
 
                 if(customLookAndFeels == null)
-                    customLookAndFeels = new Vector();
+                    customLookAndFeels = new Vector<String>();
 
                 // Adds all new instances to the list of custom look&feels.
                 for(int i = 0; i < newLookAndFeels.size(); i++) {
-                    currentName = ((Class) newLookAndFeels.elementAt(i)).getName();
+                    currentName = newLookAndFeels.elementAt(i).getName();
                     if(!customLookAndFeels.contains(currentName)) {
                         customLookAndFeels.add(currentName);
                         try {WindowManager.installLookAndFeel(currentName);}
@@ -835,15 +838,14 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         if((dialog = new ThemeNameDialog(parent, theme.getName())).wasValidated()) {
             // If the rename operation was a success, makes sure the theme is located at its proper position.
             try {
-                if(ThemeManager.renameCustomTheme(theme, dialog.getText())) {
-                    themeComboBox.removeItem(theme);
-                    insertTheme(theme);
-                    return;
-                }
+                ThemeManager.renameCustomTheme(theme, dialog.getText());
+                themeComboBox.removeItem(theme);
+                insertTheme(theme);
             }
-            catch(Exception e) {}
-            // Otherwise, notifies the user.
-            InformationDialog.showErrorDialog(this, Translator.get("prefs_dialog.rename_failed", theme.getName()));
+            catch(Exception e) {
+                // Otherwise, notifies the user.
+                InformationDialog.showErrorDialog(this, Translator.get("prefs_dialog.rename_failed", theme.getName()));
+            }
         }
     }
 
@@ -1078,6 +1080,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
         /**
          * Returns <code>true</code> if the specified file should be displayed in the chooser.
          */
+        @Override
         public boolean accept(java.io.File file) {
             String ext;
 
@@ -1092,6 +1095,7 @@ class AppearancePanel extends PreferencesPanel implements ActionListener, Runnab
             return false;
         }
 
+        @Override
         public String getDescription() {return description;}
     }
 }

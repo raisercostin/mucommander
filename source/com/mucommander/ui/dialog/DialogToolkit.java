@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,10 @@ import com.mucommander.ui.button.ButtonChoicePanel;
 import com.mucommander.ui.helper.MnemonicHelper;
 import com.mucommander.ui.main.WindowManager;
 
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import java.awt.*;
 import java.awt.event.ActionListener;
 
@@ -147,9 +150,7 @@ public class DialogToolkit {
         JPanel panel = new ButtonChoicePanel(buttons, 0, rootPane);
         
         MnemonicHelper mnemonicHelper = new MnemonicHelper();
-        JButton button;
-        for(int i=0; i<buttons.length; i++) {
-            button = buttons[i];
+        for (JButton button : buttons) {
             button.setMnemonic(mnemonicHelper.getMnemonic(button.getText()));
             button.addActionListener(actionListener);
             panel.add(button);

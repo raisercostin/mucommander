@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,8 +122,8 @@ public interface Shell32API extends W32API {
          */
         public String encodePaths(String[] paths) {
             StringBuffer encodedPaths = new StringBuffer();
-            for (int i=0;i < paths.length;i++) {
-                encodedPaths.append(paths[i]);
+            for (String path : paths) {
+                encodedPaths.append(path);
                 encodedPaths.append('\0');
             }
             encodedPaths.append('\0');

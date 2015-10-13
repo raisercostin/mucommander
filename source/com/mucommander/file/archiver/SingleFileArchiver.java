@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ class SingleFileArchiver extends Archiver {
      * This method is a no-op, and does nothing but throw an IOException if it is called more than once,
      * which should never be the case as this Archiver is only meant to store one file. 
      */
+    @Override
     public OutputStream createEntry(String entryPath, FileAttributes attributes) throws IOException {
         if(firstEntry)
             firstEntry = false;
@@ -58,6 +59,7 @@ class SingleFileArchiver extends Archiver {
     }
 	
 	
+    @Override
     public void close() throws IOException {
         out.close();
     }

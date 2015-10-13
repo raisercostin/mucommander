@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ public class CalculateChecksumJob extends TransferFileJob {
     // TransferFileJob implementation //
     ////////////////////////////////////
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Skip directories
         if(file.isDirectory()) {
@@ -185,6 +186,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         } while(true);
     }
 
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         // This job modifies the folder where the checksum file is
         return folder.equalsCanonical(checksumFile.getParent());     // Note: parent may be null
@@ -195,6 +197,7 @@ public class CalculateChecksumJob extends TransferFileJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     protected void jobStarted() {
         super.jobStarted();
 
@@ -220,7 +223,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         do {
             try {
                 // Tries to get an OutputStream on the destination file
-                this.checksumFileOut = checksumFile.getOutputStream(false);
+                this.checksumFileOut = checksumFile.getOutputStream();
 
                 break;
 
@@ -243,6 +246,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         } while(true);
     }
 
+    @Override
     protected void jobCompleted() {
         super.jobCompleted();
 
@@ -250,6 +254,7 @@ public class CalculateChecksumJob extends TransferFileJob {
         ViewerRegistrar.createViewerFrame(getMainFrame(), checksumFile, IconManager.getImageIcon(checksumFile.getIcon()).getImage());
     }
 
+    @Override
     protected void jobStopped() {
         super.jobStopped();
         

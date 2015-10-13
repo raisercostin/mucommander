@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,8 +67,8 @@ public class CompoundReaderTest extends TestCase {
 
     static {
         StringBuffer sb = new StringBuffer();
-        for(int i=0; i<TEST_STRINGS.length; i++)
-            sb.append(TEST_STRINGS[i]);
+        for (String testString : TEST_STRINGS)
+            sb.append(testString);
 
         TEST_FLATTENED_STRINGS = sb.toString();
     }
@@ -79,11 +79,11 @@ public class CompoundReaderTest extends TestCase {
      *
      * @return a test Reader iterator.
      */
-    private static Iterator getTestReaderIterator() {
-        Vector v = new Vector();
+    private static Iterator<StringReader> getTestReaderIterator() {
+        Vector<StringReader> v = new Vector<StringReader>();
 
-        for(int i=0; i<TEST_STRINGS.length; i++)
-            v.add(new StringReader(TEST_STRINGS[i]));
+        for (String testString : TEST_STRINGS)
+            v.add(new StringReader(testString));
 
         return v.iterator();
     }

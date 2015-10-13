@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +28,26 @@ import com.mucommander.file.AbstractFile;
 public class AndFileFilter extends ChainedFileFilter {
 
     /**
-     * Creates a new AndFileFilter that contains no {@link FileFilter} initially.
+     * Creates a new <code>AndFileFilter</code> operating in non-inverted mode and containing the specified filters,
+     * if any.
+     *
+     * @param filters filters to add to this chained filter.
      */
-    public AndFileFilter() {
+    public AndFileFilter(FileFilter... filters) {
+        this(false, filters);
     }
+
+    /**
+     * Creates a new <code>AndFileFilter</code> operating in the specified mode and containing the specified filters,
+     * if any.
+     *
+     * @param inverted if true, this filter will operate in inverted mode.
+     * @param filters filters to add to this chained filter.
+     */
+    public AndFileFilter(boolean inverted, FileFilter... filters) {
+        super(inverted, filters);
+    }
+
 
     
     ///////////////////////////////
@@ -51,7 +67,7 @@ public class AndFileFilter extends ChainedFileFilter {
         int nbFilters = filters.size();
 
         for(int i=0; i<nbFilters; i++)
-            if(!((FileFilter)filters.elementAt(i)).match(file))
+            if(!filters.elementAt(i).match(file))
                 return false;
         return true;
     }

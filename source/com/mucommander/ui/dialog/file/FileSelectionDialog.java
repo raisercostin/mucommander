@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import com.mucommander.ui.dialog.FocusDialog;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
-import com.mucommander.util.StringUtils;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
@@ -177,7 +176,7 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
             keywordString = selectionField.getText();
             if(comparison!=REGEXP) {
                 // Remove '*' characters
-                testString = StringUtils.replaceCompat(keywordString, "*", "");
+                testString = keywordString.replace("*", "");
             }
             else {
                 testString = keywordString;
@@ -190,10 +189,10 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
                     filter = new ContainsFilenameFilter(testString, caseSensitive);
                     break;
                 case STARTS_WITH:
-                    filter = new StartsFilenameFilter(testString, caseSensitive);
+                    filter = new StartsWithFilenameFilter(testString, caseSensitive);
                     break;
                 case ENDS_WIDTH:
-                    filter = new EndsFilenameFilter(testString, caseSensitive);
+                    filter = new EndsWithFilenameFilter(testString, caseSensitive);
                     break;
                 case IS:
                     filter = new EqualsFilenameFilter(testString, caseSensitive);
@@ -215,10 +214,10 @@ public class FileSelectionDialog extends FocusDialog implements ActionListener {
 
             // If folders are excluded, add a regular file filter and chain it with an AndFileFilter
             if(!includeFolders) {
-                AndFileFilter andFilter = new AndFileFilter();
-                andFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.FILE));
-                andFilter.addFileFilter(filter);
-                filter = andFilter;
+                filter = new AndFileFilter(
+                    new AttributeFileFilter(AttributeFileFilter.FILE),
+                    filter
+                );
             }
 
             // Mark/unmark the files using the filter

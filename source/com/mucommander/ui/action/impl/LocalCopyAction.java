@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 package com.mucommander.ui.action.impl;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
+import com.mucommander.file.filter.AndFileFilter;
+import com.mucommander.file.filter.FileOperationFilter;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.ui.action.AbstractActionDescriptor;
 import com.mucommander.ui.action.ActionCategory;
@@ -42,10 +45,16 @@ import java.util.Hashtable;
  */
 public class LocalCopyAction extends SelectedFileAction {
 
-    public LocalCopyAction(MainFrame mainFrame, Hashtable properties) {
+    public LocalCopyAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
+
+        setSelectedFileFilter(new AndFileFilter(
+            new FileOperationFilter(FileOperation.READ_FILE),
+            new FileOperationFilter(FileOperation.WRITE_FILE)
+        ));
     }
 
+    @Override
     public void performAction() {
         FileTable activeTable = mainFrame.getActiveTable();
         AbstractFile selectedFile = activeTable.getSelectedFile(false, true);
@@ -58,7 +67,7 @@ public class LocalCopyAction extends SelectedFileAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new LocalCopyAction(mainFrame, properties);
 		}
     }

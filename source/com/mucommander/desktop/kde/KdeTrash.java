@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,6 +99,7 @@ class KdeTrash extends QueuedTrash {
     /**
      * Implementation notes: returns <code>true</code> only for local files that are not archive entries.
      */
+    @Override
     public boolean canMoveToTrash(AbstractFile file) {
         return file.getTopAncestor() instanceof LocalFile;
     }
@@ -106,14 +107,17 @@ class KdeTrash extends QueuedTrash {
     /**
      * Implementation notes: always returns <code>true</code>.
      */
+    @Override
     public boolean canEmpty() {
         return true;
     }
 
+    @Override
     public boolean empty() {
         return executeAndWait(EMPTY_TRASH_COMMAND);
     }
 
+    @Override
     public boolean isTrashFile(AbstractFile file) {
         return (file.getTopAncestor() instanceof LocalFile)
             && (file.getAbsolutePath(true).indexOf("/.local/share/Trash/") != -1);
@@ -122,10 +126,12 @@ class KdeTrash extends QueuedTrash {
     /**
      * Implementation notes: always returns <code>-1</code> (information not available).
      */
+    @Override
     public int getItemCount() {
         return -1;
     }
 
+    @Override
     public void open() {
         executeAndWait(baseCommand+" exec trash:/");
     }
@@ -133,6 +139,7 @@ class KdeTrash extends QueuedTrash {
     /**
      * Implementation notes: always returns <code>true</code>.
      */
+    @Override
     public boolean canOpen() {
         return true;
     }
@@ -142,7 +149,8 @@ class KdeTrash extends QueuedTrash {
     // QueuedTrash implementation //
     ////////////////////////////////
 
-    protected boolean moveToTrash(Vector queuedFiles) {
+    @Override
+    protected boolean moveToTrash(Vector<AbstractFile> queuedFiles) {
         int nbFiles = queuedFiles.size();
         String tokens[] = new String[nbFiles+3];
 
@@ -150,7 +158,7 @@ class KdeTrash extends QueuedTrash {
         tokens[1] = "move";
 
         for(int i=0; i<nbFiles; i++) {
-            tokens[i+2] = ((AbstractFile)queuedFiles.elementAt(i)).getAbsolutePath();
+            tokens[i+2] = queuedFiles.elementAt(i).getAbsolutePath();
         }
 
         tokens[nbFiles+2] = "trash:/";

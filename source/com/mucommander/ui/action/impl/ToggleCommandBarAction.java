@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.commandbar.CommandBar;
 
-import javax.swing.*;
+import javax.swing.KeyStroke;
 import java.util.Hashtable;
 
 /**
@@ -40,7 +40,7 @@ import java.util.Hashtable;
  */
 public class ToggleCommandBarAction extends MuAction {
 
-    public ToggleCommandBarAction(MainFrame mainFrame, Hashtable properties) {
+    public ToggleCommandBarAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
         updateLabel(MuConfiguration.getVariable(MuConfiguration.COMMAND_BAR_VISIBLE, MuConfiguration.DEFAULT_COMMAND_BAR_VISIBLE));
     }
@@ -49,6 +49,7 @@ public class ToggleCommandBarAction extends MuAction {
         setLabel(Translator.get(visible?Descriptor.ACTION_ID+".hide":Descriptor.ACTION_ID+".show"));
     }
 
+    @Override
     public void performAction() {
         CommandBar commandBar = mainFrame.getCommandBar();
         boolean visible = !commandBar.isVisible();
@@ -63,7 +64,7 @@ public class ToggleCommandBarAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new ToggleCommandBarAction(mainFrame, properties);
 		}
     }
@@ -79,6 +80,7 @@ public class ToggleCommandBarAction extends MuAction {
 
 		public KeyStroke getDefaultKeyStroke() { return null; }
 
+        @Override
         public String getLabelKey() { return ACTION_ID+".show"; }
     }
 }

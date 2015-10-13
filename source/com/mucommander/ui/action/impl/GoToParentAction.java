@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,14 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
-
-import javax.swing.KeyStroke;
-
 import com.mucommander.file.AbstractFile;
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
+
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * This action changes the current folder of the currently active FolderPanel to the current folder's parent.
@@ -38,13 +33,13 @@ import com.mucommander.ui.main.MainFrame;
  *
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class GoToParentAction extends GoToAction {
+public class GoToParentAction extends ParentFolderAction {
     /**
      * Creates a new <code>GoToParentAction</code> with the specified parameters.
      * @param mainFrame  frame to which the action is attached.
      * @param properties action's properties.
      */
-    public GoToParentAction(MainFrame mainFrame, Hashtable properties) {
+    public GoToParentAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
@@ -53,6 +48,7 @@ public class GoToParentAction extends GoToAction {
      * Enables or disables this action based on the currently active folder's
      * has a parent, this action will be enabled, if not it will be disabled.
      */
+    @Override
     protected void toggleEnabledState() {
         setEnabled(mainFrame.getActivePanel().getCurrentFolder().getParent()!=null);
     }
@@ -103,6 +99,7 @@ public class GoToParentAction extends GoToAction {
     /**
      * Goes to the current location's parent in the active panel.
      */
+    @Override
     public void performAction() {
         // Changes the current folder to make it the current folder's parent.
         // Does nothing if the current folder doesn't have a parent.
@@ -111,7 +108,7 @@ public class GoToParentAction extends GoToAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new GoToParentAction(mainFrame, properties);
 		}
     }

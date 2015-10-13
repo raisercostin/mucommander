@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,11 +47,13 @@ public class ArArchiveFile extends AbstractROArchiveFile {
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////
 
-    public ArchiveEntryIterator getEntryIterator() throws IOException {
+    @Override
+    public ArchiveEntryIterator getEntryIterator() throws IOException, UnsupportedFileOperationException {
         return new ArArchiveEntryIterator(getInputStream());
     }
 
-    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
+    @Override
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException, UnsupportedFileOperationException {
         InputStream in = getInputStream();
         ArchiveEntryIterator iterator = new ArArchiveEntryIterator(in);
 
@@ -59,7 +61,7 @@ public class ArArchiveFile extends AbstractROArchiveFile {
         while((currentEntry = iterator.nextEntry())!=null) {
             if(currentEntry.getName().equals(entry.getName())) {
                 FileLogger.finest("found entry "+entry.getName());
-                return new BoundedInputStream(in, entry.getSize());
+                return new BoundedInputStream(in, entry.getSize(), false);
             }
         }
 

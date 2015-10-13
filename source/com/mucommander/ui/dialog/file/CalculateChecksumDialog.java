@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@ import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.FilePathField;
-import com.mucommander.util.StringUtils;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
@@ -46,7 +45,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -90,17 +88,16 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
         // Retrieve all MessageDigest instances and sort them by alphabetical order of their algorithm
 
         // Create a TreeSet with a custom Comparator
-        SortedSet algorithmSortedSet = new TreeSet(new Comparator() {
-                    public int compare(Object o1, Object o2) {
-                        return ((MessageDigest)o1).getAlgorithm().compareTo(((MessageDigest)o2).getAlgorithm());
+        SortedSet<MessageDigest> algorithmSortedSet = new TreeSet<MessageDigest>(new Comparator<MessageDigest>() {
+                    public int compare(MessageDigest md1, MessageDigest md2) {
+                        return md1.getAlgorithm().compareTo(md2.getAlgorithm());
                     }
                 });
 
         // Add all MessageDigest to the TreeSet
-        Iterator algoIter = Security.getAlgorithms("MessageDigest").iterator();
-        while(algoIter.hasNext()) {
+        for(String algo : Security.getAlgorithms("MessageDigest")) {
             try {
-                algorithmSortedSet.add(MessageDigest.getInstance((String)algoIter.next()));
+                algorithmSortedSet.add(MessageDigest.getInstance(algo));
             }
             catch(NoSuchAlgorithmException e) {
                 // Should never happen and if it ever does, the digest will simply be discarded
@@ -113,8 +110,8 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
 
         // Add the sorted list of algorithms to a combo box to let the user choose one
         algorithmComboBox = new JComboBox();
-        for(int i=0; i<messageDigests.length; i++)
-            algorithmComboBox.addItem(messageDigests[i].getAlgorithm());
+        for (MessageDigest messageDigest : messageDigests) 
+            algorithmComboBox.addItem(messageDigest.getAlgorithm());
 
         // Select the last used algorithm (if any), or the default algorithm
         algorithmComboBox.setSelectedItem(lastUsedAlgorithm);
@@ -214,9 +211,9 @@ public class CalculateChecksumDialog extends JobDialog implements ActionListener
             return "SHA1SUMS";
 
         if(algorithm.equals("CRC32"))
-            return (files.size()==1?files.fileAt(0):files.getBaseFolder()).getName()+".sfv";
+            return (files.size()==1?files.elementAt(0):files.getBaseFolder()).getName()+".sfv";
 
-        return StringUtils.replaceCompat(algorithm, "-", "")+"SUMS";
+        return algorithm.replace("-", "")+"SUMS";
     }
 
 

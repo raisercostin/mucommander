@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -98,7 +98,7 @@ public class Configuration {
     /** Holds the content of the configuration file. */
     private final ConfigurationSection root = new ConfigurationSection();
     /** Contains all registered configuration listeners, stored as weak references */
-    private static final WeakHashMap   listeners = new WeakHashMap();
+    private static final WeakHashMap<ConfigurationListener, ?> listeners = new WeakHashMap<ConfigurationListener, Object>();
 
 
 
@@ -485,19 +485,19 @@ public class Configuration {
      * @throws ConfigurationException if any error occurs.
      */
     private synchronized void build(ConfigurationBuilder builder, ConfigurationSection root) throws ConfigurationException {
-        Enumeration          enumeration; // Enumeration on the section's variables, then subsections.
+        Enumeration<String>  enumeration; // Enumeration on the section's variables, then subsections.
         String               name;        // Name of the current variable, then section.
         ConfigurationSection section;     // Current section.
 
         // Explores the section's variables.
         enumeration = root.variableNames();
         while(enumeration.hasMoreElements())
-            builder.addVariable(name = (String)enumeration.nextElement(), root.getVariable(name));
+            builder.addVariable(name = enumeration.nextElement(), root.getVariable(name));
 
         // Explores the section's subsections.
         enumeration = root.sectionNames();
         while(enumeration.hasMoreElements()) {
-            name    = (String)enumeration.nextElement();
+            name    = enumeration.nextElement();
             section = root.getSection(name);
 
             // We only go through subsections if contain either variables or subsections of their own.
@@ -611,7 +611,7 @@ public class Configuration {
      * @see              #getListVariable(String,String)
      * @see              #getVariable(String,List,String)
      */
-    public boolean setVariable(String name, List value, String separator) {return setVariable(name, ConfigurationSection.getValue(value, separator));}
+    public boolean setVariable(String name, List<String> value, String separator) {return setVariable(name, ConfigurationSection.getValue(value, separator));}
 
     /**
      * Sets the value of the specified variable.
@@ -945,7 +945,7 @@ public class Configuration {
      * @see                 #setVariable(String,List,String)
      * @see                 #getListVariable(String,String)
      */
-    public ValueList getVariable(String name, List defaultValue, String separator) {
+    public ValueList getVariable(String name, List<String> defaultValue, String separator) {
         return ConfigurationSection.getListValue(getVariable(name, ConfigurationSection.getValue(defaultValue, separator)), separator);
     }
 
@@ -1090,11 +1090,8 @@ public class Configuration {
      * @param event event to propagate.
      */
     private static void triggerEvent(ConfigurationEvent event) {
-        Iterator iterator;
-
-        iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ConfigurationListener)iterator.next()).configurationChanged(event);
+        for(ConfigurationListener listener : listeners.keySet())
+            listener.configurationChanged(event);
     }
 
 
@@ -1118,11 +1115,11 @@ public class Configuration {
         // - Instance variables ------------------------------------------------
         // ---------------------------------------------------------------------
         /** Parents of {@link #currentSection}. */
-        private Stack                sections;
+        private Stack<ConfigurationSection> sections;
         /** Fully qualified names of {@link #currentSection}. */
-        private Stack                sectionNames;
+        private Stack<String>               sectionNames;
         /** Section that we're currently building. */
-        private ConfigurationSection currentSection;
+        private ConfigurationSection        currentSection;
 
 
 
@@ -1142,8 +1139,8 @@ public class Configuration {
          * Initialises the configuration bulding.
          */
         public void startConfiguration() {
-            sections     = new Stack();
-            sectionNames = new Stack();
+            sections     = new Stack<ConfigurationSection>();
+            sectionNames = new Stack<String>();
         }
 
         /**
@@ -1184,7 +1181,7 @@ public class Configuration {
 
             // Makes sure there is a section to close.
             try {
-                buffer = (ConfigurationSection)sections.pop();
+                buffer = sections.pop();
                 sectionNames.pop();
             }
             catch(EmptyStackException e) {throw new ConfigurationStructureException("Section " + name + " was already closed.");}

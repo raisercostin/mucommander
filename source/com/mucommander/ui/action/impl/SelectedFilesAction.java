@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,18 @@ import java.util.Hashtable;
  * when at least one file is marked, or when a file other than the parent folder file '..' is selected.
  * When none of those conditions is satisfied, this action is disabled.
  *
+ * <p>Optionally, a FileFilter can be specified using {@link #setSelectedFileFilter(com.mucommander.file.filter.FileFilter) setSelectedFileFilter}
+ * to further restrict the enabled condition to files that match the filter.</p>
+ *
  * @author Maxence Bernard
  */
 public abstract class SelectedFilesAction extends SelectedFileAction {
 
-    public SelectedFilesAction(MainFrame mainFrame, Hashtable properties) {
+    public SelectedFilesAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
+    @Override
     protected boolean getFileTableCondition(FileTable fileTable) {
         return fileTable.getFileTableModel().getNbMarkedFiles()>0 || super.getFileTableCondition(fileTable);
     }

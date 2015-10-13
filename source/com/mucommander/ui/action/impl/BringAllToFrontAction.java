@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,18 +18,13 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.util.Hashtable;
-import java.util.Vector;
-
-import javax.swing.KeyStroke;
-
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
+
+import javax.swing.KeyStroke;
+import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * Brings all MainFrame windows to front, from the last window index to the first, except for the current
@@ -48,18 +43,19 @@ import com.mucommander.ui.main.WindowManager;
  */
 public class BringAllToFrontAction extends MuAction {
 
-    public BringAllToFrontAction(MainFrame mainFrame, Hashtable properties) {
+    public BringAllToFrontAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
+    @Override
     public void performAction() {
-        Vector mainFrames = WindowManager.getMainFrames();
+        Vector<MainFrame> mainFrames = WindowManager.getMainFrames();
         MainFrame currentMainFrame = WindowManager.getCurrentMainFrame();
 
         int nbMainFrames = mainFrames.size();
         MainFrame mainFrame;
         for(int i=nbMainFrames-1; i>=0; i--) {
-            mainFrame = (MainFrame)mainFrames.elementAt(i);
+            mainFrame = mainFrames.elementAt(i);
             if(mainFrame!=currentMainFrame) {
                 mainFrame.toFront();
             }
@@ -70,7 +66,7 @@ public class BringAllToFrontAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new BringAllToFrontAction(mainFrame, properties);
 		}
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,8 +60,10 @@ public class TarArchiveFile extends AbstractROArchiveFile {
      * <code>0</code> to start at the first entry.
      * @return a TarInputStream which can be used to read TAR entries
      * @throws IOException if an error occurred while create the stream
+     * @throws UnsupportedFileOperationException if this operation is not supported by the underlying filesystem,
+     * or is not implemented.
      */
-    private TarInputStream createTarStream(long entryOffset) throws IOException {
+    private TarInputStream createTarStream(long entryOffset) throws IOException, UnsupportedFileOperationException {
         InputStream in = file.getInputStream();
 
         String name = getName();
@@ -102,12 +104,14 @@ public class TarArchiveFile extends AbstractROArchiveFile {
     // AbstractArchiveFile implementation //
     ////////////////////////////////////////
 
-    public ArchiveEntryIterator getEntryIterator() throws IOException {
+    @Override
+    public ArchiveEntryIterator getEntryIterator() throws IOException, UnsupportedFileOperationException {
         return new TarEntryIterator(createTarStream(0));
     }
 
 
-    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
+    @Override
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException, UnsupportedFileOperationException {
         if(entry.isDirectory())
             throw new IOException();
 
@@ -121,6 +125,7 @@ public class TarArchiveFile extends AbstractROArchiveFile {
                 // The entry/tar stream is wrapped in a FilterInputStream where #close is implemented as a no-op:
                 // we don't want the TarInputStream to be closed when the caller closes the entry's stream.
                 return new FilterInputStream(((TarEntryIterator)entryIterator).getTarInputStream()) {
+                    @Override
                     public void close() throws IOException {
                         // No-op
                     }

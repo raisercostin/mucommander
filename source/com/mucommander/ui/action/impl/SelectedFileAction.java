@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,14 +30,23 @@ import java.util.Hashtable;
  * and that is enabled only when a file other than the parent folder file '..' is selected.
  *
  * <p>Optionally, a FileFilter can be specified using {@link #setSelectedFileFilter(com.mucommander.file.filter.FileFilter) setSelectedFileFilter}
- * to further restrict the enabled condition to files that match the filter.
+ * to further restrict the enabled condition to files that match the filter.</p>
  *
  * @author Maxence Bernard
  */
 public abstract class SelectedFileAction extends FileAction {
 
-    public SelectedFileAction(MainFrame mainFrame, Hashtable properties) {
+    public SelectedFileAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
+    }
+
+    /**
+     * Returns the filter that restricts the enabled condition to selected files that match the specified filter.
+     *
+     * @return the filter that restricts the enabled condition to selected files that match the specified filter.
+     */
+    public FileFilter getSelectedFileFilter() {
+        return filter;
     }
 
     /**
@@ -50,6 +59,7 @@ public abstract class SelectedFileAction extends FileAction {
     }
 
 
+    @Override
     protected boolean getFileTableCondition(FileTable fileTable) {
         AbstractFile selectedFile = fileTable.getSelectedFile(false, true);
         boolean enable = selectedFile!=null;

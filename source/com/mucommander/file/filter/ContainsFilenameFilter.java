@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,31 +24,35 @@ package com.mucommander.file.filter;
  *
  * @author Maxence Bernard
  */
-public class ContainsFilenameFilter extends FilenameFilter {
-
-    /** The string to compare against filenames */
-    private String s;
+public class ContainsFilenameFilter extends AbstractContainsFilter implements FilenameFilter {
 
     /**
-     * Creates a new <code>ContainsFilenameFilter</code>.
+     * Creates a new case-insensitive <code>ContainsFilenameFilter</code> operating in non-inverted mode.
      *
      * @param s the string to compare filenames against
-     * @param caseSensitive if true, this FilenameFilter will be case-sentive
      */
-    public ContainsFilenameFilter(String s, boolean caseSensitive) {
-        super(caseSensitive);
-        this.s = s;
+    public ContainsFilenameFilter(String s) {
+        this(s, false, false);
     }
 
+    /**
+     * Creates a new <code>ContainsFilenameFilter</code> operating in non-inverted mode.
+     *
+     * @param s the string to compare filenames against
+     * @param caseSensitive if true, this FilenameFilter will be case-sensitive
+     */
+    public ContainsFilenameFilter(String s, boolean caseSensitive) {
+        this(s, caseSensitive, false);
+    }
 
-    ///////////////////////////////////
-    // FilenameFilter implementation //
-    ///////////////////////////////////
-
-    public boolean accept(String filename) {
-        if(isCaseSensitive())
-            return filename.indexOf(s)!=-1;
-
-        return filename.toLowerCase().indexOf(s.toLowerCase())!=-1;
+    /**
+     * Creates a new <code>ContainsFilenameFilter</code> operating in the specified mode.
+     *
+     * @param s the string to compare filenames against
+     * @param caseSensitive if true, this FilenameFilter will be case-sensitive
+     * @param inverted if true, this filter will operate in inverted mode.
+     */
+    public ContainsFilenameFilter(String s, boolean caseSensitive, boolean inverted) {
+        super(new FilenameGenerator(), s, caseSensitive, inverted);
     }
 }

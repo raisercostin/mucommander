@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ public class ConnectionPool implements Runnable {
     private static ConnectionPool instance = new ConnectionPool();
 
     /** List of registered ConnectionHandler */
-    private final static Vector connectionHandlers = new Vector();
+    private final static Vector<ConnectionHandler> connectionHandlers = new Vector<ConnectionHandler>();
 
     /** The thread that monitors connections, null if there currently is no registered ConnectionHandler */
     private static Thread monitorThread;
@@ -131,15 +131,15 @@ public class ConnectionPool implements Runnable {
      *
      * @return a list of registered ConnectionHandler instances
      */
-    public static Vector getConnectionHandlersSnapshot() {
-        return (Vector)connectionHandlers.clone();
+    public static Vector<ConnectionHandler> getConnectionHandlersSnapshot() {
+        return (Vector<ConnectionHandler>)connectionHandlers.clone();
     }
     
     /**
      * Returns the ConnectionHandler instance located at the given position in the list.
      */
     private static ConnectionHandler getConnectionHandlerAt(int i) {
-        return (ConnectionHandler)connectionHandlers.elementAt(i);
+        return connectionHandlers.elementAt(i);
     }
 
     /**
@@ -246,6 +246,7 @@ public class ConnectionPool implements Runnable {
             this.connHandler = connHandler;
         }
 
+        @Override
         public void run() {
             // Try to close connection, only if it is connected
             if(connHandler.isConnected()) {
@@ -268,6 +269,7 @@ public class ConnectionPool implements Runnable {
             this.connHandler = connHandler;
         }
 
+        @Override
         public void run() {
             FileLogger.finer("keeping connection alive: "+connHandler);
 

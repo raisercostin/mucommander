@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,21 +47,13 @@ class LocalProcess extends AbstractProcess {
      * @throws IOException if the process could not be created.
      */
     public LocalProcess(String[] tokens, File dir) throws IOException {
-        // Java 1.5 and higher can merge stderr and stdout through ProcessBuilder.
-        // This is the preferred way of working with processes.
-        if(JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
-            ProcessBuilder pb = new ProcessBuilder(tokens);
-            // Set the process' working directory
-            pb.directory(dir);
-            // Merge the process' stdout and stderr 
-            pb.redirectErrorStream(true);
+        ProcessBuilder pb = new ProcessBuilder(tokens);
+        // Set the process' working directory
+        pb.directory(dir);
+        // Merge the process' stdout and stderr
+        pb.redirectErrorStream(true);
 
-            process = pb.start();
-        }
-
-        // Java 1.4 or below, use Runtime.exec() which separates stdout and stderr (harder to manipulate)
-        else
-            process = Runtime.getRuntime().exec(tokens, null, dir);
+        process = pb.start();
 
         // Safeguard: makes sure that an exception is raised if the process could not be created.
         // This might not be strictly necessary, but the Runtime.exec documentation is not very precise
@@ -75,33 +67,38 @@ class LocalProcess extends AbstractProcess {
     // - Implementation --------------------------------------------------------
     // -------------------------------------------------------------------------
     /**
-     * Returns <code>true</code> if the VM supports merged <code>java.lang.Process</code> streams.
-     * @return <code>true</code> if the VM supports merged <code>java.lang.Process</code> streams, <code>false</code> otherwise.
+     * Returns <code>true</code> if the current JRE version supports merged <code>java.lang.Process</code> streams.
+     * @return <code>true</code> if the current JRE version supports merged <code>java.lang.Process</code> streams, <code>false</code> otherwise.
      */
-    public boolean usesMergedStreams() {return JavaVersions.JAVA_1_6.isCurrentOrHigher();}
+    @Override
+    public boolean usesMergedStreams() {return JavaVersions.JAVA_1_5.isCurrentOrHigher();}
 
     /**
      * Waits for the process to die.
      * @return                      the process' exit code.
      * @throws InterruptedException if the thread was interrupted while waiting on the process to die.
      */
+    @Override
     public int waitFor() throws InterruptedException {return process.waitFor();}
 
     /**
      * Destroys the process.
      */
+    @Override
     protected void destroyProcess() {process.destroy();}
 
     /**
      * Returns the process' exit value.
      * @return the process' exit value.
      */
+    @Override
     public int exitValue() {return process.exitValue();}
 
     /**
      * Returns the process' output stream.
      * @return the process' output stream.
      */
+    @Override
     public OutputStream getOutputStream() {return process.getOutputStream();}
 
     /**
@@ -114,6 +111,7 @@ class LocalProcess extends AbstractProcess {
      * @return             the process' error stream.
      * @throws IOException if this process is using merged streams.
      */
+    @Override
     public InputStream getErrorStream()  throws IOException {
         if(usesMergedStreams()) {
             AppLogger.fine("Tried to access the error stream of a merged streams process.");
@@ -126,5 +124,6 @@ class LocalProcess extends AbstractProcess {
      * Returns the process' input stream.
      * @return the process' input stream.
      */
+    @Override
     public InputStream getInputStream() {return process.getInputStream();}
 }

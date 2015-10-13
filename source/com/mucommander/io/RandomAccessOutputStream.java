@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ public abstract class RandomAccessOutputStream extends OutputStream implements R
      * @param b the data to write
      * @throws IOException if an I/O error occurs
      */
+    @Override
     public abstract void write(byte b[]) throws IOException;
 
     /**
@@ -60,6 +61,7 @@ public abstract class RandomAccessOutputStream extends OutputStream implements R
      * @param len the number of bytes to write
      * @throws IOException if an I/O error occurs
      */
+    @Override
     public abstract void write(byte b[], int off, int len) throws IOException;
 
     /**
@@ -85,5 +87,6 @@ public abstract class RandomAccessOutputStream extends OutputStream implements R
      *
      * @throws IOException if an I/O error occurs.
      */
+    @Override
     public abstract void close() throws IOException;
 }

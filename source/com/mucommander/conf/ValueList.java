@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -35,7 +35,7 @@ import java.util.Vector;
  * </p>
  * @author Nicolas Rinaudo
  */
-public class ValueList extends Vector {
+public class ValueList extends Vector<String> {
     // - Initialisation ------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /**
@@ -59,7 +59,7 @@ public class ValueList extends Vector {
      * @param  index index of the value to retrieve.
      * @return       the value found at the specified index of the list as a string.
      */
-    public String valueAt(int index) {return elementAt(index).toString();}
+    public String valueAt(int index) {return elementAt(index);}
 
     /**
      * Returns the value found at the specified index of the list as an integer.
@@ -124,9 +124,9 @@ public class ValueList extends Vector {
      * @param  separator string used to separate one element from the other.
      * @return           a string representation of the specified list.
      */
-    public static String toString(List data, String separator) {
-        StringBuffer buffer;
-        Iterator     values;
+    public static String toString(List<?> data, String separator) {
+        StringBuffer     buffer;
+        Iterator<?> values;
 
         buffer = new StringBuffer();
         values = data.iterator();

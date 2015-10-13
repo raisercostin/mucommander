@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,8 @@ package com.mucommander.ui.theme;
 
 import com.mucommander.text.Translator;
 
-import java.awt.*;
-import java.util.Iterator;
+import java.awt.Color;
+import java.awt.Font;
 import java.util.WeakHashMap;
 
 /**
@@ -41,7 +41,7 @@ public class Theme extends ThemeData {
 
     // - Theme listeners -----------------------------------------------------------------
     // -----------------------------------------------------------------------------------
-    private static WeakHashMap listeners = new WeakHashMap();
+    private static WeakHashMap<ThemeListener, ?> listeners = new WeakHashMap<ThemeListener, Object>();
 
 
     
@@ -144,6 +144,7 @@ public class Theme extends ThemeData {
      * @param  font                  value for the specified font.
      * @throws IllegalStateException thrown if the theme is not the user one.
      */
+    @Override
     public boolean setFont(int id, Font font) {
         // Makes sure we're not trying to modify a non-user theme.
         if(type != USER_THEME)
@@ -168,6 +169,7 @@ public class Theme extends ThemeData {
      * @param  color                 value for the specified color.
      * @throws IllegalStateException thrown if the theme is not the user one.
      */
+    @Override
     public boolean setColor(int id, Color color) {
         // Makes sure we're not trying to modify a non-user theme.
         if(type != USER_THEME)
@@ -220,19 +222,13 @@ public class Theme extends ThemeData {
     private static void addThemeListener(ThemeListener listener) {listeners.put(listener, null);}
     private static void removeThemeListener(ThemeListener listener) {listeners.remove(listener);}
     private static void triggerFontEvent(FontChangedEvent event) {
-        Iterator iterator;
-
-        iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ThemeListener)iterator.next()).fontChanged(event);
+        for(ThemeListener listener : listeners.keySet())
+            listener.fontChanged(event);
     }
 
     private static void triggerColorEvent(ColorChangedEvent event) {
-        Iterator iterator;
-
-        iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ThemeListener)iterator.next()).colorChanged(event);
+        for(ThemeListener listener : listeners.keySet())
+            listener.colorChanged(event);
     }
 
     private class DefaultValuesListener implements ThemeListener {

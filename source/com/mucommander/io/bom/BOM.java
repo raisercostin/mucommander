@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -144,8 +144,8 @@ public class BOM {
                 return BOMConstants.SUPPORTED_BOMS[i];
 
             aliases = BOMConstants.SUPPORTED_BOMS[i].getAliases();
-            for(int j=0; j<aliases.length; j++)
-                if(aliases[j].equalsIgnoreCase(encoding))
+            for (String alias : aliases)
+                if (alias.equalsIgnoreCase(encoding))
                     return BOMConstants.SUPPORTED_BOMS[i];
         }
 

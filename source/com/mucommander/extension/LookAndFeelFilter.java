@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ package com.mucommander.extension;
 
 import com.mucommander.AppLogger;
 
-import javax.swing.*;
+import javax.swing.LookAndFeel;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
@@ -49,10 +49,10 @@ public class LookAndFeelFilter implements ClassFilter {
      * @param c class to check.
      * @return <code>true</code> if c is an available look and feel, <code>false</code> otherwise.
      */
-    public boolean accept(Class c) {
-        int         modifiers;   // Class' modifiers.
-        Constructor constructor; // Public, no-arg constructor.
-        Class       buffer;      // Used to explore c's ancestors.
+    public boolean accept(Class<?> c) {
+        int            modifiers;   // Class' modifiers.
+        Constructor<?> constructor; // Public, no-arg constructor.
+        Class<?>       buffer;      // Used to explore c's ancestors.
 
         // Ignores inner classes.
         if(c.getDeclaringClass() != null)

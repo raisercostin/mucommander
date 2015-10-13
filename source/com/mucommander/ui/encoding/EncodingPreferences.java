@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,8 +55,8 @@ public class EncodingPreferences {
      *
      * @return a user-defined list of preferred encodings.
      */
-    public static Vector getPreferredEncodings() {
-        Vector vector = MuConfiguration.getListVariable(MuConfiguration.PREFERRED_ENCODINGS, ",");
+    public static Vector<String> getPreferredEncodings() {
+        Vector<String> vector = MuConfiguration.getListVariable(MuConfiguration.PREFERRED_ENCODINGS, ",");
         if(vector==null) {
             vector = getDefaultPreferredEncodings();
             MuConfiguration.setVariable(MuConfiguration.PREFERRED_ENCODINGS, vector, ",");
@@ -70,14 +70,12 @@ public class EncodingPreferences {
      *
      * @return a default list of preferred encodings.
      */
-    public static Vector getDefaultPreferredEncodings() {
-        Vector encodingsV = new Vector();
-        String enc;
-        for(int i=0; i<DEFAULT_PREFERRED_ENCODINGS.length; i++) {
-            enc = DEFAULT_PREFERRED_ENCODINGS[i];
+    public static Vector<String> getDefaultPreferredEncodings() {
+        Vector<String> encodingsV = new Vector<String>();
+        for (String encoding : DEFAULT_PREFERRED_ENCODINGS) {
             // Ensure that the encoding is supported before adding it
-            if(Charset.isSupported(enc))
-                encodingsV.add(enc);
+            if (Charset.isSupported(encoding))
+                encodingsV.add(encoding);
         }
 
         return encodingsV;
@@ -88,7 +86,7 @@ public class EncodingPreferences {
      *
      * @param encodings the user-defined list of preferred encodings
      */
-    public static void setPreferredEncodings(Vector encodings) {
+    public static void setPreferredEncodings(Vector<String> encodings) {
         MuConfiguration.setVariable(MuConfiguration.PREFERRED_ENCODINGS, encodings, ",");
     }
 }

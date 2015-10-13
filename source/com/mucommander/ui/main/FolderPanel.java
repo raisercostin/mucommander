@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
     private FoldersTreePanel foldersTreePanel;
     private JSplitPane treeSplitPane;
 	
-    private FolderHistory folderHistory = new FolderHistory(this);
+    private LocationHistory folderHistory = new LocationHistory(this);
     
     private FileDragSourceListener fileDragSourceListener;
 
@@ -226,6 +226,7 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
 
         // Catch mouse events on the ScrollPane
         scrollPane.addMouseListener(new MouseAdapter() {
+            @Override
             public void mousePressed(MouseEvent e) {
                 // Left-click requests focus on the FileTable
                 if (DesktopManager.isLeftMouseButton(e)) {
@@ -292,12 +293,12 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
      */
     private void disableCtrlFocusTraversalKeys(Component component) {
         // Remove Ctrl+Tab from forward focus traversal keys
-        HashSet keyStrokeSet = new HashSet();
+        HashSet<AWTKeyStroke> keyStrokeSet = new HashSet<AWTKeyStroke>();
         keyStrokeSet.add(AWTKeyStroke.getAWTKeyStroke(KeyEvent.VK_TAB, 0));
         component.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, keyStrokeSet);
 
         // Remove Shift+Ctrl+Tab from backward focus traversal keys
-        keyStrokeSet = new HashSet();
+        keyStrokeSet = new HashSet<AWTKeyStroke>();
         keyStrokeSet.add(AWTKeyStroke.getAWTKeyStroke(KeyEvent.VK_TAB, java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         component.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, keyStrokeSet);
     }
@@ -376,7 +377,7 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
      *
      * @return the visited folders history, wrapped in a FolderHistory object
      */
-    public FolderHistory getFolderHistory() {
+    public LocationHistory getFolderHistory() {
         return this.folderHistory;
     }
 
@@ -928,6 +929,7 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
         }
 
 
+        @Override
         public void start() {
             // Notify listeners that location is changing
             locationManager.fireLocationChanging(folder==null?folderURL:folder.getURL());
@@ -936,6 +938,7 @@ public class FolderPanel extends JPanel implements FocusListener, ThemeListener 
         }
 
 
+        @Override
         public void run() {
             AppLogger.finer("starting folder change...");
             boolean folderChangedSuccessfully = false;

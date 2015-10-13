@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,11 @@ package com.mucommander.ui.icon;
 import com.mucommander.AppLogger;
 import com.mucommander.file.util.ResourceLoader;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.net.URL;
 import java.util.Hashtable;
@@ -35,7 +38,7 @@ import java.util.Hashtable;
  */
 public class IconManager {
     /** Caches for the different icon sets */
-    private final static Hashtable caches[];
+    private final static Hashtable<String, ImageIcon> caches[];
 
     /** Designates the file icon set */
     public final static int FILE_ICON_SET        = 0;
@@ -51,30 +54,33 @@ public class IconManager {
     public final static int PROGRESS_ICON_SET    = 5;
     /** Designates the language icon set */
     public final static int LANGUAGE_ICON_SET    = 6;
+    /** Designates the mucommander icon set */
+    public final static int MUCOMMANDER_ICON_SET = 7;
 
+    /** Base folder of all images */
+    private final static String BASE_IMAGE_FOLDER = "/images";
     /** Icon sets folders within the application's JAR file */
     private final static String ICON_SET_FOLDERS[] = {
-        "/file/",
-        "/action/",
-        "/status_bar/",
-        "/common/",
-        "/preferences/",
-        "/progress/",
-        "/language/"
+        BASE_IMAGE_FOLDER +"/file/",
+        BASE_IMAGE_FOLDER +"/action/",
+        BASE_IMAGE_FOLDER +"/status_bar/",
+        BASE_IMAGE_FOLDER +"/common/",
+        BASE_IMAGE_FOLDER +"/preferences/",
+        BASE_IMAGE_FOLDER +"/progress/",
+        BASE_IMAGE_FOLDER +"/language/",
+        BASE_IMAGE_FOLDER +"/mucommander/"
     };
 
-    /** Number of icon sets */
-    private final static int NB_ICON_SETS = 7;
 
     static {
         // Initialize caches for icon sets that need it.
         // Icons which are displayed once in a while like preferences icons don't need to be cached
-        caches = new Hashtable[NB_ICON_SETS];
-        caches[FILE_ICON_SET]       = new Hashtable();
-        caches[ACTION_ICON_SET]     = new Hashtable();
-        caches[STATUS_BAR_ICON_SET] = new Hashtable();
-        caches[COMMON_ICON_SET]     = new Hashtable();
-        caches[PROGRESS_ICON_SET]   = new Hashtable();
+        caches = new Hashtable[ICON_SET_FOLDERS.length];
+        caches[FILE_ICON_SET]       = new Hashtable<String, ImageIcon>();
+        caches[ACTION_ICON_SET]     = new Hashtable<String, ImageIcon>();
+        caches[STATUS_BAR_ICON_SET] = new Hashtable<String, ImageIcon>();
+        caches[COMMON_ICON_SET]     = new Hashtable<String, ImageIcon>();
+        caches[PROGRESS_ICON_SET]   = new Hashtable<String, ImageIcon>();
     }
 
 
@@ -161,7 +167,7 @@ public class IconManager {
      * <code>null</code> if the image wasn't found or couldn't be loaded
      */
     public static ImageIcon getIcon(int iconSet, String iconName, float scaleFactor) {
-        Hashtable cache = caches[iconSet];
+        Hashtable<String, ImageIcon> cache = caches[iconSet];
         ImageIcon icon;
 
         if(cache==null) {
@@ -170,7 +176,7 @@ public class IconManager {
         }
         else {
             // Look for the icon in the cache
-            icon = (ImageIcon)cache.get(iconName);
+            icon = cache.get(iconName);
             if(icon==null) {
                 // Icon is not in the cache, let's create it
                 icon = getIcon(ICON_SET_FOLDERS[iconSet]+iconName);

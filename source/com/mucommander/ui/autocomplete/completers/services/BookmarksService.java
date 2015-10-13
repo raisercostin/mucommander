@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ public class BookmarksService implements CompletionService, BookmarkListener {
         BookmarkManager.addBookmarkListener(this);
 	}
 	
-	public Vector getPossibleCompletions(String path) {
-		Vector result = new Vector();
+	public Vector<String> getPossibleCompletions(String path) {
+		Vector<String> result = new Vector<String>();
 		PrefixFilter filter = PrefixFilter.createPrefixFilter(path);
 		result.addAll(filter.filter(sortedBookmarkNames));
 		result.addAll(filter.filter(sortedBookmarkLocations)); 
@@ -75,11 +75,11 @@ public class BookmarksService implements CompletionService, BookmarkListener {
      * @return a sorted array of bookmarks names
      */
     private String[] getSortedBookmarkNames() {
-    	Vector bookmarks = BookmarkManager.getBookmarks();
+    	Vector<Bookmark> bookmarks = BookmarkManager.getBookmarks();
         int nbBookmarks = bookmarks.size();
     	String[] result = new String[nbBookmarks];
     	for (int i=0; i<nbBookmarks; i++)
-    		result[i] = ((Bookmark) bookmarks.elementAt(i)).getName();
+    		result[i] = bookmarks.elementAt(i).getName();
     	Arrays.sort(result, String.CASE_INSENSITIVE_ORDER);
     	return result;
     }

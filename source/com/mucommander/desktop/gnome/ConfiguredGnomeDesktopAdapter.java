@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 
 package com.mucommander.desktop.gnome;
 
-import com.mucommander.runtime.JavaVersion;
-
 /**
  * @author Nicolas Rinaudo
  */
@@ -28,12 +26,9 @@ public class ConfiguredGnomeDesktopAdapter extends GnomeDesktopAdapter {
 
     public String toString() {return "Gnome Desktop";}
 
+    @Override
     public boolean isAvailable() {
-        String var;
-        if(JavaVersion.JAVA_1_4.isCurrentOrLower())
-            var = System.getProperty(ENV_VAR);
-        else
-            var = System.getenv(ENV_VAR);
+        String var = System.getenv(ENV_VAR);
 
         return var != null && !var.trim().equals("");
     }

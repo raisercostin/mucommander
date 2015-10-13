@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import com.mucommander.desktop.DefaultDesktopAdapter;
 import com.mucommander.desktop.DesktopInitialisationException;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.desktop.TrashProvider;
-import com.mucommander.runtime.JavaVersion;
 
 /**
  * @author Nicolas Rinaudo, Maxence Bernard
@@ -39,6 +38,7 @@ abstract class KdeDesktopAdapter extends DefaultDesktopAdapter {
     /** Key to the double-click interval value in the KDE configuration */
     private String DOUBLE_CLICK_CONFIG_KEY = "DoubleClickInterval";
 
+    @Override
     public void init(boolean install) throws DesktopInitialisationException {
         // Initialises trash management.
         DesktopManager.setTrashProvider(getTrashProvider());
@@ -79,6 +79,7 @@ abstract class KdeDesktopAdapter extends DefaultDesktopAdapter {
      * </p>
      * @return the <code>DoubleClickInterval</code> KDE configuration value.
      */
+    @Override
     public int getMultiClickInterval() {
         return multiClickInterval;
     }
@@ -95,7 +96,7 @@ abstract class KdeDesktopAdapter extends DefaultDesktopAdapter {
      * @return the 'configured' value of the given environment variable, <code>null</code> if the variable has no value.
      */
     protected String getConfiguredEnvVariable(String name) {
-        return JavaVersion.JAVA_1_4.isCurrentOrLower()?System.getProperty(name):System.getenv(name);
+        return System.getenv(name);
     }
 
 

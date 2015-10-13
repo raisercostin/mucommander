@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import com.mucommander.text.Translator;
  * 
  * @author Arik Hadas
  */
-public class ActionCategory implements Comparable {
+public class ActionCategory implements Comparable<ActionCategory> {
 	
 	/** The category's label key in the dictionary file */
 	private String descriptionKey;
@@ -58,10 +58,7 @@ public class ActionCategory implements Comparable {
 		return false;
 	}
 
-	public int compareTo(Object obj) {
-		if (obj instanceof ActionCategory) {
-			return getDescription().compareTo(((ActionCategory) obj).getDescription());
-		}
-		return 1;
+	public int compareTo(ActionCategory actionCategory) {
+        return getDescription().compareTo(actionCategory.getDescription());
 	}
 }

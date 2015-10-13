@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ public class SendMailJob extends TransferFileJob {
         // address is provided
         readWriteLine("MAIL FROM: "+fromAddress);
 		
-        Vector recipients = new Vector();
+        Vector<String> recipients = new Vector<String>();
         recipientString = splitRecipientString(recipientString, recipients);
         int nbRecipients = recipients.size();
         for(int i=0; i<nbRecipients; i++)
@@ -163,7 +163,7 @@ public class SendMailJob extends TransferFileJob {
      *
      * @param recipientsStr String containing one or several recipients that need to be separated by ',' and/or ';' characters.
      */
-    private String splitRecipientString(String recipientsStr, Vector recipients) {
+    private String splitRecipientString(String recipientsStr, Vector<String> recipients) {
 
         // /!\ this piece of code is far from being bullet proof but I'm too lazy now to rewrite it
         StringBuffer newRecipientsSb = new StringBuffer();
@@ -248,6 +248,7 @@ public class SendMailJob extends TransferFileJob {
     // TransferFileJob implementation //
     ////////////////////////////////////
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         if(getState()==INTERRUPTED)
             return false;
@@ -276,6 +277,7 @@ public class SendMailJob extends TransferFileJob {
         return true;
     }
 
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         // This job does not modify anything
         return false;
@@ -290,6 +292,7 @@ public class SendMailJob extends TransferFileJob {
      * This method is called when this job starts, before the first call to {@link #processFile(AbstractFile,Object) processFile()} is made.
      * This method here does nothing but it can be overriden by subclasses to perform some first-time initializations.
      */
+    @Override
     protected void jobStarted() {
         super.jobStarted();
 
@@ -317,6 +320,7 @@ public class SendMailJob extends TransferFileJob {
     /**
      * Method overridden to close connection to the mail server.
      */
+    @Override
     protected void jobStopped() {
         super.jobStopped();
 
@@ -324,6 +328,7 @@ public class SendMailJob extends TransferFileJob {
         closeConnection();
     }
 
+    @Override
     public String getStatusString() {
         if(connectedToMailServer)
             return Translator.get("email.sending_file", getCurrentFilename());

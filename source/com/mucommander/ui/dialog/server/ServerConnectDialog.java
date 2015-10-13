@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ package com.mucommander.ui.dialog.server;
 
 import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsMapping;
+import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionProperties;
@@ -37,7 +39,9 @@ import com.mucommander.ui.main.MainFrame;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -59,7 +63,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     private ServerPanel currentServerPanel;
 
     private JTabbedPane tabbedPane;
-    private Vector serverPanels = new Vector();
+    private Vector<ServerPanel> serverPanels = new Vector<ServerPanel>();
 
     private JLabel urlLabel;
     private JCheckBox saveCredentialsCheckBox;
@@ -67,7 +71,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     // Dialog's width has to be at least 320
     private final static Dimension MINIMUM_DIALOG_DIMENSION = new Dimension(480,0);	
 	
-    private static Class lastPanelClass = SMBPanel.class;
+    private static Class<? extends ServerPanel> lastPanelClass = FTPPanel.class;
 
 
     /**
@@ -87,7 +91,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
      * @param folderPanel the panel on which to change the current folder
      * @param selectPanelClass class of the ServerPanel to select
      */
-    public ServerConnectDialog(FolderPanel folderPanel, Class selectPanelClass) {
+    public ServerConnectDialog(FolderPanel folderPanel, Class<? extends ServerPanel> selectPanelClass) {
         super(folderPanel.getMainFrame(), ActionProperties.getActionLabel(ConnectToServerAction.Descriptor.ACTION_ID), folderPanel.getMainFrame());
         this.folderPanel = folderPanel;
         lastPanelClass = selectPanelClass;
@@ -97,13 +101,13 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
 		
         this.tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 
-        addTab("SMB", new SMBPanel(this, mainFrame), selectPanelClass);
-        addTab("FTP", new FTPPanel(this, mainFrame), selectPanelClass);
-        // SFTP support is not compatible with all version of the Java runtime
-        if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
-            addTab("SFTP", new SFTPPanel(this, mainFrame), selectPanelClass);
-        addTab("HTTP", new HTTPPanel(this, mainFrame), selectPanelClass);
-        addTab("NFS", new NFSPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.FTP, new FTPPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.HDFS, new HDFSPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.HTTP, new HTTPPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.NFS, new NFSPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.S3, new S3Panel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.SFTP, new SFTPPanel(this, mainFrame), selectPanelClass);
+        addTab(FileProtocols.SMB, new SMBPanel(this, mainFrame), selectPanelClass);
 
         currentServerPanel = getCurrentServerPanel();
 
@@ -140,10 +144,13 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     }
 
 
-    public void addTab(String title, ServerPanel serverPanel, Class selectPanelClass) {
+    public void addTab(String protocol, ServerPanel serverPanel, Class<? extends ServerPanel> selectPanelClass) {
+        if(!FileFactory.isRegisteredProtocol(protocol))
+            return;
+
         JPanel northPanel = new JPanel(new BorderLayout());
         northPanel.add(serverPanel, BorderLayout.NORTH);
-        tabbedPane.addTab(title, northPanel);
+        tabbedPane.addTab(protocol.toUpperCase(), northPanel);
 
         if(selectPanelClass.equals(serverPanel.getClass()))
             tabbedPane.setSelectedComponent(northPanel);
@@ -163,7 +170,7 @@ public class ServerConnectDialog extends FocusDialog implements ActionListener, 
     }
 
     private ServerPanel getCurrentServerPanel() {
-        return (ServerPanel)serverPanels.elementAt(tabbedPane.getSelectedIndex());
+        return serverPanels.elementAt(tabbedPane.getSelectedIndex());
     }
 	
 	

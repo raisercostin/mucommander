@@ -25,6 +25,7 @@ import java.io.IOException;
  * {@link BoundedReader} beyond the byte or character limit set.
  *
  * @see com.mucommander.io.BoundedInputStream
+ * @see com.mucommander.io.BoundedOutputStream
  * @see com.mucommander.io.BoundedReader
  * @author Maxence Bernard
  */

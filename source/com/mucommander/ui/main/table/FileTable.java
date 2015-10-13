@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.job.MoveJob;
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.CustomDateFormat;
@@ -56,7 +55,6 @@ import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.WeakHashMap;
 
 
@@ -125,7 +123,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     private QuickSearch quickSearch = new QuickSearch();
 
     /** TableSelectionListener instances registered to receive selection change events */
-    private WeakHashMap tableSelectionListeners = new WeakHashMap();
+    private WeakHashMap<TableSelectionListener, ?> tableSelectionListeners = new WeakHashMap<TableSelectionListener, Object>();
 
     /** True when this table is the current or last active table in the MainFrame */
     private boolean isActiveTable;
@@ -209,7 +207,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
 
             // Highlights the selected column
             tableHeader.putClientProperty("JTableHeader.selectedColumn", isActiveTable
-                    ?new Integer(convertColumnIndexToView(sortInfo.getCriterion()))
+                    ? convertColumnIndexToView(sortInfo.getCriterion())
                     :null);
 
             // Displays an ascending/descending arrow
@@ -227,13 +225,13 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     /**
      * Returns <code>true</code> if the current platform is capable of indicating the sort criterion and sort order
      * on the table headers by setting client properties, instead of using a {@link FileTableHeaderRenderer custom header renderer}.
-     * At the moment this method returns <code>true</code> only under Mac OS X 10.5 (and up) and with Java 1.5 (and up).
+     * At the moment this method returns <code>true</code> only under Mac OS X 10.5 (and up).
      *  
      * @return true if the current platform is capable of indicating the sort criterion and sort order on the table
      * headers by setting client properties.
      */
     static boolean usesTableHeaderRenderingProperties() {
-        return OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher();
+        return OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher();
     }
 
 
@@ -777,6 +775,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         return (FileTableColumnModel)getColumnModel();
     }
 
+    @Override
     public void setColumnModel(TableColumnModel columnModel) {
         // super.setColumnModel() must be called BEFORE the methods below
         super.setColumnModel(columnModel);
@@ -801,20 +800,27 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
 
     /**
      * Returns <code>true</code> if the given column can be displayed given the current folder. Certain columns such as
-     * {@link Columns#OWNER} and {@link Columns#GROUP} can be displayed only if the current folder can supply this
-     * information for the files it contains.
+     * {@link Columns#OWNER} and {@link Columns#GROUP} can be displayed only if current folder's files are capable
+     * of supplying this information.
      * Note that the return value does not take into account the column's current enabled state.
      *
      * @param colNum column index, see {@link Columns} for allowed values
      * @return true if the given column can be displayed given the current folder
      */
     public boolean isColumnDisplayable(int colNum) {
+        // Check this against the children's file implementation whenever possible: certain file implementations may
+        // return different values for the current folder than for its children. For instance, this is the case for file
+        // protocols that have a special file implementation for the root folder (s3 is one).
+        AbstractFile file = getFileTableModel().getFileAt(0);
+        if(file==null)
+            file = getCurrentFolder();
+
         // The Owner and Group columns are displayable only if current folder has this information
         if(colNum==Columns.OWNER) {
-            return getCurrentFolder().canGetOwner();
+            return file.canGetOwner();
         }
         else if(colNum==Columns.GROUP) {
-            return getCurrentFolder().canGetGroup();
+            return file.canGetGroup();
         }
 
         return true;
@@ -962,18 +968,16 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      * Notifies all registered listeners that the currently selected file has changed on this FileTable.
      */
     public void fireSelectedFileChangedEvent() {
-        Iterator iterator = tableSelectionListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((TableSelectionListener)iterator.next()).selectedFileChanged(this);
+        for(TableSelectionListener listener : tableSelectionListeners.keySet())
+            listener.selectedFileChanged(this);
     }
 
     /**
      * Notifies all registered listeners that the currently marked files have changed on this FileTable.
      */
     public void fireMarkedFilesChangedEvent() {
-        Iterator iterator = tableSelectionListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((TableSelectionListener)iterator.next()).markedFilesChanged(this);
+        for(TableSelectionListener listener : tableSelectionListeners.keySet())
+            listener.markedFilesChanged(this);
     }
 
 
@@ -981,17 +985,17 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     // - Layout management ---------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     private void doAutoLayout(boolean respectSize) {
-        Enumeration columns;
-        TableColumn column;
-        TableColumn nameColumn;
-        int         columnIndex;
-        int         remainingWidth;
-        int         columnWidth;
-        int         rowCount;
-        FontMetrics fm;
-        String      val;
-        int         dirStringWidth;
-        int         stringWidth;
+        Enumeration<TableColumn> columns;
+        TableColumn              column;
+        TableColumn              nameColumn;
+        int                      columnIndex;
+        int                      remainingWidth;
+        int                      columnWidth;
+        int                      rowCount;
+        FontMetrics              fm;
+        String                   val;
+        int                      dirStringWidth;
+        int                      stringWidth;
 
         fm             = getFontMetrics(FileTableCellRenderer.getCellFont());
         dirStringWidth = fm.stringWidth(FileTableModel.DIRECTORY_SIZE_STRING);
@@ -1000,7 +1004,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         nameColumn     = null;
 
         while(columns.hasMoreElements()) {
-            column = (TableColumn)columns.nextElement();
+            column = columns.nextElement();
             columnIndex = column.getModelIndex();
 
             if(columnIndex == Columns.NAME)
@@ -1052,6 +1056,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     /**
      * Overrides JTable's doLayout() method to use a custom column layout (if auto-column sizing is enabled).
      */
+    @Override
     public void doLayout() {
         if(!autoSizeColumnsEnabled) {
             if(getTableHeader().getResizingColumn() != null)
@@ -1087,6 +1092,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     /**
      * Method overriden to return a custom TableCellRenderer.
      */
+    @Override
     public TableCellRenderer getCellRenderer(int row, int column) {
         return cellRenderer;
     }
@@ -1096,6 +1102,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      * Method overriden to consume keyboard events when quick search is active or when a row is being editing
      * in order to prevent registered actions from being fired.
      */
+    @Override
     protected boolean processKeyBinding(KeyStroke ks, KeyEvent ke, int condition, boolean pressed) {
         if(quickSearch.isActive() || isEditing())
             return true;
@@ -1112,6 +1119,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      * and fire a {@link com.mucommander.ui.event.TableSelectionListener#selectedFileChanged(FileTable)} event
      * to registered listeners. 
      */
+    @Override
     public void changeSelection(int rowIndex, int columnIndex, boolean toggle, boolean extend) {
         // For shift+click
         lastRow = currentRow;
@@ -1135,6 +1143,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     }
 
 
+    @Override
     public Dimension getPreferredSize() {
         Container parentComp = getParent();
 
@@ -1152,6 +1161,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     }
 
 
+    @Override
     public Dimension getPreferredScrollableViewportSize() {
         return getPreferredSize();
     }
@@ -1180,7 +1190,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         // interval, which for most people is too low. Therefore, we cannot rely on MouseEvent#getClickCount() and
         // MouseEvent#getMultiClickInterval() to always work properly and have to detect double-clicks using the
         // proper system multi-click interval returned by DefaultManager#getMultiClickInterval().
-        if ((System.currentTimeMillis() - doubleClickTime) < DOUBLE_CLICK_INTERVAL) {
+        if ((System.currentTimeMillis() - doubleClickTime) < DOUBLE_CLICK_INTERVAL && selectionChangedTimestamp < doubleClickTime) {
             if (doubleClickCounter == 1) {
                 doubleClickCounter = 2; // increase only once
                 e.consume(); // and make sure this event is not sent anywhere else
@@ -1220,6 +1230,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
                     if (hasFocus() && System.currentTimeMillis() - focusGainedTime > 100) {
                         // Create a new thread and sleep long enough to ensure that this click was not the first of a double click
                         new Thread() {
+                            @Override
                             public void run() {
                                 try { sleep(800); }
                                 catch (InterruptedException e) {}
@@ -1421,9 +1432,13 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      */
     public void configurationChanged(ConfigurationEvent event) {
         String var = event.getVariable();
-
-        if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE) || var.equals(MuConfiguration.DATE_FORMAT) ||
-                 var.equals(MuConfiguration.DATE_SEPARATOR) || var.equals(MuConfiguration.TIME_FORMAT)) {
+        
+        if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE)) {
+        	FileTableModel.setSizeFormat(event.getBooleanValue());
+        	tableModel.fillCellCache();
+        	resizeAndRepaint();
+        }
+        else if (var.equals(MuConfiguration.DATE_FORMAT) || var.equals(MuConfiguration.DATE_SEPARATOR) || var.equals(MuConfiguration.TIME_FORMAT)) {
             // Note: for the update to work properly, CustomDateFormat's configurationChanged() method has to be called
             // before FileTable's, so that CustomDateFormat gets notified of date format first.
             // Since listeners are stored by MuConfiguration in a hash map, order is pretty much random.
@@ -1477,6 +1492,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
                 new KeyAdapter() {
                     // Cancel editing when escape key pressed, this is unfortunately not DefaultCellEditor's
                     // default behavior
+                    @Override
                     public void keyPressed(KeyEvent e) {
                         int keyCode = e.getKeyCode();
                         if(keyCode == KeyEvent.VK_ESCAPE)
@@ -2024,7 +2040,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
                     int nbMarkedFiles = markedFiles.size();
                     int fileRow;
                     for(int i  =0; i < nbMarkedFiles; i++) {
-                        fileRow = tableModel.getFileRow((AbstractFile)markedFiles.elementAt(i));
+                        fileRow = tableModel.getFileRow(markedFiles.elementAt(i));
                         if(fileRow != -1)
                             tableModel.setRowMarked(fileRow, true);
                     }

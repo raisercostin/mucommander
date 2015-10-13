@@ -70,7 +70,7 @@ public class ZipEntry implements Cloneable {
     protected long externalAttributes = 0;
 
     /** List of extra fields, as ZipEntraField instances */
-    protected Vector/*<ZipExtraField>*/ extraFields = null;
+    protected Vector<ZipExtraField> extraFields = null;
 
     /** Contains info about how this entry is stored in the zip file */
     protected ZipEntryInfo entryInfo;
@@ -238,9 +238,9 @@ public class ZipEntry implements Cloneable {
      * @param fields an array of extra fields
      */
     public void setExtraFields(ZipExtraField[] fields) {
-        extraFields = new Vector();
-        for (int i = 0; i < fields.length; i++)
-            extraFields.addElement(fields[i]);
+        extraFields = new Vector<ZipExtraField>();
+        for (ZipExtraField field : fields)
+            extraFields.addElement(field);
     }
 
     /**
@@ -264,11 +264,11 @@ public class ZipEntry implements Cloneable {
      */
     public void addExtraField(ZipExtraField ze) {
         if (extraFields == null)
-            extraFields = new Vector();
+            extraFields = new Vector<ZipExtraField>();
 
         ZipShort type = ze.getHeaderId();
         for (int i=0, nbFields=extraFields.size(); i<nbFields; i++) {
-            if (((ZipExtraField) extraFields.elementAt(i)).getHeaderId().equals(type)) {
+            if (extraFields.elementAt(i).getHeaderId().equals(type)) {
                 extraFields.setElementAt(ze, i);
                 return;
             }
@@ -289,7 +289,7 @@ public class ZipEntry implements Cloneable {
             return false;
 
         for (int i=0, nbFields=extraFields.size(); i<nbFields; i++) {
-            if (((ZipExtraField) extraFields.elementAt(i)).getHeaderId().equals(type)) {
+            if (extraFields.elementAt(i).getHeaderId().equals(type)) {
                 extraFields.removeElementAt(i);
                 return true;
             }
@@ -621,11 +621,12 @@ public class ZipEntry implements Cloneable {
      * @return a cloned instance of this entry
      * @throws CloneNotSupportedException should never happen
      */
+    @Override
     public Object clone() throws CloneNotSupportedException {
         ZipEntry ze = (ZipEntry)super.clone();
 
         if(extraFields!=null)
-            ze.extraFields = (Vector)extraFields.clone();
+            ze.extraFields = (Vector<ZipExtraField>)extraFields.clone();
 
         return ze;
     }

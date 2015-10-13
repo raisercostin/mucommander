@@ -1,6 +1,6 @@
 <!--
 This file is part of muCommander, http://www.mucommander.com
-Copyright (C) 2002-2009 Maxence Bernard
+Copyright (C) 2002-2010 Maxence Bernard
 
 muCommander is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,9 +37,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <target name="resources">
     <echo>Copying resources...</echo>
 
-    <!-- Copies the images.                                    -->
-    <copy todir="${classes.normal}" overwrite="true">
-      <fileset dir="${res.images}">
+    <!-- Copies images.                                        -->
+    <mkdir dir="${images.out}"/>
+    <copy todir="${images.out}" overwrite="true">
+      <fileset dir="${images.in}">
         <include name="**/*"/>
       </fileset>
     </copy>
@@ -296,6 +297,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
           <method name="*"/>
           <constructor name="*"/>
       </keep>
+      <!-- Hadoop HDFS                                         -->
+      <keep name="org.apache.hadoop.hdfs.DistributedFileSystem"/>
+      <keep name="org.apache.hadoop.net.StandardSocketFactory"/>
+      <keep name="org.apache.hadoop.hdfs.protocol.DatanodeInfo$AdminStates"/>
+      <!-- Apache Commons logging (Hadoop + JetS3t dependency) -->
+      <keep name="org.apache.commons.logging.impl.LogFactoryImpl"/>
+      <keep name="org.apache.commons.logging.impl.Jdk14Logger">
+          <constructor/>
+      </keep>
+      <keep name="org.apache.commons.logging.Log"/>
+      <!-- Keep Enum methods so that they are still considered
+           as Enum at runtime (Hadoop dependency)              -->
+      <keepclassmembers extends="java.lang.Enum">
+        <method access="public static"
+              type="**[]"
+              name="values"
+              parameters="" />
+        <method access="public static"
+              type="**"
+              name="valueOf"
+              parameters="java.lang.String" />
+      </keepclassmembers>
     </proguard>
   </target>
 
@@ -471,7 +494,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <echo>Running test cases...</echo>
     <mkdir dir="${junit.reports}/raw"/>
     <mkdir dir="${junit.reports}/html"/>
-    <junit printsummary="yes" haltonfailure="yes">
+    <junit printsummary="yes" haltonfailure="false">
       <formatter type="plain"/>
       <formatter type="xml"/>
       <classpath>
@@ -854,12 +877,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       <dict    name="Java">
         <string name="MainClass"                      value="${app.main}"/>
         <string name="JVMVersion"                     value="${app.jvm}+"/>
+        <array name="JVMArchs">
+            <string value="x86_64"/>
+            <string value="i386"/>
+            <string value="ppc"/>
+        </array>
+        <string name="VMOptions"                      value="-Xmx128m"/>
         <dict name="Properties">
           <string name="java.system.class.loader"     value="com.mucommander.file.AbstractFileClassLoader"/>
           <string name="com.apple.smallTabs"          value="true"/>
           <string name="com.apple.hwaccel"            value="true"/>
           <string name="apple.laf.useScreenMenuBar"   value="true"/>
-	  <string name="file.encoding"                value="UTF-8"/>
+    	  <string name="file.encoding"                value="UTF-8"/>
         </dict>
       </dict>
     </mkapp>

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,9 @@ import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -135,7 +137,7 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
                 YBoxPanel tempPanel2 = new YBoxPanel();
                 AbstractFile file;
                 for(int i=0; i<nbFiles; i++) {
-                    file = (AbstractFile)flattenedFiles.elementAt(i);
+                    file = flattenedFiles.elementAt(i);
                     fileCheckboxes[i] = new JCheckBox(file.getName()
                                                       +" ("+ SizeFormat.format(file.getSize(), SizeFormat.DIGITS_MEDIUM| SizeFormat.UNIT_SHORT| SizeFormat.INCLUDE_SPACE| SizeFormat.ROUND_TO_KB)+")", true);
                     fileCheckboxes[i].addItemListener(this);
@@ -174,7 +176,7 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
         long fileSize;
         for(int i=0; i<nbFiles; i++) {
             if(fileCheckboxes[i].isSelected()) {
-                fileSize = ((AbstractFile)flattenedFiles.elementAt(i)).getSize();
+                fileSize = flattenedFiles.elementAt(i).getSize();
                 if(fileSize>0)
                     bytesTotal += fileSize;
                 nbSelected++;
@@ -198,7 +200,7 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
         int nbFiles = originalFiles.size();
         FileSet flattenedFiles = new FileSet(originalFiles.getBaseFolder());
         for(int i=0; i<nbFiles; i++)
-            recurseOnFolder((AbstractFile)originalFiles.elementAt(i), flattenedFiles);
+            recurseOnFolder(originalFiles.elementAt(i), flattenedFiles);
 
         return flattenedFiles;
     }
@@ -209,8 +211,8 @@ public class EmailFilesDialog extends JobDialog implements ActionListener, ItemL
     private void recurseOnFolder(AbstractFile file, FileSet flattenedFiles) throws IOException {
         if(file.isDirectory() && !file.isSymlink()) {
             AbstractFile children[] = file.ls();
-            for(int i=0; i<children.length; i++)
-                recurseOnFolder(children[i], flattenedFiles);
+            for (AbstractFile child : children)
+                recurseOnFolder(child, flattenedFiles);
         }
         else {
             flattenedFiles.add(file);

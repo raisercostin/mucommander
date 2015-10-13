@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,15 +33,33 @@ import java.util.Vector;
  * @see OrFileFilter
  * @author Maxence Bernard
  */
-public abstract class ChainedFileFilter extends FileFilter {
+public abstract class ChainedFileFilter extends AbstractFileFilter {
 
     /** List of registered FileFilter */
-    protected Vector filters = new Vector();
+    protected Vector<FileFilter> filters = new Vector<FileFilter>();
 
     /**
-     * Creates a new ChainedFileFilter that initially contains no {@link FileFilter}.
+     * Creates a new <code>ChainedFileFilter</code> operating in non-inverted mode and containing the specified filters,
+     * if any.
+     *
+     * @param filters filters to add to this chained filter.
      */
-    public ChainedFileFilter() {
+    public ChainedFileFilter(FileFilter... filters) {
+        this(false, filters);
+    }
+
+    /**
+     * Creates a new <code>ChainedFileFilter</code> operating in the specified mode and containing the specified filters,
+     * if any.
+     *
+     * @param inverted if true, this filter will operate in inverted mode.
+     * @param filters filters to add to this chained filter.
+     */
+    public ChainedFileFilter(boolean inverted, FileFilter... filters) {
+        super(inverted);
+
+        for(FileFilter filter : filters)
+            addFileFilter(filter);
     }
 
     /**
@@ -54,7 +72,7 @@ public abstract class ChainedFileFilter extends FileFilter {
     }
 
     /**
-     * Removes a {@link FileFilter} to the list of chained filters. Does nothing if the given <code>FileFilter</code>
+     * Removes a {@link FileFilter} from the list of chained filters. Does nothing if the given <code>FileFilter</code>
      * is not contained by this <code>ChainedFileFilter</code>.
      *
      * @param filter the FileFilter to remove
@@ -68,7 +86,7 @@ public abstract class ChainedFileFilter extends FileFilter {
      *
      * @return an <code>Iterator</code> that traverses all the registered filters. 
      */
-    public Iterator getFileFilterIterator() {
+    public Iterator<FileFilter> getFileFilterIterator() {
         return filters.iterator();
     }
 

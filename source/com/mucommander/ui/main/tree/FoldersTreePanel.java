@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.*;
 
 /**
@@ -86,9 +86,10 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
         setLayout(new BorderLayout());
 
         // Filters out the files that should not be displayed in the tree view
-        AndFileFilter treeFileFilter = new AndFileFilter();
-        treeFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.DIRECTORY));
-        treeFileFilter.addFileFilter(new ConfigurableFolderFilter());
+        AndFileFilter treeFileFilter = new AndFileFilter(
+            new AttributeFileFilter(AttributeFileFilter.DIRECTORY),
+            new ConfigurableFolderFilter()
+        );
 
         FileComparator sort = new FileComparator(FileComparator.NAME_CRITERION, true, true);
         model = new FilesTreeModel(treeFileFilter, sort);
@@ -130,10 +131,12 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
         });
         popup.add(item);
         tree.addMouseListener(new MouseAdapter() {
+            @Override
             public void mousePressed(MouseEvent e) {
                 maybeShowPopup(e);
             }
 
+            @Override
             public void mouseReleased(MouseEvent e) {
                 maybeShowPopup(e);
             }
@@ -172,6 +175,7 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
      * Adds or removes location change listeners depending on the tree
      * visibility.
      */
+    @Override
     public void setVisible(boolean flag) {
         super.setVisible(flag);
         if (flag) {
@@ -244,6 +248,7 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
     /**
      * Changes focus to tree.
      */
+    @Override
     public void requestFocus() {
         tree.requestFocus();
     }
@@ -277,6 +282,7 @@ public class FoldersTreePanel extends JPanel implements TreeSelectionListener,
             setRepeats(false);
         }
 
+        @Override
         public void fireActionPerformed(ActionEvent ae) {
             if (!folderPanel.getCurrentFolder().equals(folder)) {
                 folderPanel.tryChangeCurrentFolder(folder);

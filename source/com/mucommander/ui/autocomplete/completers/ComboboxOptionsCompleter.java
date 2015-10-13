@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,10 @@
 
 package com.mucommander.ui.autocomplete.completers;
 
-import java.util.Vector;
-
 import com.mucommander.ui.autocomplete.AutocompleterTextComponent;
 import com.mucommander.ui.autocomplete.completers.services.PrefixFilter;
+
+import java.util.Vector;
 
 /**
  * ComboboxOptionsCompleter is a Completer based on the items of combo-box.
@@ -33,11 +33,13 @@ public class ComboboxOptionsCompleter extends Completer {
 
 	public ComboboxOptionsCompleter() {	}
 
-	protected Vector getUpdatedSuggestions(AutocompleterTextComponent component) { 	
+	@Override
+    protected Vector<String> getUpdatedSuggestions(AutocompleterTextComponent component) {
     	return PrefixFilter.createPrefixFilter(component.getText()).filter(component.getItemNames());
 	}
 	
-	public void updateTextComponent(final String selected, AutocompleterTextComponent comp) {
+	@Override
+    public void updateTextComponent(final String selected, AutocompleterTextComponent comp) {
 		comp.setText(selected);
 	}
 }

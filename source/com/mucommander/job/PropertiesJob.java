@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ public class PropertiesJob extends FileJob {
      * Adds the given file to the total of files or folders and the total size,
      * and recurses if it is a folder.
      */
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Stop if interrupted
         if(getState()==INTERRUPTED)
@@ -112,6 +113,7 @@ public class PropertiesJob extends FileJob {
     }
 
     // This job does not modify anything
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return false;
     }

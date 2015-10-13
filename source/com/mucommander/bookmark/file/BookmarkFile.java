@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,21 +91,27 @@ public class BookmarkFile extends ProtocolFile {
      * Returns the underlying bookmark's name.
      * @return the underlying bookmark's name.
      */
+    @Override
     public String getName() {return bookmark.getName();}
 
     /**
      * Returns the wrapped file's descendants.
      * @return             the wrapped file's descendants.
-     * @throws IOException if an I/O error occurs.
+     * @throws IOException                       if an I/O error occurs.
+     * @throws UnsupportedFileOperationException if this operation is not supported by the underlying filesystem,
+     * or is not implemented.
      */
-    public AbstractFile[] ls() throws IOException {return getUnderlyingFile().ls();}
+    @Override
+    public AbstractFile[] ls() throws IOException, UnsupportedFileOperationException {
+        return getUnderlyingFile().ls();
+    }
 
     /**
      * Returns the wrapped file's parent.
      * @return             the wrapped file's parent.
-     * @throws IOException if an IO error occurs.
      * @see                #setParent(AbstractFile)
      */
+    @Override
     public AbstractFile getParent() {
         try {
             return new BookmarkRoot();
@@ -118,19 +124,28 @@ public class BookmarkFile extends ProtocolFile {
     /**
      * Returns the result of the wrapped file's <code>getFreeSpace()</code> methods.
      * @return the result of the wrapped file's <code>getFreeSpace()</code> methods.
+     * @throws IOException if an I/O error occurred
+     * @throws UnsupportedFileOperationException if this operation is not supported by the underlying filesystem,
+     * or is not implemented.
      */
-    public long getFreeSpace() {return getUnderlyingFile().getFreeSpace();}
+    @Override
+    public long getFreeSpace() throws IOException, UnsupportedFileOperationException {return getUnderlyingFile().getFreeSpace();}
 
     /**
      * Returns the result of the wrapped file's <code>getTotalSpace()</code> methods.
      * @return the result of the wrapped file's <code>getTotalSpace()</code> methods.
+     * @throws IOException if an I/O error occurred
+     * @throws UnsupportedFileOperationException if this operation is not supported by the underlying filesystem,
+     * or is not implemented.
      */
-    public long getTotalSpace() {return getUnderlyingFile().getTotalSpace();}
+    @Override
+    public long getTotalSpace() throws IOException, UnsupportedFileOperationException {return getUnderlyingFile().getTotalSpace();}
 
     /**
      * Returns <code>false</code>.
      * @return <code>false</code>.
      */
+    @Override
     public boolean isDirectory() {return true;}
 
     /**
@@ -138,6 +153,7 @@ public class BookmarkFile extends ProtocolFile {
      * @param parent object to use as the wrapped file's parent.
      * @see          AbstractFile#getParent()
      */
+    @Override
     public void setParent(AbstractFile parent) {
         getUnderlyingFile().setParent(parent);}
 
@@ -148,8 +164,10 @@ public class BookmarkFile extends ProtocolFile {
      * </p>
      * @return <code>true</code> if the specified bookmark exists, <code>false</code> otherwise.
      */
+    @Override
     public boolean exists() {return BookmarkManager.getBookmark(bookmark.getName()) != null;}
 
+    @Override
     public void mkfile() {BookmarkManager.addBookmark(bookmark);}
 
     public boolean equals(Object o) {
@@ -168,47 +186,34 @@ public class BookmarkFile extends ProtocolFile {
         return false;
     }
 
+    @Override
     public String getCanonicalPath() {return bookmark.getLocation();}
 
 
 
     // - Bookmark renaming -----------------------------------------------------
     // -------------------------------------------------------------------------
-    /**
-     * Returns {@link AbstractFile#MUST_HINT}.
-     * <p>
-     * If the specified file is a <code>BookmarkFile</code>, then we must use the custom
-     * {@link #moveTo(AbstractFile) moveTo} method. Otherwise, the point is moot as any
-     * other move operation will fail.
-     * </p>
-     * @param  destination where the file will be moved to.
-     * @return             {@link AbstractFile#MUST_HINT}.
-     */
-    public int getMoveToHint(AbstractFile destination) {
-        if(destination.getAncestor() instanceof BookmarkFile)
-            return MUST_HINT;
-        return MUST_NOT_HINT;
-    }
 
     /**
-     * Tries to move the bookmark to the specified destination.
-     * <p>
-     * If the specified destination is an instance of <code>BookmarkFile</code>,
-     * this will rename the bookmark. Otherwise, this method will fail.
-     * </p>
-     * @param  destination           where to move the bookmark to.
-     * @return                       <code>true</code>.
-     * @throws FileTransferException if the specified destination is not an instance of <code>BookmarkFile</code>.
+     * Attempts to rename the bookmark to the specified destination.
+     * The operation will only be carried out if the specified destination is a <code>BookmarkFile</code> or has an
+     * ancestor that is.
+     *
+     * @param  destination where to move the bookmark to.
+     * @throws IOException if the operation could not be carried out.
      */
-    public boolean moveTo(AbstractFile destination) throws FileTransferException {
+    @Override
+    public void renameTo(AbstractFile destination) throws IOException {
+        checkRenamePrerequisites(destination, true, true);
+
         Bookmark oldBookmark;
         Bookmark newBookmark;
 
-        destination = destination.getAncestor();
+        destination = destination.getTopAncestor();
 
         // Makes sure we're working with a bookmark.
         if(!(destination instanceof BookmarkFile))
-            throw new FileTransferException(FileTransferException.OPENING_DESTINATION);
+            throw new IOException();
 
         // Creates the new bookmark and checks for conflicts.
         newBookmark = new Bookmark(destination.getName(), bookmark.getLocation());
@@ -218,28 +223,30 @@ public class BookmarkFile extends ProtocolFile {
         // Adds the new bookmark and deletes its 'old' version.
         BookmarkManager.addBookmark(newBookmark);
         BookmarkManager.removeBookmark(bookmark);
-
-        return true;
     }
 
-    /**
-     * Deletes the bookmark.
-     * <p>
-     * Deleting a bookmark means unregistering it from the {@link com.mucommander.bookmark.BookmarkManager}.
-     * </p>
-     */
-    public void delete() {BookmarkManager.removeBookmark(bookmark);}
+    // TODO: bookmark deleting is currently disabled as a quick fix for #329    
+//    /**
+//     * Deletes the bookmark.
+//     * <p>
+//     * Deleting a bookmark means unregistering it from the {@link com.mucommander.bookmark.BookmarkManager}.
+//     * </p>
+//     */
+//    @Override
+//    public void delete() {
+//        BookmarkManager.removeBookmark(bookmark);
+//    }
+
+    @Override
+    @UnsupportedFileOperation
+    public void delete() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.DELETE);
+    }
 
 
 
     // - Bookmark duplication --------------------------------------------------
     // -------------------------------------------------------------------------
-    public int getCopyToHint(AbstractFile destination) {
-        destination = destination.getAncestor();
-        if(destination instanceof BookmarkFile)
-            return MUST_HINT;
-        return MUST_NOT_HINT;
-    }
 
     /**
      * Tries to copy the bookmark to the specified destination.
@@ -248,19 +255,17 @@ public class BookmarkFile extends ProtocolFile {
      * this will duplicate the bookmark. Otherwise, this method will fail.
      * </p>
      * @param  destination           where to copy the bookmark to.
-     * @return                       <code>true</code>.
      * @throws FileTransferException if the specified destination is not an instance of <code>BookmarkFile</code>.
      */
-    public boolean copyTo(AbstractFile destination) throws FileTransferException {
+    @Override
+    public void copyRemotelyTo(AbstractFile destination) throws IOException {
         // Makes sure we're working with a bookmark.
-        destination = destination.getAncestor();
+        destination = destination.getTopAncestor();
         if(!(destination instanceof BookmarkFile))
-            throw new FileTransferException(FileTransferException.OPENING_DESTINATION);
+            throw new IOException();
 
         // Copies this bookmark to the specified destination.
         BookmarkManager.addBookmark(new Bookmark(destination.getName(), bookmark.getLocation()));
-
-        return true;
     }
 
 
@@ -274,25 +279,28 @@ public class BookmarkFile extends ProtocolFile {
      * @return            this file's permissions.
      * @see               #changePermission(int,int,boolean)
      */
+    @Override
     public FilePermissions getPermissions() {return PERMISSIONS;}
 
     /**
-     * Returns <code>false</code>.
-     * <p>
-     * Bookmarks always have all permissions, this is not changeable. Calls
-     * to this method will always be ignored.
-     * </p>
+     * Always throws an {@link UnsupportedFileOperationException} when called: bookmarks always have all permissions,
+     * this is not changeable.
+     *
      * @param  access     ignored.
      * @param  permission ignored.
      * @param  enabled    ignored.
-     * @return            <code>false</code>.
      * @see               #getPermissions()
      */
-    public boolean changePermission(int access, int permission, boolean enabled) {return false;}
+    @Override
+    @UnsupportedFileOperation
+    public void changePermission(int access, int permission, boolean enabled) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);
+    }
 
 
     // - Import / export -------------------------------------------------------
     // -------------------------------------------------------------------------
+    @Override
     public InputStream getInputStream() throws IOException {
         BookmarkBuilder       builder;
         ByteArrayOutputStream stream;
@@ -322,29 +330,46 @@ public class BookmarkFile extends ProtocolFile {
         return new ByteArrayInputStream(stream.toByteArray());
     }
 
-    public OutputStream getOutputStream(boolean append) throws IOException {return new BookmarkOutputStream();}
+    @Override
+    public OutputStream getOutputStream() throws IOException {return new BookmarkOutputStream();}
 
 
-
-    // - Unused methods --------------------------------------------------------
+// - Unused methods --------------------------------------------------------
     // -------------------------------------------------------------------------
     // The following methods are not used by BookmarkFile. They will throw an exception or
     // return an 'operation non supported' / default value.
 
-    public void mkdir() throws IOException {throw new IOException();}
+    @Override
+    @UnsupportedFileOperation
+    public void mkdir() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.CREATE_DIRECTORY);}
+    @Override
     public long getDate() {return 0;}
-    public boolean canChangeDate() {return false;}
+    @Override
     public PermissionBits getChangeablePermissions() {return PermissionBits.EMPTY_PERMISSION_BITS;}
-    public boolean changeDate(long lastModified) {return false;}
+    @Override
+    @UnsupportedFileOperation
+    public void changeDate(long lastModified) throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);}
+    @Override
     public long getSize() {return -1;}
-    public boolean hasRandomAccessInputStream() {return false;}
-    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {throw new IOException();}
-    public boolean hasRandomAccessOutputStream() {return false;}
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {throw new IOException();}
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessInputStream getRandomAccessInputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.RANDOM_READ_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getAppendOutputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.APPEND_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.RANDOM_WRITE_FILE);}
+    @Override
     public Object getUnderlyingFileObject() {return null;}
+    @Override
     public boolean isSymlink() {return false;}
+    @Override
     public String getOwner() {return null;}
+    @Override
     public boolean canGetOwner() {return false;}
+    @Override
     public String getGroup() {return null;}
+    @Override
     public boolean canGetGroup() {return false;}
 }

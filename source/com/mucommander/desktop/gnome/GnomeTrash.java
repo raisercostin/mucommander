@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -147,6 +147,7 @@ public class GnomeTrash extends QueuedTrash {
      * 
      * @return True if trash can be emptied, otherwise false
      */
+    @Override
     public boolean canEmpty() {
         return TRASH_FOLDER!=null;
     }
@@ -159,6 +160,7 @@ public class GnomeTrash extends QueuedTrash {
      * 
      * @return Count of files in trash
      */
+    @Override
     public int getItemCount() {
         // Abort if there is no usable trash folder
         if(TRASH_FOLDER==null)
@@ -181,6 +183,7 @@ public class GnomeTrash extends QueuedTrash {
      * 
      * @return True if everything went well
      */
+    @Override
     public boolean empty() {
         // Abort if there is no usable trash folder
         if(TRASH_FOLDER==null)
@@ -190,9 +193,9 @@ public class GnomeTrash extends QueuedTrash {
 
         try {
             // delete real files
-            filesToDelete.addFiles(TRASH_FILES_SUBFOLDER.ls());
+            filesToDelete.addAll(TRASH_FILES_SUBFOLDER.ls());
             // delete spec files
-            filesToDelete.addFiles(TRASH_INFO_SUBFOLDER.ls());
+            filesToDelete.addAll(TRASH_INFO_SUBFOLDER.ls());
         } catch (java.io.IOException ex) {
             AppLogger.fine("Failed to list files", ex);
             return false;
@@ -209,6 +212,7 @@ public class GnomeTrash extends QueuedTrash {
         return true;
     }
 
+    @Override
     public boolean canOpen() {
         return TRASH_FOLDER!=null;
     }
@@ -216,6 +220,7 @@ public class GnomeTrash extends QueuedTrash {
     /**
      * Opens the trash in Nautilus.
      */
+    @Override
     public void open() {
         try {
             ProcessRunner.execute(REVEAL_TRASH_COMMAND).waitFor();
@@ -225,6 +230,7 @@ public class GnomeTrash extends QueuedTrash {
         }
     }
 
+    @Override
     public boolean isTrashFile(AbstractFile file) {
         return TRASH_FOLDER!=null
             && (file.getTopAncestor() instanceof LocalFile)
@@ -235,6 +241,7 @@ public class GnomeTrash extends QueuedTrash {
      * Implementation notes: returns <code>true</code> only for local files that are not archive entries and that
      * reside on the same volume as the trash folder.
      */
+    @Override
     public boolean canMoveToTrash(AbstractFile file) {
         return TRASH_FOLDER!=null
             && file.getTopAncestor() instanceof LocalFile
@@ -249,14 +256,15 @@ public class GnomeTrash extends QueuedTrash {
      * @param queuedFiles Collection of files to the trash
      * @return <code>true</code> if movement has been successful or <code>false</code> otherwise
      */
-    protected boolean moveToTrash(Vector queuedFiles) {
+    @Override
+    protected boolean moveToTrash(Vector<AbstractFile> queuedFiles) {
         int nbFiles = queuedFiles.size();
         String fileInfoContent;
         String trashFileName;
         boolean retVal = true;     // overall return value (if everything went OK or at least one file wasn't moved properly
         
         for(int i=0; i<nbFiles; i++) {
-            AbstractFile fileToDelete = (AbstractFile)queuedFiles.elementAt(i);
+            AbstractFile fileToDelete = queuedFiles.elementAt(i);
             // generate content of info file and new filename
             try {
                 fileInfoContent = getFileInfoContent(fileToDelete);
@@ -273,7 +281,7 @@ public class GnomeTrash extends QueuedTrash {
             try {
                 // create info file
                 infoFile = TRASH_INFO_SUBFOLDER.getChild(trashFileName + ".trashinfo");
-                infoWriter = new OutputStreamWriter(infoFile.getOutputStream(false));
+                infoWriter = new OutputStreamWriter(infoFile.getOutputStream());
                 infoWriter.write(fileInfoContent);
             } catch (IOException ex) {
                 retVal = false;
@@ -294,8 +302,8 @@ public class GnomeTrash extends QueuedTrash {
             }
             
             try {
-                // move original file
-                retVal &= fileToDelete.moveTo(TRASH_FILES_SUBFOLDER.getChild(trashFileName));
+                // rename original file
+                fileToDelete.renameTo(TRASH_FILES_SUBFOLDER.getChild(trashFileName));
             } catch (IOException ex) {
                 try {
                     // remove info file

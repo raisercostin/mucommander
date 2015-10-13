@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     /** Is this notifier enabled ? */
     private boolean isEnabled;
 
-    /** Path to the tray icon image */
-    private final static String TRAY_ICON_PATH = "/icon16_8.png";
+    /** Name of the tray icon image */
+    private final static String TRAY_ICON_NAME = "icon16_8.png";
 
     /** Width of the muCommander tray icon */
     private final static int TRAY_ICON_WIDTH = 16;
@@ -85,6 +85,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     // AbstractNotifier implementation //
     /////////////////////////////////////
 
+    @Override
     public boolean setEnabled(boolean enabled) {
         if(enabled) {
             // No need to bother if the current Java runtime version is not 1.6 or up, or if SystemTray is not available
@@ -98,7 +99,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
 
             SystemTray systemTray = SystemTray.getSystemTray();
 
-            Image iconImage = IconManager.getIcon(TRAY_ICON_PATH).getImage();
+            Image iconImage = IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, TRAY_ICON_NAME).getImage();
             Dimension trayIconSize = systemTray.getTrayIconSize();
             // If the sytem tray icon size is larger than the icon size, center the icon as the default is to display
             // the icon in the top left corner which is plain ugly
@@ -151,10 +152,12 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
         }
     }
 
+    @Override
     public boolean isEnabled() {
         return trayIcon!=null && isEnabled;
     }
 
+    @Override
     public boolean displayNotification(int notificationType, String title, String description) {
         AppLogger.finer("notificationType="+notificationType+" title="+title+" description="+description);
 
@@ -168,6 +171,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
         return true;
     }
 
+    @Override
     public String getPrettyName() {
         return "System Tray";
     }
@@ -188,6 +192,7 @@ public class SystemTrayNotifier extends AbstractNotifier implements ActionListen
     // Overridden methods //
     ////////////////////////
 
+    @Override
     protected void finalize() throws Throwable {
         // This ensures that the system tray icon is removed when the application terminates.
         // Even though this is a bit of a shot in the dark, this may fix a problem reported under Linux where the

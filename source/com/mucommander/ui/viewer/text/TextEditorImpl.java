@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 package com.mucommander.ui.viewer.text;
 
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
 import com.mucommander.io.EncodingDetector;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.bom.BOM;
@@ -38,7 +39,7 @@ import javax.swing.*;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -145,6 +146,7 @@ class TextEditorImpl implements ThemeListener, ActionListener, EncodingListener 
             // 1/ not lock the event thread
             // 2/ have those beeps to end rather sooner than later
             new Thread() {
+                @Override
                 public void run() {
                     Toolkit.getDefaultToolkit().beep();
                 }
@@ -175,7 +177,7 @@ class TextEditorImpl implements ThemeListener, ActionListener, EncodingListener 
         InputStream in = null;
 
         try {
-            if(file.hasRandomAccessInputStream()) {
+            if(file.isFileOperationSupported(FileOperation.RANDOM_READ_FILE)) {
                 try { in = file.getRandomAccessInputStream(); }
                 catch(IOException e) {
                     // In that case we simply get an InputStream
@@ -205,7 +207,6 @@ class TextEditorImpl implements ThemeListener, ActionListener, EncodingListener 
             }
 
             // Load the file into the text area
-            // Note: loadDocument closes the InputStream
             loadDocument(in, encoding);
         }
         finally {
@@ -256,7 +257,7 @@ class TextEditorImpl implements ThemeListener, ActionListener, EncodingListener 
             writer = new BOMWriter(out, bom);
 
         try {textArea.getUI().getEditorKit(textArea).write(new BufferedWriter(writer), document, 0, document.getLength());}
-        catch(BadLocationException e) {throw new IOException(e);}
+        catch(BadLocationException e) {throw new IOException(e.getMessage());}
     }
 
     void populateMenus(JFrame frame, JMenuBar menuBar) {

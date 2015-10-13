@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ import com.mucommander.text.Translator;
 import com.mucommander.ui.main.MainFrame;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.MalformedURLException;
@@ -125,7 +125,7 @@ public class SFTPPanel extends ServerPanel {
         lastUsername = usernameField.getText();
         lastPassword = new String(passwordField.getPassword());
         lastInitialDir = initialDirField.getText();
-        lastPort = ((Integer)portSpinner.getValue()).intValue();
+        lastPort = (Integer) portSpinner.getValue();
     }
 
 
@@ -133,6 +133,7 @@ public class SFTPPanel extends ServerPanel {
     // ServerPanel implementation //
     ////////////////////////////////
 
+    @Override
     FileURL getServerURL() throws MalformedURLException {
         updateValues();
         if(!lastInitialDir.startsWith("/"))
@@ -151,10 +152,12 @@ public class SFTPPanel extends ServerPanel {
         return url;
     }
 
+    @Override
     boolean usesCredentials() {
         return true;
     }
 
+    @Override
     public void dialogValidated() {
         // Commits the current spinner value in case it was being edited and 'enter' was pressed
         // (the spinner value would otherwise not be committed)

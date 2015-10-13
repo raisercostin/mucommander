@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 package com.mucommander.ui.helper;
 
-import javax.swing.*;
+import javax.swing.JButton;
 import java.util.Vector;
 
 
@@ -35,14 +35,14 @@ import java.util.Vector;
 public class MnemonicHelper {
 
     /** Current list of previously assigned mnemonics */
-    private Vector takenMnemonics;
+    private Vector<Character> takenMnemonics;
 	
 	
     /**
      * Creates a new blank MnemonicHelper.
      */
     public MnemonicHelper() {
-        takenMnemonics = new Vector();
+        takenMnemonics = new Vector<Character>();
     }
 	
 	
@@ -69,7 +69,7 @@ public class MnemonicHelper {
         do {
             mnemonic = text.charAt(mnemonicPos++);
             if(!isMnemonicUsed(mnemonic)) {
-                takenMnemonics.add(new Character(mnemonic));
+                takenMnemonics.add(mnemonic);
                 return mnemonic;
             }
         }

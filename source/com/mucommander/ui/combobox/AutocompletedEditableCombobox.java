@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,8 @@ import com.mucommander.ui.autocomplete.EditableComboboxCompletion;
 import com.mucommander.ui.autocomplete.TypicalAutocompleterEditableCombobox;
 import com.mucommander.ui.autocomplete.completers.Completer;
 
-import javax.swing.*;
+import javax.swing.ComboBoxModel;
+import javax.swing.JTextField;
 import java.awt.event.KeyEvent;
 import java.util.Vector;
 
@@ -87,7 +88,7 @@ public class AutocompletedEditableCombobox extends EditableComboBox {
      * will be created and used.
      * @param items items used to populate the initial items list.
      */
-    public AutocompletedEditableCombobox(JTextField textField, Vector items, Completer completer) {
+    public AutocompletedEditableCombobox(JTextField textField, Vector<Object> items, Completer completer) {
         super(textField, items);
         enableAutoCompletion(completer);
     }
@@ -104,7 +105,7 @@ public class AutocompletedEditableCombobox extends EditableComboBox {
 	public void respondToEnterKeyPressing(KeyEvent keyEvent) {
 		// Combo popup menu is visible
 		if(isPopupVisible()) {
-			// Under Java 1.5 or under, we need to explicitely hide the popup.
+			// Under Java 1.5 or lower, we need to explicitely hide the popup.
 			if(JavaVersions.JAVA_1_5.isCurrentOrLower())
 				hidePopup();
 			

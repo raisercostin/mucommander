@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package com.mucommander.ui.autocomplete.completers;
 
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.ui.autocomplete.AutocompleterTextComponent;
 
 import java.util.Vector;
@@ -36,17 +35,16 @@ public class LocationCompleter extends Completer {
         registerService(ServiceFactory.getVolumesService());
         registerService(ServiceFactory.getBrowsableFilesService());
         registerService(ServiceFactory.getBookmarksService());
-
-        // Register this service only if running Java 1.5 or up as it uses the Java 1.5 API (requires java.lang.System#getenv())
-        if(JavaVersions.JAVA_1_5.isCurrentOrHigher())
-            registerService(ServiceFactory.getSystemVariablesService());
+        registerService(ServiceFactory.getSystemVariablesService());
     }
 
-	protected Vector getUpdatedSuggestions(AutocompleterTextComponent component) {
+	@Override
+    protected Vector<String> getUpdatedSuggestions(AutocompleterTextComponent component) {
     	return getPossibleCompletionsFromServices(component.getText());
     }
  
-    public void updateTextComponent(final String selected, AutocompleterTextComponent comp){ 
+    @Override
+    public void updateTextComponent(final String selected, AutocompleterTextComponent comp){
         if(selected==null) 
             return;
         

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@ package com.mucommander.ui.main;
 
 import com.mucommander.file.util.ResourceLoader;
 import com.mucommander.ui.dialog.DialogToolkit;
+import com.mucommander.ui.icon.IconManager;
 
-import javax.swing.*;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.JWindow;
 import java.awt.*;
 
 
@@ -46,7 +49,7 @@ public class SplashScreen extends JWindow {
     private Font customFont;
 
     /** Path to the splash screen logo image within the JAR file */
-    private final static String SPLASH_IMAGE_PATH = "/splash.png";
+    private final static String SPLASH_IMAGE_PATH = IconManager.getIconSetFolder(IconManager.MUCOMMANDER_ICON_SET)+"splash.png";
 
     /** Name of the font used to display text on this splash screen */
     private final static String FONT_NAME = "Courier";
@@ -125,6 +128,7 @@ public class SplashScreen extends JWindow {
     /**
      * Overridden paint method.
      */
+    @Override
     public void paint(Graphics g) {
         super.paint(g);
 

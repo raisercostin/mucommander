@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,7 @@
 
 package com.mucommander.file.impl;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.FileLogger;
-import com.mucommander.file.FilePermissions;
-import com.mucommander.file.FileProtocols;
+import com.mucommander.file.*;
 import com.mucommander.file.filter.FileFilter;
 import com.mucommander.file.filter.FilenameFilter;
 import com.mucommander.file.impl.local.LocalFile;
@@ -141,8 +138,8 @@ public class CachedFile extends ProxyFile {
 
         try {
             // Resolve FileSystem class, 'getBooleanAttributes' method and fields
-            Class cFile = File.class;
-            Class cFileSystem = Class.forName("java.io.FileSystem");
+            Class<?> cFile = File.class;
+            Class<?> cFileSystem = Class.forName("java.io.FileSystem");
             mGetBooleanAttributes = cFileSystem.getDeclaredMethod("getBooleanAttributes", new Class [] {cFile});
             Field fBA_EXISTS = cFileSystem.getDeclaredField("BA_EXISTS");
             Field fBA_DIRECTORY = cFileSystem.getDeclaredField("BA_DIRECTORY");
@@ -157,9 +154,9 @@ public class CachedFile extends ProxyFile {
             fBA_HIDDEN.setAccessible(true);
 
             // Retrieve constant field values once for all
-            BA_EXISTS = ((Integer)fBA_EXISTS.get(null)).intValue();
-            BA_DIRECTORY = ((Integer)fBA_DIRECTORY.get(null)).intValue();
-            BA_HIDDEN = ((Integer)fBA_HIDDEN.get(null)).intValue();
+            BA_EXISTS = (Integer) fBA_EXISTS.get(null);
+            BA_DIRECTORY = (Integer) fBA_DIRECTORY.get(null);
+            BA_HIDDEN = (Integer) fBA_HIDDEN.get(null);
             fs = fFs.get(null);
 
             getFileAttributesAvailable = true;
@@ -209,7 +206,7 @@ public class CachedFile extends ProxyFile {
 
         if(file instanceof LocalFile) {
             try {
-                int ba = ((Integer)mGetBooleanAttributes.invoke(fs, new Object [] {file.getUnderlyingFileObject()})).intValue();
+                int ba = (Integer) mGetBooleanAttributes.invoke(fs, new Object[]{file.getUnderlyingFileObject()});
 
                 isDirectory = (ba & BA_DIRECTORY)!=0;
                 isDirectorySet = true;
@@ -231,6 +228,7 @@ public class CachedFile extends ProxyFile {
     // Overridden methods to cache their return value //
     ////////////////////////////////////////////////////
 
+    @Override
     public long getSize() {
         if(!getSizeSet) {
             getSize = file.getSize();
@@ -240,6 +238,7 @@ public class CachedFile extends ProxyFile {
         return getSize;
     }
 
+    @Override
     public long getDate() {
         if(!getDateSet) {
             getDate = file.getDate();
@@ -249,6 +248,7 @@ public class CachedFile extends ProxyFile {
         return getDate;
     }
 
+    @Override
     public boolean isSymlink() {
         if(!isSymlinkSet) {
             isSymlink = file.isSymlink();
@@ -258,6 +258,7 @@ public class CachedFile extends ProxyFile {
         return isSymlink;
     }
 
+    @Override
     public boolean isDirectory() {
         if(!isDirectorySet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
@@ -271,6 +272,7 @@ public class CachedFile extends ProxyFile {
         return isDirectory;
     }
 
+    @Override
     public boolean isArchive() {
         if(!isArchiveSet) {
             isArchive = file.isArchive();
@@ -280,6 +282,7 @@ public class CachedFile extends ProxyFile {
         return isArchive;
     }
 
+    @Override
     public boolean isHidden() {
         if(!isHiddenSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
@@ -293,6 +296,7 @@ public class CachedFile extends ProxyFile {
         return isHidden;
     }
 
+    @Override
     public String getAbsolutePath() {
         if(!getAbsolutePathSet) {
             getAbsolutePath = file.getAbsolutePath();
@@ -302,6 +306,7 @@ public class CachedFile extends ProxyFile {
         return getAbsolutePath;
     }
 
+    @Override
     public String getCanonicalPath() {
         if(!getCanonicalPathSet) {
             getCanonicalPath = file.getCanonicalPath();
@@ -311,6 +316,7 @@ public class CachedFile extends ProxyFile {
         return getCanonicalPath;
     }
 
+    @Override
     public String getExtension() {
         if(!getExtensionSet) {
             getExtension = file.getExtension();
@@ -320,6 +326,7 @@ public class CachedFile extends ProxyFile {
         return getExtension;
     }
 
+    @Override
     public String getName() {
         if(!getNameSet) {
             getName = file.getName();
@@ -329,7 +336,8 @@ public class CachedFile extends ProxyFile {
         return getName;
     }
 
-    public long getFreeSpace() {
+    @Override
+    public long getFreeSpace() throws IOException, UnsupportedFileOperationException {
         if(!getFreeSpaceSet) {
             getFreeSpace = file.getFreeSpace();
             getFreeSpaceSet = true;
@@ -338,7 +346,8 @@ public class CachedFile extends ProxyFile {
         return getFreeSpace;
     }
 
-    public long getTotalSpace() {
+    @Override
+    public long getTotalSpace() throws IOException, UnsupportedFileOperationException {
         if(!getTotalSpaceSet) {
             getTotalSpace = file.getTotalSpace();
             getTotalSpaceSet = true;
@@ -347,6 +356,7 @@ public class CachedFile extends ProxyFile {
         return getTotalSpace;
     }
 
+    @Override
     public boolean exists() {
         if(!existsSet && getFileAttributesAvailable && FileProtocols.FILE.equals(file.getURL().getScheme()))
             getFileAttributes(file);
@@ -360,6 +370,7 @@ public class CachedFile extends ProxyFile {
         return exists;
     }
 
+    @Override
     public FilePermissions getPermissions() {
         if(!getPermissionsSet) {
             getPermissions = file.getPermissions();
@@ -369,6 +380,7 @@ public class CachedFile extends ProxyFile {
         return getPermissions;
     }
 
+    @Override
     public String getPermissionsString() {
         if(!getPermissionsStringSet) {
             getPermissionsString = file.getPermissionsString();
@@ -378,6 +390,7 @@ public class CachedFile extends ProxyFile {
         return getPermissionsString;
     }
 
+    @Override
     public String getOwner() {
         if(!getOwnerSet) {
             getOwner = file.getOwner();
@@ -387,6 +400,7 @@ public class CachedFile extends ProxyFile {
         return getOwner;
     }
 
+    @Override
     public String getGroup() {
         if(!getGroupSet) {
             getGroup = file.getGroup();
@@ -396,6 +410,7 @@ public class CachedFile extends ProxyFile {
         return getGroup;
     }
 
+    @Override
     public boolean isRoot() {
         if(!isRootSet) {
             isRoot = file.isRoot();
@@ -406,6 +421,7 @@ public class CachedFile extends ProxyFile {
     }
 
 
+    @Override
     public AbstractFile getParent() {
         if(!getParentSet) {
             getParent = file.getParent();
@@ -418,6 +434,7 @@ public class CachedFile extends ProxyFile {
         return getParent;
     }
 
+    @Override
     public AbstractFile getRoot() {
         if(!getRootSet) {
             getRoot = file.getRoot();
@@ -431,6 +448,7 @@ public class CachedFile extends ProxyFile {
         return getRoot;
     }
 
+    @Override
     public AbstractFile getCanonicalFile() {
         if(!getCanonicalFileSet) {
             getCanonicalFile = file.getCanonicalFile();
@@ -455,7 +473,8 @@ public class CachedFile extends ProxyFile {
     // Overridden for recursion only (no caching) //
     ////////////////////////////////////////////////
 
-    public AbstractFile[] ls() throws IOException {
+    @Override
+    public AbstractFile[] ls() throws IOException, UnsupportedFileOperationException {
         // Don't cache ls() result but create a CachedFile instance around each of the files if recursion is enabled
         AbstractFile files[] = file.ls();
 
@@ -465,7 +484,8 @@ public class CachedFile extends ProxyFile {
         return files;
     }
 
-    public AbstractFile[] ls(FileFilter filter) throws IOException {
+    @Override
+    public AbstractFile[] ls(FileFilter filter) throws IOException, UnsupportedFileOperationException {
         // Don't cache ls() result but create a CachedFile instance around each of the files if recursion is enabled
         AbstractFile files[] = file.ls(filter);
 
@@ -475,7 +495,8 @@ public class CachedFile extends ProxyFile {
         return files;
     }
 
-    public AbstractFile[] ls(FilenameFilter filter) throws IOException {
+    @Override
+    public AbstractFile[] ls(FilenameFilter filter) throws IOException, UnsupportedFileOperationException {
         // Don't cache ls() result but create a CachedFile instance around each of the files if recursion is enabled
         AbstractFile files[] = file.ls(filter);
 

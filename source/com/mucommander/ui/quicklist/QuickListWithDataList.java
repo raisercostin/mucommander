@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ package com.mucommander.ui.quicklist;
 
 import com.mucommander.ui.quicklist.item.DataList;
 
-import javax.swing.*;
+import javax.swing.JScrollPane;
 
 /**
  * FileTablePopupWithDataList is a FileTablePopup which contains FileTablePopupDataList.
@@ -66,7 +66,8 @@ public abstract class QuickListWithDataList extends QuickList {
 		acceptListItem(item);
 	}		
 	
-	protected boolean prepareForShowing() {
+	@Override
+    protected boolean prepareForShowing() {
 		boolean toShow = false;
 		// if data list contains at least 1 element, show this popup.
 		Object[] data;

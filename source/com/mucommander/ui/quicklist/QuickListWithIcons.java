@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.icon.SpinningDial;
 import com.mucommander.ui.quicklist.item.DataList;
 
-import javax.swing.*;
+import javax.swing.Icon;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import java.util.HashMap;
@@ -39,7 +39,7 @@ import java.util.HashMap;
 
 public abstract class QuickListWithIcons extends QuickListWithDataList {
 	// This HashMap's keys are items and its objects are the corresponding icon.
-	private final HashMap itemToIconCacheMap = new HashMap();
+	private final HashMap<Object, Icon> itemToIconCacheMap = new HashMap<Object, Icon>();
 	// This SpinningDial will appear until the icon fetching of an item is over.
 	private static final SpinningDial waitingIcon = new SpinningDial();
 	// If the icon fetching fails for some item, the following icon will appear for it. 
@@ -81,9 +81,11 @@ public abstract class QuickListWithIcons extends QuickListWithDataList {
 			waitingIcon.setAnimated(false);
 	}
 	
-	protected DataList getList() {
+	@Override
+    protected DataList getList() {
 		return new GenericPopupDataListWithIcons() {
-			public Icon getImageIconOfItem(Object item) {
+			@Override
+            public Icon getImageIconOfItem(Object item) {
 				return getImageIconOfItemImp(item);
 			}
 		};
@@ -119,7 +121,8 @@ public abstract class QuickListWithIcons extends QuickListWithDataList {
 		
 		if (!found)
 			new Thread() {
-				public void run() {
+				@Override
+                public void run() {
 					Icon icon = itemToIcon(item);
 					synchronized(itemToIconCacheMap) {
 						// If the item does not exist or is not accessible, show notAvailableIcon for it.
@@ -132,7 +135,7 @@ public abstract class QuickListWithIcons extends QuickListWithDataList {
 		
 		Icon result;
 		synchronized(itemToIconCacheMap) {
-			result = (Icon) itemToIconCacheMap.get(item);
+			result = itemToIconCacheMap.get(item);
 		}
 		return result;
 	}

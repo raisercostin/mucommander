@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,9 @@ import com.mucommander.file.impl.nfs.NFSFile;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
 import java.net.MalformedURLException;
 import java.text.ParseException;
 
@@ -91,7 +93,7 @@ public class NFSPanel extends ServerPanel {
         lastServer = serverField.getText();
         lastShare = shareField.getText();
 
-        lastPort = ((Integer)portSpinner.getValue()).intValue();
+        lastPort = (Integer) portSpinner.getValue();
 
         lastNfsVersion = (String)nfsVersionComboBox.getSelectedItem();
         lastNfsProtocol = (String)nfsProtocolComboBox.getSelectedItem();
@@ -102,6 +104,7 @@ public class NFSPanel extends ServerPanel {
     // ServerPanel implementation //
     ////////////////////////////////
 
+    @Override
     FileURL getServerURL() throws MalformedURLException {
         updateValues();
 
@@ -119,10 +122,12 @@ public class NFSPanel extends ServerPanel {
         return url;
     }
 
+    @Override
     boolean usesCredentials() {
         return false;
     }
 
+    @Override
     public void dialogValidated() {
         // Commits the current spinner value in case it was being edited and 'enter' was pressed
         // (the spinner value would otherwise not be committed)

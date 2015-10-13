@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,14 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
-
-import javax.swing.KeyStroke;
-
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableModel;
+
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * This action marks all files in the current file table.
@@ -40,15 +35,16 @@ import com.mucommander.ui.main.table.FileTableModel;
 public class MarkAllAction extends MuAction {
     private boolean mark;
 
-    protected MarkAllAction(MainFrame mainFrame, Hashtable properties, boolean mark) {
+    protected MarkAllAction(MainFrame mainFrame, Hashtable<String,Object> properties, boolean mark) {
         super(mainFrame, properties);
         this.mark = mark;
     }
 
-    public MarkAllAction(MainFrame mainFrame, Hashtable properties) {
+    public MarkAllAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         this(mainFrame, properties, true);
     }
 
+    @Override
     public void performAction() {
         FileTable fileTable = mainFrame.getActiveTable();
         FileTableModel tableModel = fileTable.getFileTableModel();
@@ -64,7 +60,7 @@ public class MarkAllAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new MarkAllAction(mainFrame, properties);
 		}
     }

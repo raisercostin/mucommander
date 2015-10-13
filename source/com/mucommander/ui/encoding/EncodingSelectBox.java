@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,14 @@ import com.mucommander.runtime.OsFamilies;
 import com.mucommander.ui.combobox.SaneComboBox;
 import com.mucommander.ui.dialog.DialogOwner;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Dialog;
+import java.awt.Frame;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Iterator;
 import java.util.Vector;
 import java.util.WeakHashMap;
 
@@ -46,7 +49,7 @@ public class EncodingSelectBox extends JPanel {
     protected JButton customizeButton;
 
     /** Contains all registered encoding listeners, stored as weak references */
-    protected final WeakHashMap listeners = new WeakHashMap();
+    protected final WeakHashMap<EncodingListener, ?> listeners = new WeakHashMap<EncodingListener, Object>();
 
     /** The encoding that is currently selected, may be null */
     protected String currentEncoding;
@@ -121,7 +124,7 @@ public class EncodingSelectBox extends JPanel {
      * @param selectEncoding the encoding that will be selected, <code>null</code> for the first one
      */
     protected void populateComboBox(String selectEncoding) {
-        Vector encodings = EncodingPreferences.getPreferredEncodings();
+        Vector<String> encodings = EncodingPreferences.getPreferredEncodings();
 
         // Ignore the specified encoding if it is not in the list of preferred encodings
         if(selectEncoding!=null && !encodings.contains(selectEncoding))
@@ -175,10 +178,8 @@ public class EncodingSelectBox extends JPanel {
 
     protected void fireEncodingListener(String oldEncoding, String newEncoding) {
         synchronized(listeners) {
-            // Iterate on all listeners
-            Iterator iterator = listeners.keySet().iterator();
-            while(iterator.hasNext())
-                ((EncodingListener)iterator.next()).encodingChanged(this, oldEncoding, newEncoding);
+            for(EncodingListener listener : listeners.keySet())
+                listener.encodingChanged(this, oldEncoding, newEncoding);
         }
 
     }
@@ -188,6 +189,7 @@ public class EncodingSelectBox extends JPanel {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public void setEnabled(boolean enabled) {
         comboBox.setEnabled(enabled);
         customizeButton.setEnabled(enabled);

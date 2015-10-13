@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,22 +18,21 @@
 
 package com.mucommander.ui.dialog.pref.general;
 
+import com.mucommander.text.Translator;
+import com.mucommander.ui.button.ButtonChoicePanel;
+import com.mucommander.ui.dialog.FocusDialog;
+import com.mucommander.ui.layout.XAlignedComponentPanel;
+import com.mucommander.ui.layout.YBoxPanel;
+
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
-import javax.swing.JButton;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-
-import com.mucommander.text.Translator;
-import com.mucommander.ui.button.ButtonChoicePanel;
-import com.mucommander.ui.dialog.FocusDialog;
-import com.mucommander.ui.layout.XAlignedComponentPanel;
-import com.mucommander.ui.layout.YBoxPanel;
 
 /**
  * Dialog used to ask a new theme name to the user.
@@ -138,6 +137,7 @@ public class ThemeNameDialog extends FocusDialog implements ActionListener {
     /**
      * Called when the dialog is closed through the ESC button.
      */
+    @Override
     public void cancel() {
         wasValidated = false;
         super.cancel();

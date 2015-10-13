@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 package com.mucommander.ui.main;
 
 import com.mucommander.conf.impl.MuConfiguration;
+import com.mucommander.file.AbstractArchiveEntryFile;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.ArchiveEntryFile;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
@@ -44,12 +44,14 @@ import com.mucommander.ui.main.table.SortInfo;
 import com.mucommander.ui.main.toolbar.ToolBar;
 import com.mucommander.ui.quicklist.QuickListFocusableComponent;
 
-import javax.swing.*;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JSplitPane;
+import javax.swing.WindowConstants;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.Iterator;
 import java.util.Vector;
 import java.util.WeakHashMap;
 
@@ -90,7 +92,7 @@ public class MainFrame extends JFrame implements LocationListener {
     private boolean foregroundActive;
 
     /** Contains all registered ActivePanelListener instances, stored as weak references */
-    private WeakHashMap activePanelListeners = new WeakHashMap();
+    private WeakHashMap<ActivePanelListener, ?> activePanelListeners = new WeakHashMap<ActivePanelListener, Object>();
 
     /** Split pane orientation */
     private final static String SPLIT_ORIENTATION = MuConfiguration.SPLIT_ORIENTATION;
@@ -109,26 +111,26 @@ public class MainFrame extends JFrame implements LocationListener {
 
         // Use Java 1.6 's new Window#setIconImages(List<Image>) when available
         if(JavaVersions.JAVA_1_6.isCurrentOrHigher()) {
-            Vector icons = new Vector();
+            Vector<Image> icons = new Vector<Image>();
 
             // Start by adding a 16x16 image with 1-bit transparency, any OS should support that.
-            icons.add(IconManager.getIcon("/icon16_8.png").getImage());
+            icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon16_8.png").getImage());
 
             // - Windows XP messes up 8-bit PNG transparency.
             // We would be better off with the .ico of the launch4j exe (which has 8-bit alpha transparency) but there
             // seems to be no way to keep it when in 'dontWrapJar' mode (separate exe and jar files).
             if(OsFamilies.WINDOWS.isCurrent() && OsVersions.WINDOWS_XP.isCurrentOrLower()) {
-                icons.add(IconManager.getIcon("/icon48_8.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon48_8.png").getImage());
             }
             // - Windows Vista supports 8-bit transparency and icon resolutions up to 256x256.
             // - GNOME and KDE support 8-bit transparency.
             else {
                 // Add PNG 24 images (8-bit transparency)
-                icons.add(IconManager.getIcon("/icon16_24.png").getImage());
-                icons.add(IconManager.getIcon("/icon32_24.png").getImage());
-                icons.add(IconManager.getIcon("/icon48_24.png").getImage());
-                icons.add(IconManager.getIcon("/icon128_24.png").getImage());
-                icons.add(IconManager.getIcon("/icon256_24.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon16_24.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon32_24.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon48_24.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon128_24.png").getImage());
+                icons.add(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon256_24.png").getImage());
             }
 
             setIconImages(icons);
@@ -136,7 +138,7 @@ public class MainFrame extends JFrame implements LocationListener {
         else {      // Java 1.5 or lower
             // Err on the safe side by assuming that 8-bit transparency is not supported.
             // Any OS should support 16x16 icons with 1-bit transparency.
-            setIconImage(IconManager.getIcon("/icon16_8.png").getImage());
+            setIconImage(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon16_8.png").getImage());
         }
     }
 
@@ -147,13 +149,8 @@ public class MainFrame extends JFrame implements LocationListener {
         // Enable window resize
         setResizable(true);
 
-        // Sets the content pane.
-        JPanel contentPane = new JPanel(new BorderLayout()) {
-                // Add an x=3,y=3 gap around content pane
-                public Insets getInsets() {
-                    return new Insets(3, 3, 3, 3);
-                }
-            };
+        // The toolbar should have no inset, this is why it is left out of the insetsPane
+        JPanel contentPane = new JPanel(new BorderLayout());
         setContentPane(contentPane);
 
         // Initialises the folder panels and file tables.
@@ -171,6 +168,17 @@ public class MainFrame extends JFrame implements LocationListener {
         this.toolbarPanel = ToolbarMoreButton.wrapToolBar(toolbar);
         this.toolbarPanel.setVisible(MuConfiguration.getVariable(MuConfiguration.TOOLBAR_VISIBLE, MuConfiguration.DEFAULT_TOOLBAR_VISIBLE));
         contentPane.add(toolbarPanel, BorderLayout.NORTH);
+
+        JPanel insetsPane = new JPanel(new BorderLayout()) {
+                // Add an x=3,y=3 gap around content pane
+                @Override
+                public Insets getInsets() {
+                    return new Insets(0, 3, 3, 3);      // No top inset 
+                }
+            };
+
+        // Below the toolbar there is the pane with insets
+        contentPane.add(insetsPane, BorderLayout.CENTER);
 
         // Lister to location change events to display the current folder in the window's title
         leftFolderPanel.getLocationManager().addLocationListener(this);
@@ -191,6 +199,7 @@ public class MainFrame extends JFrame implements LocationListener {
                 MainFrame.this.leftFolderPanel,
                 MainFrame.this.rightFolderPanel) {
                 // We don't want any extra space around split pane
+                @Override
                 public Insets getInsets() {
                     return new Insets(0, 0, 0, 0);
                 }
@@ -207,7 +216,7 @@ public class MainFrame extends JFrame implements LocationListener {
         splitPane.disableAccessibilityShortcuts();
 
         // Split pane will be given any extra space
-        contentPane.add(splitPane, BorderLayout.CENTER);
+        insetsPane.add(splitPane, BorderLayout.CENTER);
 
         // Add a 2-pixel gap between the file table and status bar
         YBoxPanel southPanel = new YBoxPanel();
@@ -222,11 +231,12 @@ public class MainFrame extends JFrame implements LocationListener {
         // Note: CommandBar.setVisible() has to be called no matter if CommandBar is visible or not, in order for it to be properly initialized
         this.commandBar.setVisible(MuConfiguration.getVariable(MuConfiguration.COMMAND_BAR_VISIBLE, MuConfiguration.DEFAULT_COMMAND_BAR_VISIBLE));
         southPanel.add(commandBar);
-        contentPane.add(southPanel, BorderLayout.SOUTH);
+        insetsPane.add(southPanel, BorderLayout.SOUTH);
 
         // Perform CloseAction when the user asked the window to close
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
+            @Override
             public void windowClosing(WindowEvent e) {
                 ActionManager.performAction(CloseWindowAction.Descriptor.ACTION_ID, MainFrame.this);
             }
@@ -350,9 +360,8 @@ public class MainFrame extends JFrame implements LocationListener {
      * @param folderPanel the new active panel
      */
     private void fireActivePanelChanged(FolderPanel folderPanel) {
-        Iterator iterator = activePanelListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ActivePanelListener)iterator.next()).activePanelChanged(folderPanel);
+        for(ActivePanelListener listener : activePanelListeners.keySet())
+            listener.activePanelChanged(folderPanel);
     }
 
 
@@ -672,20 +681,20 @@ public class MainFrame extends JFrame implements LocationListener {
     public void updateWindowTitle() {
         // Update window title
         String title = activeTable.getCurrentFolder().getAbsolutePath();
-        Vector mainFrames = WindowManager.getMainFrames();
+        Vector<MainFrame> mainFrames = WindowManager.getMainFrames();
         if(mainFrames.size()>1)
             title += " ["+(mainFrames.indexOf(this)+1)+"]";
         setTitle(title);
 
-        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
-        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard)
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher()) {
             // Displays the document icon in the window title bar, works only for local files
             AbstractFile currentFolder = activeTable.getCurrentFolder();
             Object javaIoFile;
             if(currentFolder.getURL().getScheme().equals(FileProtocols.FILE)) {
                 // If the current folder is an archive entry, display the archive file, this is the closest we can get
                 // with a java.io.File
-                if(currentFolder.hasAncestor(ArchiveEntryFile.class))
+                if(currentFolder.hasAncestor(AbstractArchiveEntryFile.class))
                     javaIoFile = currentFolder.getParentArchive().getUnderlyingFileObject();
                 else
                     javaIoFile = currentFolder.getUnderlyingFileObject();
@@ -730,6 +739,7 @@ public class MainFrame extends JFrame implements LocationListener {
      * Overrides <code>java.awt.Window#dispose</code> to save last MainFrame's attributes in the preferences
      * before disposing this MainFrame.
      */
+    @Override
     public void dispose() {
         // Save last MainFrame's attributes (last folders, window position) in the preferences.
 
@@ -799,6 +809,7 @@ public class MainFrame extends JFrame implements LocationListener {
     /**
      * Overrides <code>java.awt.Window#toFront</code> to have the window return to a normal state if it is minimized.
      */
+    @Override
     public void toFront() {
         if((getExtendedState()&Frame.ICONIFIED)!=0)
             setExtendedState(Frame.NORMAL);
@@ -818,6 +829,7 @@ public class MainFrame extends JFrame implements LocationListener {
      */
     protected class CustomFocusTraversalPolicy extends FocusTraversalPolicy {
 
+        @Override
         public Component getComponentAfter(Container container, Component component) {
         	if (component instanceof QuickListFocusableComponent) {
         		return ((QuickListFocusableComponent) component).getInvokerFileTable();
@@ -835,19 +847,23 @@ public class MainFrame extends JFrame implements LocationListener {
                 return leftTable;
         }
 
+        @Override
         public Component getComponentBefore(Container container, Component component) {
             // Completly symetrical with getComponentAfter
             return getComponentAfter(container, component);
        }
 
+        @Override
         public Component getFirstComponent(Container container) {
             return leftTable;
         }
 
+        @Override
         public Component getLastComponent(Container container) {
             return rightTable;
         }
 
+        @Override
         public Component getDefaultComponent(Container container) {
             return getActiveTable();
         }

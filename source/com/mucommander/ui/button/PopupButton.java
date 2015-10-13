@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,12 @@ package com.mucommander.ui.button;
 
 import com.mucommander.ui.action.impl.MuteProxyAction;
 
-import javax.swing.*;
+import javax.swing.Action;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
-import java.awt.*;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -88,6 +90,7 @@ public abstract class PopupButton extends NonFocusableButton {
      * Sets the action to be performed when this button is clicked. If <code>null</code> is passed, a popup menu will
      * displayed when this button is clicked.
      */
+    @Override
     public void setAction(Action buttonClickedAction) {
         if(buttonClickedAction==null) {
             super.setAction(null);

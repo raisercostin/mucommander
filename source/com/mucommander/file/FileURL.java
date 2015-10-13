@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,10 @@ import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.util.StringUtils;
 
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.NoSuchElementException;
@@ -125,7 +127,7 @@ public class FileURL implements Cloneable {
     private String query;
 
     /** Properties, null if none have been set thus far */
-    private Hashtable properties;
+    private Hashtable<String, String> properties;
     /** Credentials (login and password parts), null if this URL has none */
     private Credentials credentials;
 
@@ -136,7 +138,7 @@ public class FileURL implements Cloneable {
     private final static SchemeHandler DEFAULT_HANDLER = new DefaultSchemeHandler();
 
     /** Maps schemes (String) onto SchemeHandler instances */
-    private final static Hashtable handlers = new Hashtable();
+    private final static Hashtable<String, SchemeHandler> handlers = new Hashtable<String, SchemeHandler>();
 
     /** String designating the localhost */
     public final static String LOCALHOST = "localhost";
@@ -146,16 +148,18 @@ public class FileURL implements Cloneable {
         // Register custom handlers for known schemes
 
         registerHandler(FileProtocols.FILE, new DefaultSchemeHandler(new DefaultSchemeParser(new DefaultPathCanonizer(LocalFile.SEPARATOR, System.getProperty("user.home")), false), -1, System.getProperty("file.separator"), AuthenticationTypes.NO_AUTHENTICATION, null));
-        registerHandler(FileProtocols.FTP, new DefaultSchemeHandler(new DefaultSchemeParser(), 21, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, new Credentials("anonymous", "someuser@mucommander.com")));
+        registerHandler(FileProtocols.FTP, new DefaultSchemeHandler(new DefaultSchemeParser(), 21, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, new Credentials("anonymous", "anonymous_coward@mucommander.com")));
         registerHandler(FileProtocols.SFTP, new DefaultSchemeHandler(new DefaultSchemeParser(), 22, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
+        registerHandler(FileProtocols.HDFS, new DefaultSchemeHandler(new DefaultSchemeParser(true), 8020, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
         registerHandler(FileProtocols.HTTP, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
-        registerHandler(FileProtocols.S3, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
+        registerHandler(FileProtocols.S3, new DefaultSchemeHandler(new DefaultSchemeParser(true), 443, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
         registerHandler(FileProtocols.WEBDAV, new DefaultSchemeHandler(new DefaultSchemeParser(true), 80, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
         registerHandler(FileProtocols.HTTPS, new DefaultSchemeHandler(new DefaultSchemeParser(true), 443, "/", AuthenticationTypes.AUTHENTICATION_OPTIONAL, null));
         registerHandler(FileProtocols.WEBDAVS, new DefaultSchemeHandler(new DefaultSchemeParser(true), 443, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, null));
         registerHandler(FileProtocols.NFS, new DefaultSchemeHandler(new DefaultSchemeParser(), 2049, "/", AuthenticationTypes.NO_AUTHENTICATION, null));
 
         registerHandler(FileProtocols.SMB, new DefaultSchemeHandler(new DefaultSchemeParser(), -1, "/", AuthenticationTypes.AUTHENTICATION_REQUIRED, new Credentials("GUEST", "")) {
+            @Override
             public FileURL getRealm(FileURL location) {
                 FileURL realm = new FileURL(this);
 
@@ -298,7 +302,7 @@ public class FileURL implements Cloneable {
      * @return the handler registered for the specified scheme
      */
     public static SchemeHandler getRegisteredHandler(String scheme) {
-        return (SchemeHandler)handlers.get(scheme.toLowerCase());
+        return handlers.get(scheme.toLowerCase());
     }
 
     /**
@@ -610,7 +614,7 @@ public class FileURL implements Cloneable {
 
                 // Copy properties to parent (if any)
                 if(properties!=null)
-                    parentURL.properties = new Hashtable(properties);
+                    parentURL.properties = new Hashtable<String, String>(properties);
 
                 return parentURL;
             }
@@ -683,7 +687,7 @@ public class FileURL implements Cloneable {
      * @see #setProperty(String,String)
      */
     public String getProperty(String name) {
-        return properties==null?null:(String)properties.get(name);
+        return properties==null?null:properties.get(name);
     }
 	
     /**
@@ -697,7 +701,7 @@ public class FileURL implements Cloneable {
     public void setProperty(String name, String value) {
         // Create the property hashtable only when a property is set for the first time
         if(properties==null)
-            properties = new Hashtable();
+            properties = new Hashtable<String, String>();
 
         if(value==null)
             properties.remove(name);
@@ -713,15 +717,15 @@ public class FileURL implements Cloneable {
      *
      * @return an <code>Enumeration</code> of all property names this FileURL contains
      */
-    public Enumeration getPropertyNames() {
+    public Enumeration<String> getPropertyNames() {
         // Return an empty enumeration if the property hashtable is null
         if(properties==null) {
-            return new Enumeration() {
+            return new Enumeration<String>() {
                 public boolean hasMoreElements() {
                     return false;
                 }
 
-                public Object nextElement() {
+                public String nextElement() {
                     throw new NoSuchElementException();
                 }
             };
@@ -740,10 +744,10 @@ public class FileURL implements Cloneable {
         if(url.properties==null)
             return;
 
-        Enumeration propertyKeys = url.getPropertyNames();
+        Enumeration<String> propertyKeys = url.getPropertyNames();
         String key;
         while(propertyKeys.hasMoreElements()) {
-            key = (String)propertyKeys.nextElement();
+            key = propertyKeys.nextElement();
             setProperty(key, url.getProperty(key));
         }
     }
@@ -764,14 +768,26 @@ public class FileURL implements Cloneable {
         sb.append("://");
 
         if(includeCredentials && credentials!=null) {
-            sb.append(credentials.getLogin());
+            try {
+                sb.append(URLEncoder.encode(credentials.getLogin(), "UTF-8"));
+            }
+            catch(UnsupportedEncodingException e) {
+                // This can't happen in practice, UTF-8 is necessarily supported
+            }
+
             String password = credentials.getPassword();
             if(!"".equals(password)) {
                 sb.append(':');
                 if(maskPassword)
                     sb.append(credentials.getMaskedPassword());
-                else
-                    sb.append(password);
+                else {
+                    try {
+                        sb.append(URLEncoder.encode(password, "UTF-8"));
+                    }
+                    catch(UnsupportedEncodingException e) {
+                        // This can't happen in practice, UTF-8 is necessarily supported
+                    }
+                }
             }
             sb.append('@');
         }
@@ -856,6 +872,7 @@ public class FileURL implements Cloneable {
      * @return <code>true</code> if the host part of this URL and the given URL are equal
      */
     public boolean hostEquals(FileURL url) {
+        // Note: StringUtils#equals is null-safe 
         return StringUtils.equals(this.host, url.host, false);
     }
 
@@ -972,6 +989,7 @@ public class FileURL implements Cloneable {
      * Returns a clone of this FileURL. The returned instance can safely be modified without any impact on this FileURL
      * or any previously cloned URL.
      */
+    @Override
     public Object clone() {
         // Create a new FileURL return it, instead of using Object.clone() which is probably way slower;
         // most FileURL fields are immutable and as such reused in cloned instance
@@ -988,7 +1006,7 @@ public class FileURL implements Cloneable {
 
         // Mutable fields
         if(properties!=null)    // Copy properties (if any)
-            clonedURL.properties = new Hashtable(properties);
+            clonedURL.properties = new Hashtable<String, String>(properties);
 
         // Caches
         clonedURL.hashCode = hashCode;
@@ -1027,7 +1045,7 @@ public class FileURL implements Cloneable {
      * <p>
      * Credentials (login and password parts) are compared only if requested. The comparison for both the login and
      * password is case-sensitive.</br>
-     * Likewise, properties are compared only if requested: the comparison of all properties is case-sentive.
+     * Likewise, properties are compared only if requested: the comparison of all properties is case-sensitive.
      * </p>
      *
      * @param o object to compare against this FileURL instance

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,14 @@
 
 package com.mucommander.ui.action.impl;
 
+import com.mucommander.file.FileOperation;
+import com.mucommander.file.filter.FileOperationFilter;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.ui.action.*;
 import com.mucommander.ui.dialog.file.DeleteDialog;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
-
+import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.util.Hashtable;
 
@@ -39,20 +40,23 @@ import java.util.Hashtable;
  */
 public class DeleteAction extends SelectedFilesAction {
 
-    public DeleteAction(MainFrame mainFrame, Hashtable properties) {
+    public DeleteAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
+
+        setSelectedFileFilter(new FileOperationFilter(FileOperation.DELETE));
     }
 
+    @Override
     public void performAction() {
         FileSet files = mainFrame.getActiveTable().getSelectedFiles();
         // Invoke confirmation dialog only if at least one file is selected/marked
         if(files.size()>0)
             new DeleteDialog(mainFrame, files, false).showDialog();
     }
-    
+
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new DeleteAction(mainFrame, properties);
 		}
     }

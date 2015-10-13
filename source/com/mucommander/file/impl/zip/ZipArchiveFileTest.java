@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +18,20 @@
 
 package com.mucommander.file.impl.zip;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractFileTestCase;
-import com.mucommander.file.FileFactory;
+import com.mucommander.file.*;
+import org.junit.After;
+import org.junit.Before;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * An {@link com.mucommander.file.AbstractFileTestCase} implementation, which performs tests on {@link com.mucommander.file.ArchiveEntryFile}
+ * An {@link AbstractFileTest} implementation, which performs tests on {@link AbstractArchiveEntryFile}
  * entries located inside a {@link ZipArchiveFile} residing in a temporary {@link com.mucommander.file.impl.local.LocalFile}.
  *
  * @author Maxence Bernard
  */
-public class ZipArchiveFileTest extends AbstractFileTestCase {
+public class ZipArchiveFileTest extends AbstractFileTest {
 
     /** The archive file which contains the temporary entries */
     private static ZipArchiveFile tempZipFile;
@@ -40,13 +40,37 @@ public class ZipArchiveFileTest extends AbstractFileTestCase {
     private int entryNum;
 
 
-    /////////////////////////////////////////
-    // AbstractFileTestCase implementation //
-    /////////////////////////////////////////
-    
+    ////////////////////////////////////
+    // ConditionalTest implementation //
+    ////////////////////////////////////
+
+    public boolean isEnabled() {
+        return true;
+    }
+
+    /////////////////////////////////////
+    // AbstractFileTest implementation //
+    /////////////////////////////////////
+
+    @Override
     public AbstractFile getTemporaryFile() throws IOException {
         // use a incremental id to avoid collisions
         return tempZipFile.getDirectChild("entry"+(++entryNum));
+    }
+
+    @Override
+    public FileOperation[] getSupportedOperations() {
+        return new FileOperation[] {
+            FileOperation.READ_FILE,
+            FileOperation.WRITE_FILE,
+            FileOperation.CREATE_DIRECTORY,
+            FileOperation.LIST_CHILDREN,
+            FileOperation.DELETE,
+            FileOperation.CHANGE_DATE,
+            FileOperation.CHANGE_PERMISSION,
+            FileOperation.GET_FREE_SPACE,
+            FileOperation.GET_TOTAL_SPACE
+        };
     }
 
 
@@ -57,7 +81,9 @@ public class ZipArchiveFileTest extends AbstractFileTestCase {
     /**
      * Overridden to create the archive file before each test.
      */
-    protected void setUp() throws IOException {
+    @Override
+    @Before
+    public void setUp() throws IOException {
         tempZipFile = (ZipArchiveFile)FileFactory.getTemporaryFile(ZipArchiveFileTest.class.getName()+".zip", false);
         tempZipFile.mkfile();
 
@@ -69,12 +95,15 @@ public class ZipArchiveFileTest extends AbstractFileTestCase {
     /**
      * Overridden to delete the archive file after each test.
      */
-    protected void tearDown() throws IOException {
+    @Override
+    @After
+    public void tearDown() throws IOException {
         super.tearDown();
 
         tempZipFile.delete();
     }
 
+    @Override
     public void testCanonicalPath() throws IOException, NoSuchAlgorithmException {
         // TODO
         // Test temporarily disabled because if fails. The failure seems to be caused by archive file caching:
@@ -96,14 +125,14 @@ public class ZipArchiveFileTest extends AbstractFileTestCase {
 //     */
 //    public void testZip32Limit() throws IOException, NoSuchAlgorithmException {
 //        // Assert a 4GB minus one byte entry can be properly compressed and uncompressed
-//        ChecksumOutputStream md5Out = getMd5OutputStream(tempFile.getOutputStream(false));
+//        ChecksumOutputStream md5Out = getMd5OutputStream(tempFile.getAppendOutputStream());
 //        StreamUtils.fillWithConstant(md5Out, (byte)0, MAX_ZIP32_ENTRY_SIZE);
 //        md5Out.close();
 //
 //        assertEquals(md5Out.getChecksum(), calculateMd5(tempFile));
 //
 //        // Assert that an IOException is thrown if more than 4GB is written to an entry
-//        OutputStream out = tempFile.getOutputStream(false);
+//        OutputStream out = tempFile.getOutputStream();
 //        boolean ioExceptionThrown = false;
 //        try {
 //            StreamUtils.fillWithConstant(out, (byte)0, MAX_ZIP32_ENTRY_SIZE+1);

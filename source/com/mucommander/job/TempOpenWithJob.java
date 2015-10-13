@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@ import com.mucommander.file.util.FileSet;
 import com.mucommander.process.ProcessRunner;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
+
+import java.io.IOException;
 
 /**
  * This job copies a file or a set of files to a temporary folder, makes the temporary file(s) read-only and
@@ -82,6 +84,7 @@ public class TempOpenWithJob extends TempCopyJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         if(!super.processFile(file, recurseParams))
             return false;
@@ -91,9 +94,15 @@ public class TempOpenWithJob extends TempCopyJob {
         // Add the file to the list of files to open, only if it is one of the top-level files
         if(filesToOpen.indexOf(file)!=-1) {
             if(!currentDestFile.isDirectory()) {        // Do not change directories' permissions
-                // Make the temporary file read only
-                if(currentDestFile.getChangeablePermissions().getBitValue(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION))
-                    currentDestFile.changePermission(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION, false);
+                try {
+                    // Make the temporary file read only
+                    if(currentDestFile.getChangeablePermissions().getBitValue(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION))
+                        currentDestFile.changePermission(PermissionAccesses.USER_ACCESS, PermissionTypes.WRITE_PERMISSION, false);
+                }
+                catch(IOException e) {
+                    AppLogger.fine("Caught exeception while changing permissions of "+currentDestFile, e);
+                    return false;
+                }
             }
             
             tempFiles.add(currentDestFile);
@@ -102,6 +111,7 @@ public class TempOpenWithJob extends TempCopyJob {
         return true;
     }
 
+    @Override
     protected void jobCompleted() {
         super.jobCompleted();
 

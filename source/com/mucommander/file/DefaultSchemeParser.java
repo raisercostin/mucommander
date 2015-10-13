@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.runtime.OsFamilies;
 
 import java.net.MalformedURLException;
+import java.net.URLDecoder;
 import java.util.logging.Level;
 
 /**
@@ -238,18 +239,17 @@ public class DefaultSchemeParser implements SchemeParser {
             String authority = url.substring(pos, hostEndPos);
             pos = 0;
 
-            // Parse login and password (if specified)
-            // Login/password may contain @ characters, so consider the last '@' occurrence (if any) as the host delimiter.
-            // Note that filenames may contain @ characters, but that's OK here since path is not contained in the String
+            // Parse login and password (if specified).
+            // They may contain non-URL safe characters that are decoded here, and re-encoded by FileURL#toString.
             int atPos = authority.lastIndexOf('@');
             int colonPos;
             // Filenames may contain @ chars, so atPos must be lower than next separator's position (if any)
             if(atPos!=-1 && (separatorPos==-1 || atPos<separatorPos)) {
                 colonPos = authority.indexOf(':');
-                String login = authority.substring(0, colonPos==-1?atPos:colonPos);
+                String login = URLDecoder.decode(authority.substring(0, colonPos==-1?atPos:colonPos), "UTF-8");
                 String password;
                 if(colonPos!=-1)
-                    password = authority.substring(colonPos+1, atPos);
+                    password = URLDecoder.decode(authority.substring(colonPos+1, atPos), "UTF-8");
                 else
                     password = null;
 

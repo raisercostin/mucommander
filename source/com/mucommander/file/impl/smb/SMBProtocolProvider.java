@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ package com.mucommander.file.impl.smb;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.ProtocolProvider;
+import jcifs.smb.SmbFile;
 
 import java.io.IOException;
 
@@ -105,7 +106,9 @@ public class SMBProtocolProvider implements ProtocolProvider {
     // ProtocolProvider implementation //
     /////////////////////////////////////
 
-    public AbstractFile getFile(FileURL url) throws IOException {
-        return new SMBFile(url);
+    public AbstractFile getFile(FileURL url, Object... instantiationParams) throws IOException {
+        return instantiationParams.length==0
+            ?new SMBFile(url)
+            :new SMBFile(url, (SmbFile)instantiationParams[0]);
     }
 }

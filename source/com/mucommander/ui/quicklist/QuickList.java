@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,13 @@ package com.mucommander.ui.quicklist;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.quicklist.item.HeaderMenuItem;
 
-import javax.swing.*;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.border.LineBorder;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.Vector;
@@ -42,7 +46,7 @@ public abstract class QuickList extends JPopupMenu implements FocusListener {
 	private static final int PADDING = 2;
 	protected HeaderMenuItem headerMenuItem;
 	protected FolderPanel folderPanel;
-	private Vector items = new Vector();
+	private Vector<Component> items = new Vector<Component>();
 	
 	protected QuickList(String header) {
 		super();
@@ -74,22 +78,25 @@ public abstract class QuickList extends JPopupMenu implements FocusListener {
 		}
 	}
 	
-	public Component add(Component comp) {
+	@Override
+    public Component add(Component comp) {
 		items.add(comp);
 		return super.add(comp);
 	}
 	
-	public JMenuItem add(JMenuItem comp) {
+	@Override
+    public JMenuItem add(JMenuItem comp) {
 		items.add(comp);
 		return super.add(comp);
 	}
 	
-	public Dimension getPreferredSize() {
+	@Override
+    public Dimension getPreferredSize() {
 		double width = PADDING, height = PADDING;
 		int nbItems = items.size();
 		for (int i=0; i<nbItems; i++) {
-			width = Math.max(width, ((Component) items.elementAt(i)).getPreferredSize().getWidth());
-			height += ((Component) items.elementAt(i)).getPreferredSize().getHeight();
+			width = Math.max(width, items.elementAt(i).getPreferredSize().getWidth());
+			height += items.elementAt(i).getPreferredSize().getHeight();
 		}
 		return new Dimension((int) Math.ceil(
 				Math.max(folderPanel == null ? 0 : folderPanel.getWidth() / 2, width * 1.05))
@@ -111,11 +118,13 @@ public abstract class QuickList extends JPopupMenu implements FocusListener {
 			super(Color.gray);		
 		}
 		
-		public Insets getBorderInsets(Component c) {
+		@Override
+        public Insets getBorderInsets(Component c) {
 			return new Insets(1,1,1,1);
 		}
 		
-		public Insets getBorderInsets(Component c, Insets i) {
+		@Override
+        public Insets getBorderInsets(Component c, Insets i) {
 			return new Insets(1,1,1,1);
 		}
 	}	

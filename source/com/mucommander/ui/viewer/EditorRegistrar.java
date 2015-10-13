@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package com.mucommander.ui.viewer;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
@@ -29,7 +28,8 @@ import com.mucommander.ui.dialog.QuestionDialog;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
 
-import java.awt.*;
+import java.awt.Frame;
+import java.awt.Image;
 import java.util.Iterator;
 import java.util.Vector;
 
@@ -42,7 +42,7 @@ import java.util.Vector;
 public class EditorRegistrar {
 	
     /** List of registered file editors */ 
-    private final static Vector editorFactories = new Vector();
+    private final static Vector<EditorFactory> editorFactories = new Vector<EditorFactory>();
 
     static {
         registerFileEditor(new com.mucommander.ui.viewer.text.TextFactory());
@@ -68,8 +68,8 @@ public class EditorRegistrar {
     public static EditorFrame createEditorFrame(MainFrame mainFrame, AbstractFile file, Image icon) {
         EditorFrame frame = new EditorFrame(mainFrame, file, icon);
 
-        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
-        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+        // Use new Window decorations introduced in Mac OS X 10.5 (Leopard)
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher()) {
             // Displays the document icon in the window title bar, works only for local files
             if(file.getURL().getScheme().equals(FileProtocols.FILE))
                 frame.getRootPane().putClientProperty("Window.documentFile", file.getUnderlyingFileObject());
@@ -91,12 +91,12 @@ public class EditorRegistrar {
      * @throws UserCancelledException if the user has been asked to confirm the operation and cancelled
      */
     public static FileEditor createFileEditor(AbstractFile file) throws UserCancelledException {
-        Iterator      iterator;
-        EditorFactory factory;
+        Iterator<EditorFactory> iterator;
+        EditorFactory           factory;
 
         iterator = editorFactories.iterator();
         while(iterator.hasNext()) {
-            factory = (EditorFactory)iterator.next();
+            factory = iterator.next();
 
             try {
                 if(factory.canEditFile(file))

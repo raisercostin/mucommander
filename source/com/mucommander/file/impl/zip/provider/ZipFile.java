@@ -20,6 +20,7 @@ package com.mucommander.file.impl.zip.provider;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileLogger;
+import com.mucommander.file.UnsupportedFileOperationException;
 import com.mucommander.io.*;
 
 import java.io.*;
@@ -79,10 +80,10 @@ public class ZipFile implements ZipConstants {
     private RandomAccessOutputStream raos;
 
     /** Contains ZipEntry instances corresponding to the archive's entries, in the order they were found in the archive. */
-    private Vector entries = new Vector();
+    private Vector<ZipEntry> entries = new Vector<ZipEntry>();
 
     /** Maps entry paths to corresponding ZipEntry instances */
-    private Hashtable nameMap = new Hashtable();
+    private Hashtable<String, ZipEntry> nameMap = new Hashtable<String, ZipEntry>();
 
     /** Global zip file comment */
     private String comment;
@@ -104,11 +105,11 @@ public class ZipFile implements ZipConstants {
      * thrown.</p>
      *
      * @param f the archive file
-     * @throws IOException if a RandomAccessInputStream could not retrieved, or if an error occurred while reading the
-     * Zip file.
+     * @throws IOException if an error occurred while reading the Zip file.
      * @throws ZipException if this file is not a valid Zip file
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    public ZipFile(AbstractFile f) throws IOException, ZipException {
+    public ZipFile(AbstractFile f) throws IOException, ZipException, UnsupportedFileOperationException {
         this.file = f;
 
         try {
@@ -125,8 +126,9 @@ public class ZipFile implements ZipConstants {
      * Opens the zip file for random read access.
      *
      * @throws IOException if an error occured while opening the zip file for random read access.
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    private void openRead() throws IOException {
+    private void openRead() throws IOException, UnsupportedFileOperationException {
         if(rais!=null) {
             FileLogger.fine("Warning: an existing RandomAccessInputStream was found, closing it now");
             rais.close();
@@ -155,8 +157,9 @@ public class ZipFile implements ZipConstants {
      * Opens the zip file for random write access.
      *
      * @throws IOException if an error occured while opening the zip file for random read access.
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    private void openWrite() throws IOException{
+    private void openWrite() throws IOException, UnsupportedFileOperationException {
         if(raos!=null) {
             FileLogger.fine("Warning: an existing RandomAccessOutputStream was found, closing it now");
             raos.close();
@@ -223,7 +226,7 @@ public class ZipFile implements ZipConstants {
      *
      * @return Returns all entries as an <code>Iterator</code> of ZipEntry instances.
      */
-    public Iterator getEntries() {
+    public Iterator<ZipEntry> getEntries() {
         return entries.iterator();
     }
 
@@ -243,7 +246,7 @@ public class ZipFile implements ZipConstants {
      * @return the ZipEntry corresponding to the given name or <code>null</code> if not present.
      */
     public ZipEntry getEntry(String name) {
-        return (ZipEntry) nameMap.get(name);
+        return nameMap.get(name);
     }
 
     /**
@@ -251,10 +254,11 @@ public class ZipFile implements ZipConstants {
      *
      * @param ze the entry to get the stream for.
      * @return a stream to read the entry from.
-     * @throws IOException if unable to create an input stream from the zipenty
+     * @throws IOException if unable to create an input stream from the zipentry
      * @throws ZipException if the zipentry has an unsupported compression method
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    public InputStream getInputStream(ZipEntry ze) throws IOException, ZipException {
+    public InputStream getInputStream(ZipEntry ze) throws IOException, ZipException, UnsupportedFileOperationException {
 
         ZipEntryInfo entryInfo = ze.getEntryInfo();
         if (entryInfo == null)
@@ -270,8 +274,7 @@ public class ZipFile implements ZipConstants {
         this.rais = null;
         
         long start = entryInfo.dataOffset;
-        BoundedInputStream bis =
-            new BoundedInputStream(entryIn, start, ze.getCompressedSize());
+        BoundedInputStream bis = new BoundedInputStream(entryIn, start, ze.getCompressedSize());
         switch (ze.getMethod()) {
             case ZipConstants.STORED:
                 return bis;
@@ -302,10 +305,11 @@ public class ZipFile implements ZipConstants {
      * thrown.</p>
      *
      * @param ze the ZipEntry to delete
-     * @throws IOException if the underlying AbstractFile does not have random write access or if an I/O error occurred
+     * @throws IOException if an I/O error occurred
      * @throws ZipException if the specified ZipEntry cannot be found in this zip file
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    public void deleteEntry(ZipEntry ze) throws IOException, ZipException {
+    public void deleteEntry(ZipEntry ze) throws IOException, ZipException, UnsupportedFileOperationException {
         openRead();
         openWrite();
 
@@ -337,7 +341,7 @@ public class ZipFile implements ZipConstants {
                 raos.seek(0);
             }
             else {
-                cdStartOffset = ((ZipEntry)entries.elementAt(0)).getEntryInfo().centralHeaderOffset;
+                cdStartOffset = entries.elementAt(0).getEntryInfo().centralHeaderOffset;
                 long shift;
 
                 if(entryIndex==nbEntries-1) {
@@ -346,7 +350,7 @@ public class ZipFile implements ZipConstants {
                     // entry) to where the entry's local header started.
 
                     // The entry before the deleted one, will become the last one
-                    ZipEntryInfo lastEntryInfo = ((ZipEntry)entries.elementAt(nbEntries-2)).getEntryInfo();
+                    ZipEntryInfo lastEntryInfo = entries.elementAt(nbEntries-2).getEntryInfo();
 
                     // Destination offset
                     long newCdStartOffset = entryInfo.headerOffset;
@@ -360,7 +364,7 @@ public class ZipFile implements ZipConstants {
                     // Update central directory header offsets
                     shift = cdStartOffset-newCdStartOffset;
                     for(int i=0; i<nbEntries-1; i++)
-                        ((ZipEntry)entries.elementAt(i)).getEntryInfo().centralHeaderOffset -= shift;
+                        entries.elementAt(i).getEntryInfo().centralHeaderOffset -= shift;
 
                     cdStartOffset = newCdStartOffset;
                     cdEndOffset = newCdStartOffset + cdLength;
@@ -385,9 +389,9 @@ public class ZipFile implements ZipConstants {
                     // - move the file headers that are located after the deleted entry to where the deleted entry's
                     // header was (this will remove the deleted entry's file header)
                     
-                    ZipEntryInfo lastEntryInfo = ((ZipEntry)entries.elementAt(nbEntries-1)).getEntryInfo();
+                    ZipEntryInfo lastEntryInfo = entries.elementAt(nbEntries-1).getEntryInfo();
 
-                    long startOffset = ((ZipEntry)entries.elementAt(entryIndex+1)).getEntryInfo().centralHeaderOffset;
+                    long startOffset = entries.elementAt(entryIndex+1).getEntryInfo().centralHeaderOffset;
                     cdEndOffset = lastEntryInfo.centralHeaderOffset + lastEntryInfo.centralHeaderLen;
 
                     StreamUtils.copyChunk(rais, raos, startOffset, entryInfo.centralHeaderOffset, cdEndOffset-startOffset);
@@ -396,7 +400,7 @@ public class ZipFile implements ZipConstants {
                     // offset has changed
                     shift = entryInfo.centralHeaderLen;
                     for(int i=entryIndex+1; i<nbEntries; i++)
-                        ((ZipEntry)entries.elementAt(i)).getEntryInfo().centralHeaderOffset -= shift;
+                        entries.elementAt(i).getEntryInfo().centralHeaderOffset -= shift;
 
                     cdEndOffset -= shift;
                 }
@@ -432,9 +436,11 @@ public class ZipFile implements ZipConstants {
      *
      * @param entry the entry to add to this zip file
      * @return an OutputStream to write the contents of the entry
-     * @throws IOException if the underlying AbstractFile does not have random write access or if an I/O error occurred
+     * @throws IOException if an I/O error occurred
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
+     * or is not implemented.
      */
-    public OutputStream addEntry(final ZipEntry entry) throws IOException {
+    public OutputStream addEntry(final ZipEntry entry) throws IOException, UnsupportedFileOperationException {
         try {
             // Open the zip file for random read and write access
             openRead();
@@ -462,6 +468,7 @@ public class ZipFile implements ZipConstants {
             final byte[] deflaterBuf = BufferPool.getByteArray(DEFAULT_DEFLATER_BUFFER_SIZE);
             ZipEntryOutputStream zeos = new DeflatedOutputStream(raos, new Deflater(DEFAULT_DEFLATER_COMPRESSION, true), deflaterBuf) {
                 // Post-data file info and central directory get written when the stream is closed
+                @Override
                 public void close() throws IOException {
                     // Write data info in the local file header
                     ZipOutputStream.finalizeEntryData(entry, this, raos, false, zipBuffer);
@@ -473,7 +480,7 @@ public class ZipFile implements ZipConstants {
                     long cdLength = 0;                  // Length of central directory
                     long cdOffset = raos.getOffset();   // Offset of central directory
                     for(int i=0; i<nbEntries; i++) {
-                        tempZe = (ZipEntry)entries.elementAt(i);
+                        tempZe = entries.elementAt(i);
                         tempEntryInfo = tempZe.getEntryInfo();
 
                         // Update offset to central header
@@ -528,9 +535,10 @@ public class ZipFile implements ZipConstants {
      * thrown.</p>
      *
      * @param entry the entry to update
-     * @throws IOException if the underlying AbstractFile does not have random write access or if an I/O error occurred
+     * @throws IOException if an I/O error occurred
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    public void updateEntry(ZipEntry entry) throws IOException {
+    public void updateEntry(ZipEntry entry) throws IOException, UnsupportedFileOperationException {
         try {
             // Open the zip file for write
             openWrite();
@@ -576,9 +584,10 @@ public class ZipFile implements ZipConstants {
      * <p>The underlying {@link AbstractFile} must have random write access. If not, an <code>IOException</code> will be
      * thrown.</p>
      *
-     * @throws IOException if the underlying AbstractFile does not have random write access or if an I/O error occurred
+     * @throws IOException if an I/O error occurred
+     * @throws UnsupportedFileOperationException if a required operation is not supported by the underlying filesystem.
      */
-    public void defragment() throws IOException {
+    public void defragment() throws IOException, UnsupportedFileOperationException {
         int nbEntries = entries.size();
         if(nbEntries==0)
             return;
@@ -593,7 +602,7 @@ public class ZipFile implements ZipConstants {
 
             // Special case for the first entry
 
-            currentEntry = (ZipEntry)entries.elementAt(0);
+            currentEntry = entries.elementAt(0);
             currentEntryInfo = currentEntry.getEntryInfo();
 
             // If data offset is -1 (not calculated yet), calculate it now
@@ -614,7 +623,7 @@ public class ZipFile implements ZipConstants {
             // Process all other entries
 
             for(int i=1; i<nbEntries; i++) {
-                currentEntry = (ZipEntry)entries.elementAt(i);
+                currentEntry = entries.elementAt(i);
                 currentEntryInfo = currentEntry.getEntryInfo();
 
                 // If data offset is -1 (not calculated yet), calculate it now
@@ -649,7 +658,7 @@ public class ZipFile implements ZipConstants {
                 ZipEntryInfo entryInfo;
 
                 for(int i=0; i<nbEntries; i++) {
-                    ze = (ZipEntry)entries.elementAt(i);
+                    ze = entries.elementAt(i);
                     entryInfo = ze.getEntryInfo();
 
                     // Update offset to central directory file header
@@ -684,7 +693,7 @@ public class ZipFile implements ZipConstants {
      * beginning of the filename field.
      *
      * @param entryInfo the ZipEntryInfo object in which to store the data offset
-     * @throws IOException if an unexcepted I/O error occurred
+     * @throws IOException if an unexpected I/O error occurred
      */
     private void calculateDataOffset(ZipEntryInfo entryInfo) throws IOException {
         // Skip the following fields:
@@ -895,7 +904,7 @@ public class ZipFile implements ZipConstants {
             ZipEntry entry;
             ZipEntryInfo entryInfo;
             for(int i=0; i<nbEntries; i++) {
-                entry = (ZipEntry)entries.elementAt(i);
+                entry = entries.elementAt(i);
                 entryInfo = entry.getEntryInfo();
 
                 // Skip those entries for which we know the encoding already
@@ -1001,61 +1010,69 @@ public class ZipFile implements ZipConstants {
      * underlying file not being a Zip file
      */
     private void positionAtCentralDirectory() throws IOException, ZipException {
-        boolean found = false;
         long length = rais.getLength();
-        long off = length - MIN_EOCD_SIZE;
+        if(length<MIN_EOCD_SIZE)
+            throw new ZipException("Invalid Zip file (too small)");
 
-        // Minimum offset at which the EOCD signature can be located, based of the maximum comment length (65535)
-        long minSigOffset = length-MAX_EOCD_SIZE;
+        // Use a constant buffer size to always reuse the same instance
+        byte[] buf = BufferPool.getByteArray(MAX_EOCD_SIZE);
+        try {
+            // Actual buffer length
+            int bufLen = (int)Math.min(length, MAX_EOCD_SIZE);
 
-        if (off >= 0) {
-            int curr;
-            rais.seek(off);
+            // Read the maximum size the EOCD can take. Much more effective than seeking backwards like we used to do.
+            rais.seek(length-bufLen);
+            StreamUtils.readFully(rais, buf, 0, bufLen);
 
-            while (off>=0 && off>=minSigOffset && (curr=rais.read())!=-1) {
-                if (curr == EOCD_SIG[0]) {
-                    curr = rais.read();
-                    if (curr == EOCD_SIG[1]) {
-                        curr = rais.read();
-                        if (curr == EOCD_SIG[2]) {
-                            curr = rais.read();
-                            if (curr == EOCD_SIG[3]) {
-                                found = true;
+            // Look for the EOCD signature by starting at the end and moving backwards
+            boolean signatureFound = false;
+            int off = bufLen - MIN_EOCD_SIZE;
+
+            while (off>=0) {
+                if (buf[off] == EOCD_SIG[0]) {
+                    if (buf[off+1] == EOCD_SIG[1]) {
+                        if (buf[off+2] == EOCD_SIG[2]) {
+                            if (buf[off+3] == EOCD_SIG[3]) {
+                                signatureFound = true;
                                 break;
                             }
                         }
                     }
                 }
 
-                if(--off>0)     // Avoids negative seeks in case the sig is not found (would throw an IOException)
-                    rais.seek(off);
+                off--;
             }
+
+            if (!signatureFound) {
+                throw new ZipException("Invalid Zip stream (EOCD signature not found)");
+            }
+
+            // Parse the offset to the central directory start
+            off += CFD_LOCATOR_OFFSET;
+            byte[] cdStart = new byte[4];
+            System.arraycopy(buf, off, cdStart, 0, 4);
+            off += 4;
+
+            // Fetch the global zip file comment
+            byte[] commentLen = new byte[2];
+            System.arraycopy(buf, off, commentLen, 0, 2);
+            off += 2;
+
+            // Fetch the global zip file comment
+            byte commentBytes[] = new byte[ZipShort.getValue(commentLen)];
+            System.arraycopy(buf, off, commentBytes, 0, commentBytes.length);
+
+            // If no default encoding has been specified, try to guess the comment's encoding.
+            // Note that the Zip format doesn't provide any way of knowing the encoding, not even a bit to indicate UTF-8
+            // like bit 11 in GPBF.
+            comment = getString(commentBytes, defaultEncoding!=null?defaultEncoding:EncodingDetector.detectEncoding(commentBytes));
+
+            // Seek to the start of the central directory
+            rais.seek(ZipLong.getValue(cdStart));
         }
-
-        if (!found) {
-            throw new ZipException("Invalid Zip stream (EOCD signature not found)");
+        finally {
+            BufferPool.releaseByteArray(buf);
         }
-
-        // Parse the offset to the central directory start
-        rais.seek(off + CFD_LOCATOR_OFFSET);
-        byte[] cfdOffset = new byte[4];
-        rais.readFully(cfdOffset);
-
-        long cdStart = ZipLong.getValue(cfdOffset);
-
-        // Fetch the global zip file comment
-        byte[] commentLen = new byte[2];
-        rais.readFully(commentLen);
-        byte commentBytes[] = new byte[ZipShort.getValue(commentLen)];
-        rais.readFully(commentBytes);
-
-        // If no default encoding has been specified, try to guess the comment's encoding.
-        // Note that the Zip format doesn't provide any way of knowing the encoding, not even a bit to indicate UTF-8
-        // like bit 11 in GPBF.
-        comment = getString(commentBytes, defaultEncoding!=null?defaultEncoding:EncodingDetector.detectEncoding(commentBytes));
-
-        // Seek to the start of the central directory
-        rais.seek(cdStart);
     }
 
     /**
@@ -1106,6 +1123,7 @@ public class ZipFile implements ZipConstants {
             loc = start;
         }
 
+        @Override
         public int read() throws IOException {
             if (remaining-- <= 0) {
                 if (addDummyByte) {
@@ -1120,6 +1138,7 @@ public class ZipFile implements ZipConstants {
             }
         }
 
+        @Override
         public int read(byte[] b, int off, int len) throws IOException {
             if (remaining <= 0) {
                 if (addDummyByte) {
@@ -1149,6 +1168,7 @@ public class ZipFile implements ZipConstants {
             return ret;
         }
 
+        @Override
         public void close() throws IOException {
             rais.close();
         }

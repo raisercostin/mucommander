@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -27,14 +27,14 @@ import java.util.Vector;
  */
 public class ApplicationDescElement {
     private String mainClass;
-    private Vector arguments;
+    private Vector<ArgumentElement> arguments;
 
-    public ApplicationDescElement() {arguments = new Vector();}
+    public ApplicationDescElement() {arguments = new Vector<ArgumentElement>();}
 
     public void setMain(String s) {mainClass = s;}
     public String getMain() {return mainClass;}
     public boolean hasArguments() {return !arguments.isEmpty();}
-    public Iterator arguments() {return arguments.iterator();}
+    public Iterator<ArgumentElement> arguments() {return arguments.iterator();}
     public ArgumentElement createArgument() {
         ArgumentElement buffer;
 

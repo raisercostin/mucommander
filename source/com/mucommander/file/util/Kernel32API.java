@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,14 @@ public interface Kernel32API extends W32API {
     int STRUCTURE_ALIGNMENT = Structure.ALIGN_NONE;
 
 
+    /**
+     * Retrieves the calling thread's last-error code value. 
+     * The last-error code is maintained on a per-thread basis. Multiple threads do not overwrite each other's last-error code.
+     * @return The return value is the calling thread's last-error code.
+     */
+    int GetLastError();
+    
+    
     ///////////////////////////
     // SetErrorMode Function //
     ///////////////////////////

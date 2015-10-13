@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -151,7 +151,7 @@ public class Base64Table {
      *
      * @return the ASCII character used for padding.
      */
-    byte getPaddingChar() {
+    public byte getPaddingChar() {
         return paddingChar;
     }
 }

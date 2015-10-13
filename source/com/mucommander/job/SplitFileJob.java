@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,7 @@
 package com.mucommander.job;
 
 import com.mucommander.AppLogger;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.DummyFile;
-import com.mucommander.file.FilePermissions;
-import com.mucommander.file.FileURL;
+import com.mucommander.file.*;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.io.BufferPool;
 import com.mucommander.io.ChecksumInputStream;
@@ -68,7 +65,8 @@ public class SplitFileJob extends AbstractCopyJob {
 			this.size = size;
 		}
 		
-		public long getSize() {
+		@Override
+        public long getSize() {
 			return size;
 		}
 	}
@@ -112,7 +110,8 @@ public class SplitFileJob extends AbstractCopyJob {
 	}
 	
 	
-	protected void jobStarted() {
+	@Override
+    protected void jobStarted() {
 		super.jobStarted();
 		createInputStream();
 	}
@@ -147,6 +146,7 @@ public class SplitFileJob extends AbstractCopyJob {
 	}
 	
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         if(getState()==INTERRUPTED)
             return false;
@@ -162,7 +162,7 @@ public class SplitFileJob extends AbstractCopyJob {
         
         OutputStream out = null;
         try {
-			out = destFile.getOutputStream(false);
+			out = destFile.getOutputStream();
 			
 			try {
 				long written = StreamUtils.copyStream(origFileStream, out, BufferPool.getDefaultBufferSize(), partSize);
@@ -192,13 +192,30 @@ public class SplitFileJob extends AbstractCopyJob {
 			}
 			
 	        // Preserve source file's date
-	        destFile.changeDate(sourceFile.getDate());
+            if(destFile.isFileOperationSupported(FileOperation.CHANGE_DATE)) {
+                try {
+                    destFile.changeDate(sourceFile.getDate());
+                }
+                catch (IOException e) {
+                    AppLogger.fine("failed to change date of "+destFile, e);
+                    // Fail silently
+                }
+            }
 
-	        // Preserve source file's permissions: preserve only the permissions bits that are supported by the source file
-	        // and use default permissions for the rest of them.
-	        destFile.importPermissions(sourceFile, FilePermissions.DEFAULT_FILE_PERMISSIONS);  // use #importPermissions(AbstractFile, int) to avoid isDirectory test
-			
-		} catch (IOException e) {
+	        // Preserve source file's permissions: preserve only the permissions bits that are supported by the source
+            // file and use default permissions for the rest of them.
+            if(destFile.isFileOperationSupported(FileOperation.CHANGE_PERMISSION)) {
+                try {
+                    // use #importPermissions(AbstractFile, int) to avoid isDirectory test
+                    destFile.importPermissions(sourceFile, FilePermissions.DEFAULT_FILE_PERMISSIONS);
+                }
+                catch (IOException e) {
+                    AppLogger.fine("failed to import "+sourceFile+" permissions into "+destFile, e);
+                    // Fail silently
+                }
+            }
+		}
+        catch (IOException e) {
             AppLogger.fine("Caught exception", e);
 
             showErrorDialog(errorDialogTitle,
@@ -222,10 +239,12 @@ public class SplitFileJob extends AbstractCopyJob {
 
 
     // This job modifies baseDestFolder and its subfolders
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return baseDestFolder.isParentOf(folder);
     }
     
+    @Override
     protected void jobCompleted() {
     	// create checksum file
     	if (isIntegrityCheckEnabled()) {
@@ -241,7 +260,7 @@ public class SplitFileJob extends AbstractCopyJob {
 	                	sourceChecksum = ((ChecksumInputStream)origFileStream).getChecksumString();
 	            	}
 					AbstractFile crcFile = baseDestFolder.getDirectChild(crcFileName);
-					OutputStream crcStream = crcFile.getOutputStream(false);
+					OutputStream crcStream = crcFile.getOutputStream();
 					String line = sourceFile.getName() + " " + sourceChecksum;
 					crcStream.write(line.getBytes("utf-8"));
 					crcStream.close();

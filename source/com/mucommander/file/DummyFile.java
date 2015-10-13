@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package com.mucommander.file;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -49,27 +48,26 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>0</code>.
      */
+    @Override
     public long getDate() {
         return 0;
     }
 
     /**
-     * Implementation notes: always returns <code>false</code>.
+     * Implementation notes: always throws {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always.
      */
-    public boolean canChangeDate() {
-        return false;
-    }
-
-    /**
-     * Implementation notes: always returns <code>false</code>.
-     */
-    public boolean changeDate(long lastModified) {
-        return false;
+    @Override
+    @UnsupportedFileOperation
+    public void changeDate(long lastModified) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);
     }
 
     /**
      * Implementation notes: always returns <code>-1</code>.
      */
+    @Override
     public long getSize() {
         return -1;
     }
@@ -77,6 +75,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>null</code>.
      */
+    @Override
     public AbstractFile getParent() {
         return null;
     }
@@ -84,12 +83,14 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: no-op, does nothing with the specified parent.
      */
+    @Override
     public void setParent(AbstractFile parent) {
     }
 
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean exists() {
         return false;
     }
@@ -97,6 +98,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns {@link FilePermissions#EMPTY_FILE_PERMISSIONS}.
      */
+    @Override
     public FilePermissions getPermissions() {
         return FilePermissions.EMPTY_FILE_PERMISSIONS;
     }
@@ -105,6 +107,7 @@ public class DummyFile extends AbstractFile {
      * Implementation notes: returns {@link PermissionBits#EMPTY_PERMISSION_BITS}, none of the permission bits can be
      * changed.
      */
+    @Override
     public PermissionBits getChangeablePermissions() {
         return PermissionBits.EMPTY_PERMISSION_BITS;
     }
@@ -112,13 +115,16 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
-    public boolean changePermission(int access, int permission, boolean enabled) {
-        return false;
+    @Override
+    @UnsupportedFileOperation
+    public void changePermission(int access, int permission, boolean enabled) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);
     }
 
     /**
      * Implementation notes: always returns <code>null</code>.
      */
+    @Override
     public String getOwner() {
         return null;
     }
@@ -126,6 +132,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean canGetOwner() {
         return false;
     }
@@ -133,6 +140,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>null</code>.
      */
+    @Override
     public String getGroup() {
         return null;
     }
@@ -140,6 +148,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean canGetGroup() {
         return false;
     }
@@ -147,6 +156,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean isDirectory() {
         return false;
     }
@@ -154,6 +164,7 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean isArchive() {
         return false;
     }
@@ -161,90 +172,147 @@ public class DummyFile extends AbstractFile {
     /**
      * Implementation notes: always returns <code>false</code>.
      */
+    @Override
     public boolean isSymlink() {
         return false;
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public AbstractFile[] ls() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public AbstractFile[] ls() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.LIST_CHILDREN);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public void mkdir() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public void mkdir() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CREATE_DIRECTORY);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public InputStream getInputStream() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public InputStream getInputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.READ_FILE);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.WRITE_FILE);
     }
 
     /**
-     * Implementation notes: always returns <code>false</code>.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public boolean hasRandomAccessInputStream() {
-        return false;
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getAppendOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.APPEND_FILE);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessInputStream getRandomAccessInputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RANDOM_READ_FILE);
     }
 
     /**
-     * Implementation notes: always returns <code>false</code>.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public boolean hasRandomAccessOutputStream() {
-        return false;
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RANDOM_WRITE_FILE);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public void delete() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.DELETE);
     }
 
     /**
-     * Implementation notes: always throws an exception.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public void delete() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public void copyRemotelyTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.COPY_REMOTELY);
     }
 
     /**
-     * Implementation notes: always returns <code>-1</code>.
+     * Implementation notes: always throws an {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public long getFreeSpace() {
-        return -1;
+    @Override
+    @UnsupportedFileOperation
+    public void renameTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RENAME);
     }
 
     /**
-     * Implementation notes: always returns <code>-1</code>.
+     * Implementation notes: always throws {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException, always
      */
-    public long getTotalSpace() {
-        return -1;
+    @Override
+    @UnsupportedFileOperation
+    public long getFreeSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_FREE_SPACE);
+    }
+
+    /**
+     * Implementation notes: always throws {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);
     }
 
     /**
      * Implementation notes: always returns <code>null</code>.
      */
+    @Override
     public Object getUnderlyingFileObject() {
         return null;
     }

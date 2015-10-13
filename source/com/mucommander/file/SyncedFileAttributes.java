@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -179,6 +179,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public String getPath() {
         checkForExpiration(false);
 
@@ -188,6 +189,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public boolean exists() {
         checkForExpiration(false);
 
@@ -197,6 +199,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public long getDate() {
         checkForExpiration(false);
 
@@ -206,6 +209,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public long getSize() {
         checkForExpiration(false);
 
@@ -215,6 +219,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public boolean isDirectory() {
         checkForExpiration(false);
 
@@ -224,6 +229,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public FilePermissions getPermissions() {
         checkForExpiration(false);
 
@@ -233,6 +239,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public String getOwner() {
         checkForExpiration(false);
 
@@ -242,6 +249,7 @@ public abstract class SyncedFileAttributes extends SimpleFileAttributes {
     /**
      * Overridden to trigger attributes update if the expiration date has been reached.
      */
+    @Override
     public String getGroup() {
         checkForExpiration(false);
 

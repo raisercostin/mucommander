@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,10 @@ import com.mucommander.ui.main.MainFrame;
 import com.mucommander.util.StringUtils;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -221,7 +224,7 @@ public class AuthDialog extends FocusDialog implements ActionListener, EditableC
         contentPane.add(DialogToolkit.createOKCancelPanel(okButton, cancelButton, getRootPane(), this), BorderLayout.SOUTH);
 
         // Set the component that will receive the initial focus
-        setInitialFocusComponent(guestRadioButton==null?(JComponent)loginField:guestRadioButton.isSelected()?guestRadioButton:(JComponent)loginField);
+        setInitialFocusComponent(guestRadioButton==null?loginField:guestRadioButton.isSelected()?guestRadioButton:loginField);
 
         // Set minimum dimension
         setMinimumSize(MINIMUM_DIALOG_DIMENSION);

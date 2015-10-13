@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +18,15 @@
 
 package com.mucommander.ui.quicklist;
 
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Image;
+import com.mucommander.ui.quicklist.item.DataList;
 
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JList;
-
-import com.mucommander.ui.quicklist.item.DataList;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Image;
 
 /**
  * 
@@ -49,7 +48,8 @@ public abstract class GenericPopupDataListWithIcons extends DataList {
 
 	private class CellWithIconRenderer extends DefaultListCellRenderer {
 		
-		public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+		@Override
+        public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
 			// Let superclass deal with most of it...
 			super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 

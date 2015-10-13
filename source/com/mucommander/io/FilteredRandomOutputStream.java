@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,18 +49,22 @@ public class FilteredRandomOutputStream extends RandomAccessOutputStream {
     // RandomAccessOutputStream implementation //
     /////////////////////////////////////////////
     
+    @Override
     public void write(int b) throws IOException {
         raos.write(b);
     }
 
+    @Override
     public void write(byte b[]) throws IOException {
         raos.write(b);
     }
 
+    @Override
     public void write(byte b[], int off, int len) throws IOException {
         raos.write(b, off, len);
     }
 
+    @Override
     public void setLength(long newLength) throws IOException {
         raos.setLength(newLength);
     }
@@ -77,10 +81,12 @@ public class FilteredRandomOutputStream extends RandomAccessOutputStream {
         raos.seek(offset);
     }
 
+    @Override
     public void flush() throws IOException {
         raos.flush();
     }
 
+    @Override
     public void close() throws IOException {
         try {
             flush();

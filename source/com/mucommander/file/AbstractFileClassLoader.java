@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ public class AbstractFileClassLoader extends ClassLoader {
     // - Instance fields -------------------------------------------------------
     // -------------------------------------------------------------------------
     /** All abstract files in which to look for classes and resources. */
-    private Vector files;
+    private Vector<AbstractFile> files;
 
 
 
@@ -48,7 +48,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      */
     public AbstractFileClassLoader(ClassLoader parent) {
         super(parent);
-        files = new Vector();
+        files = new Vector<AbstractFile>();
     }
 
     /**
@@ -82,7 +82,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      * Returns an iterator on all files in this loader's classpath.
      * @return an iterator on all files in this loader's classpath.
      */
-    public Iterator files() {return files.iterator();}
+    public Iterator<AbstractFile> files() {return files.iterator();}
 
     /**
      * Returns <code>true</code> if this loader's classpath already contains the specified file.
@@ -101,14 +101,14 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @return      an {@link AbstractFile} instance describing the requested resource if found, <code>null</code> otherwise.
      */
     private AbstractFile findResourceAsFile(String name) {
-        Iterator     iterator; // Iterator on all classpath elements.
+        Iterator<AbstractFile> iterator; // Iterator on all classpath elements.
         AbstractFile file;     // Current file.
 
         iterator = files.iterator();
         while(iterator.hasNext()) {
             try {
                 // If the requested resource could be found, returns it.
-                if((file = ((AbstractFile)iterator.next()).getChild(name)).exists())
+                if((file = iterator.next().getChild(name)).exists())
                     return file;
             }
             // Treats error as a simple 'resource not found' case and keeps looking for
@@ -125,6 +125,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @param  name name of the resource to open.
      * @return      an input stream on the requested resource, <code>null</code> if not found.
      */
+    @Override
     public InputStream getResourceAsStream(String name) {
         AbstractFile file; // File representing the resource.
         InputStream  in;   // Input stream on the resource.
@@ -149,6 +150,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @param  name name of the resource to locate.
      * @return      the URL of the requested resource if found, <code>null</code> otherwise.
      */
+    @Override
     protected URL findResource(String name) {
         AbstractFile file; // Path to the requested resource.
 
@@ -166,19 +168,20 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @param  name of the resources to find.
      * @return      an enumeration containing the URLs of all the resources that match <code>name</code>.
      */
-    protected Enumeration findResources(String name) {
-        Iterator     iterator;   // Iterator on all available JAR files.
-        AbstractFile file;       // AbstractFile describing each match.
-        Vector       resources;  // All resources that match 'name'.
+    @Override
+    protected Enumeration<URL> findResources(String name) {
+        Iterator<AbstractFile> iterator;   // Iterator on all available JAR files.
+        AbstractFile           file;       // AbstractFile describing each match.
+        Vector<URL>            resources;  // All resources that match 'name'.
 
         // Initialisation.
         iterator  = files.iterator();
-        resources = new Vector();
+        resources = new Vector<URL>();
 
         // Goes through all files in the classpath to find the resource.
         while(iterator.hasNext()) {
             try {
-                if((file = ((AbstractFile)iterator.next()).getChild(name)).exists())
+                if((file = iterator.next().getChild(name)).exists())
                     resources.add(file.getJavaNetURL());
             }
             catch(IOException e) {}
@@ -191,6 +194,7 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @param name name of the library to load.
      * @return the absolute path of the requested library if found, <code>null</code> otheriwse.
      */
+    @Override
     protected String findLibrary(String name) {
         AbstractFile file; // Path of the requested library.
 
@@ -207,12 +211,13 @@ public class AbstractFileClassLoader extends ClassLoader {
     // - Class loading ---------------------------------------------------------
     // -------------------------------------------------------------------------
     /**
-     * Loads the class defined by the specified name and path.
+     * Loads and returns the class defined by the specified name and path.
      * @param  name        name of the class to load.
      * @param  file        file containing the class' bytecode.
+     * @return the class defined by the specified name and path.
      * @throws IOException if an error occurs.
      */
-    private Class loadClass(String name, AbstractFile file) throws IOException {
+    private Class<?> loadClass(String name, AbstractFile file) throws IOException {
         byte[]      buffer; // Buffer for the class' bytecode.
         int         offset; // Current offset in buffer.
         InputStream in;     // Stream on the class' bytecode.
@@ -245,7 +250,8 @@ public class AbstractFileClassLoader extends ClassLoader {
      * @return                        the requested <code>Class</code> if found, <code>null</code> otherwise.
      * @throws ClassNotFoundException if the requested class was not found.
      */
-    protected Class findClass(String name) throws ClassNotFoundException {
+    @Override
+    protected Class<?> findClass(String name) throws ClassNotFoundException {
         AbstractFile file; // File containing the class' bytecode.
 
         // Tries to locate the specified class and, if found, load it.

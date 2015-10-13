@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ import com.mucommander.file.impl.rar.provider.de.innosystec.unrar.rarfile.FileHe
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
 import java.util.Vector;
 
 
@@ -53,8 +52,10 @@ public class RarArchiveFile extends AbstractROArchiveFile {
      * and declare the Rar file as up-to-date.
      *
      * @throws IOException if an error occurred while reloading
+     * @throws UnsupportedFileOperationException if this operation is not supported by the underlying filesystem,
+     * or is not implemented.
      */
-    private void checkRarFile() throws IOException {
+    private void checkRarFile() throws IOException, UnsupportedFileOperationException {
         long currentDate = file.getDate();
         
         if (rarFile==null || currentDate != lastRarFileDate) {
@@ -92,18 +93,19 @@ public class RarArchiveFile extends AbstractROArchiveFile {
     // AbstractROArchiveFile implementation //
     //////////////////////////////////////////
     
-    public synchronized ArchiveEntryIterator getEntryIterator() throws IOException {
+    @Override
+    public synchronized ArchiveEntryIterator getEntryIterator() throws IOException, UnsupportedFileOperationException {
         checkRarFile();
 
-        Vector entries = new Vector();
-        Iterator rarEntriesIterator = rarFile.getEntries().iterator();
-        while(rarEntriesIterator.hasNext())
-            entries.add(createArchiveEntry((FileHeader) rarEntriesIterator.next()));
+        Vector<ArchiveEntry> entries = new Vector<ArchiveEntry>();
+        for (Object o : rarFile.getEntries())
+            entries.add(createArchiveEntry((FileHeader)o));
 
         return new WrapperArchiveEntryIterator(entries.iterator());
     }
 
-    public synchronized InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
+    @Override
+    public synchronized InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException, UnsupportedFileOperationException {
 		checkRarFile();
 		
 		return rarFile.getEntryInputStream(entry.getPath().replace('/', '\\'));

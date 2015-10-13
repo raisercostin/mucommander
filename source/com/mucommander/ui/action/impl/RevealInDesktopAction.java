@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,15 @@
 package com.mucommander.ui.action.impl;
 
 import com.mucommander.desktop.DesktopManager;
+import com.mucommander.file.AbstractArchiveEntryFile;
+import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileProtocols;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.action.*;
 import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
+import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.util.Hashtable;
 
@@ -36,14 +39,24 @@ import java.util.Hashtable;
  *
  * @author Maxence Bernard
  */
-public class RevealInDesktopAction extends MuAction {
+public class RevealInDesktopAction extends ParentFolderAction {
 
-    public RevealInDesktopAction(MainFrame mainFrame, Hashtable properties) {
+    public RevealInDesktopAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
 
         setEnabled(DesktopManager.canOpenInFileManager());
     }
 
+    @Override
+    protected void toggleEnabledState() {
+        AbstractFile currentFolder = mainFrame.getActiveTable().getCurrentFolder();
+        setEnabled(currentFolder.getURL().getScheme().equals(FileProtocols.FILE)
+               && !currentFolder.isArchive()
+               && !currentFolder.hasAncestor(AbstractArchiveEntryFile.class)
+        );
+    }
+
+    @Override
     public void performAction() {
         try {
             DesktopManager.openInFileManager(mainFrame.getActivePanel().getCurrentFolder());
@@ -55,7 +68,7 @@ public class RevealInDesktopAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new RevealInDesktopAction(mainFrame, properties);
 		}
     }
@@ -71,6 +84,7 @@ public class RevealInDesktopAction extends MuAction {
 
 		public KeyStroke getDefaultKeyStroke() { return KeyStroke.getKeyStroke(KeyEvent.VK_L, KeyEvent.CTRL_DOWN_MASK); }
 
+        @Override
         public String getLabel() {
             return Translator.get(ActionProperties.getActionLabelKey(RevealInDesktopAction.Descriptor.ACTION_ID), DesktopManager.canOpenInFileManager()?DesktopManager.getFileManagerName():Translator.get("file_manager"));
         }

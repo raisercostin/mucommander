@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,10 +54,12 @@ public class StoredOutputStream extends ZipEntryOutputStream {
     // ZipEntryOutputStream implementation //
     /////////////////////////////////////////
 
+    @Override
     public int getTotalIn() {
         return storedCount;
     }
 
+    @Override
     public int getTotalOut() {
         return storedCount;
     }
@@ -67,6 +69,7 @@ public class StoredOutputStream extends ZipEntryOutputStream {
     // OutputStream implementation //
     /////////////////////////////////
 
+    @Override
     public void write(byte[] b, int offset, int length) throws IOException {
         out.write(b, offset, length);
         storedCount += length;

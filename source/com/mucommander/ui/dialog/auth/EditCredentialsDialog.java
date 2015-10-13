@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,6 @@
 
 package com.mucommander.ui.dialog.auth;
 
-import java.awt.BorderLayout;
-import java.awt.Container;
-import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import javax.swing.Box;
-import javax.swing.JButton;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-
 import com.mucommander.AppLogger;
 import com.mucommander.auth.Credentials;
 import com.mucommander.auth.CredentialsManager;
@@ -47,6 +34,18 @@ import com.mucommander.ui.list.DynamicList;
 import com.mucommander.ui.list.SortableListPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.util.AlteredVector;
+
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 
 /**
@@ -67,8 +66,8 @@ public class EditCredentialsDialog extends FocusDialog implements ActionListener
     private JTextField loginField;
     private JPasswordField passwordField;
 
-    private AlteredVector credentials;
-    private DynamicList credentialsList;
+    private AlteredVector<CredentialsMapping> credentials;
+    private DynamicList<CredentialsMapping> credentialsList;
 
     private CredentialsMapping lastSelectedItem;
 
@@ -91,7 +90,7 @@ public class EditCredentialsDialog extends FocusDialog implements ActionListener
         this.credentials = CredentialsManager.getPersistentCredentialMappings();
 
         // Create the sortable credentials list panel
-        SortableListPanel listPanel = new SortableListPanel(credentials);
+        SortableListPanel<CredentialsMapping> listPanel = new SortableListPanel<CredentialsMapping>(credentials);
         this.credentialsList = listPanel.getDynamicList();
         this.lastSelectedItem = (CredentialsMapping) credentialsList.getSelectedValue();
 
@@ -208,6 +207,7 @@ public class EditCredentialsDialog extends FocusDialog implements ActionListener
     /**
      * Overrides dispose() to write credentials if needed (if at least one item has been changed).
      */
+    @Override
     public void dispose() {
         super.dispose();
 

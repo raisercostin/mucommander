@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,13 +38,10 @@ public class OsVersion extends ComparableRuntimeProperty implements OsVersions {
 
 
     protected OsVersion(String stringRepresentation, int intValue) {
-        super(stringRepresentation, new Integer(intValue));
-    }
-
-    protected OsVersion(String stringRepresentation, Integer intValue) {
         super(stringRepresentation, intValue);
     }
 
+    
     ////////////////////
     // Static methods //
     ////////////////////
@@ -124,14 +121,20 @@ public class OsVersion extends ComparableRuntimeProperty implements OsVersions {
             else if(osNameProp.equals("Windows Vista")) {
                 osVersion = WINDOWS_VISTA;
             }
+            else if(osNameProp.equals("Windows 7")) {
+                osVersion = WINDOWS_7;
+            }
             else {
                 // Newer version we don't know of yet, assume latest supported OS version
-                osVersion = WINDOWS_VISTA;
+                osVersion = WINDOWS_7;
             }
         }
         // Mac OS X versions
         else if(osFamily==OsFamilies.MAC_OS_X) {
-            if(osVersionProp.startsWith("10.5")) {
+            if(osVersionProp.startsWith("10.6")) {
+                osVersion = MAC_OS_X_10_6;
+            }
+            else if(osVersionProp.startsWith("10.5")) {
                 osVersion = MAC_OS_X_10_5;
             }
             else if(osVersionProp.startsWith("10.4")) {
@@ -151,7 +154,7 @@ public class OsVersion extends ComparableRuntimeProperty implements OsVersions {
             }
             else {
                 // Newer version we don't know of yet, assume latest supported OS version
-                osVersion = MAC_OS_X_10_5;
+                osVersion = MAC_OS_X_10_6;
             }
         }
         else {
@@ -166,6 +169,7 @@ public class OsVersion extends ComparableRuntimeProperty implements OsVersions {
     // ComparableRuntimeProperty implementation //
     //////////////////////////////////////////////
 
+    @Override
     protected RuntimeProperty getCurrentValue() {
         return getCurrent();
     }

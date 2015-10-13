@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,9 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileProtocols;
 import com.mucommander.file.FileURL;
-import com.mucommander.file.filter.FilenameFilter;
-import com.mucommander.file.filter.RegexpFilenameFilter;
+import com.mucommander.file.filter.PathFilter;
+import com.mucommander.file.filter.RegexpPathFilter;
 import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.text.Translator;
@@ -51,7 +50,8 @@ import com.mucommander.ui.icon.IconManager;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -77,29 +77,28 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     private static FileSystemView fileSystemView;
 
     /** Caches extended drive names, has a (non-null) value only under Windows */
-    private static Hashtable extendedNameCache;
+    private static Hashtable<AbstractFile, String> extendedNameCache;
     
     /** Caches drive icons */
-    private static Hashtable iconCache = new Hashtable();
+    private static Hashtable<AbstractFile, Icon> iconCache = new Hashtable<AbstractFile, Icon>();
     
 
     /** Filters out volumes from the list based on the exclude regexp defined in the configuration, null if the regexp
      * is not defined. */
-    private static FilenameFilter volumeFilter;
+    private static PathFilter volumeFilter;
 
 
     static {
         if(OsFamilies.WINDOWS.isCurrent()) {
             fileSystemView = FileSystemView.getFileSystemView();
-            extendedNameCache = new Hashtable();
+            extendedNameCache = new Hashtable<AbstractFile, String>();
         }
 
         try {
             String excludeRegexp = MuConfiguration.getVariable(MuConfiguration.VOLUME_EXCLUDE_REGEXP);
             if(excludeRegexp!=null) {
-                volumeFilter = new RegexpFilenameFilter(excludeRegexp, true);
+                volumeFilter = new RegexpPathFilter(excludeRegexp, true);
                 volumeFilter.setInverted(true);
-                volumeFilter.setOperateOnPath(true);
             }
         }
         catch(PatternSyntaxException e) {
@@ -129,8 +128,8 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Listen to configuration changes to update the button if the system file icons policy has changed
         MuConfiguration.addConfigurationListener(this);
 
-        // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up
-        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() && JavaVersions.JAVA_1_5.isCurrentOrHigher()) {
+        // Use new JButton decorations introduced in Mac OS X 10.5 (Leopard)
+        if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher()) {
             setMargin(new Insets(6,8,6,8));
             putClientProperty("JComponent.sizeVariant", "small");
             putClientProperty("JButton.buttonType", "textured");
@@ -155,11 +154,11 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 //        String newToolTip = null;
 
         // First tries to find a bookmark matching the specified folder
-        Vector bookmarks = BookmarkManager.getBookmarks();
+        Vector<Bookmark> bookmarks = BookmarkManager.getBookmarks();
         int nbBookmarks = bookmarks.size();
         Bookmark b;
         for(int i=0; i<nbBookmarks; i++) {
-            b = (Bookmark)bookmarks.elementAt(i);
+            b = bookmarks.elementAt(i);
             if(currentPath.equals(b.getLocation())) {
                 // Note: if several bookmarks match current folder, the first one will be used
                 newLabel = b.getName();
@@ -267,6 +266,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     // PopupButton implementation //
     ////////////////////////////////
 
+    @Override
     public JPopupMenu getPopupMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
 
@@ -283,10 +283,10 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         String volumeName;
 
         boolean useExtendedDriveNames = fileSystemView!=null;
-        ArrayList itemsV = new ArrayList();
+        ArrayList<JMenuItem> itemsV = new ArrayList<JMenuItem>();
 
         for(int i=0; i<nbVolumes; i++) {
-            action = new CustomOpenLocationAction(mainFrame, new Hashtable(), volumes[i]);
+            action = new CustomOpenLocationAction(mainFrame, new Hashtable<String, Object>(), volumes[i]);
             volumeName = volumes[i].getName();
 
             // If several volumes have the same filename, use the volume's path for the action's label instead of the
@@ -302,14 +302,14 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
             setMnemonic(item, mnemonicHelper);
 
             // Set icon from cache
-            Icon icon = (Icon) iconCache.get(volumes[i]);
+            Icon icon = iconCache.get(volumes[i]);
             if (icon!=null) {
                 item.setIcon(icon);
             }
 
             if(useExtendedDriveNames) {
                 // Use the last known value (if any) while we update it in a separate thread
-                String previousExtendedName = (String)extendedNameCache.get(volumes[i]);
+                String previousExtendedName = extendedNameCache.get(volumes[i]);
                 if(previousExtendedName!=null)
                     item.setText(previousExtendedName);
 
@@ -322,14 +322,14 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         popupMenu.add(new JSeparator());
 
         // Add boookmarks
-        Vector bookmarks = BookmarkManager.getBookmarks();
+        Vector<Bookmark> bookmarks = BookmarkManager.getBookmarks();
         int nbBookmarks = bookmarks.size();
         Bookmark b;
 
         if(nbBookmarks>0) {
             for(int i=0; i<nbBookmarks; i++) {
-                b = (Bookmark)bookmarks.elementAt(i);
-                item = popupMenu.add(new CustomOpenLocationAction(mainFrame, new Hashtable(), b));
+                b = bookmarks.elementAt(i);
+                item = popupMenu.add(new CustomOpenLocationAction(mainFrame, new Hashtable<String, Object>(), b));
                 setMnemonic(item, mnemonicHelper);
             }
         }
@@ -342,15 +342,16 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
 
         // Add 'Network shares' shortcut
         if(FileFactory.isRegisteredProtocol(FileProtocols.SMB)) {
-            action = new CustomOpenLocationAction(mainFrame, new Hashtable(), new Bookmark("Network shares", "smb:///"));
+            action = new CustomOpenLocationAction(mainFrame, new Hashtable<String, Object>(), new Bookmark(Translator.get("drive_popup.network_shares"), "smb:///"));
             action.setIcon(IconManager.getIcon(IconManager.FILE_ICON_SET, CustomFileIconProvider.NETWORK_ICON_NAME));
             setMnemonic(popupMenu.add(action), mnemonicHelper);
         }
 
         // Add Bonjour services menu
         setMnemonic(popupMenu.add(new BonjourMenu() {
+            @Override
             public MuAction getMenuItemAction(BonjourService bs) {
-                return new CustomOpenLocationAction(mainFrame, new Hashtable(), bs);
+                return new CustomOpenLocationAction(mainFrame, new Hashtable<String, Object>(), bs);
             }
         }) , mnemonicHelper);
         popupMenu.add(new JSeparator());
@@ -358,9 +359,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Add 'connect to server' shortcuts
         setMnemonic(popupMenu.add(new ServerConnectAction("SMB...", SMBPanel.class)), mnemonicHelper);
         setMnemonic(popupMenu.add(new ServerConnectAction("FTP...", FTPPanel.class)), mnemonicHelper);
-        // SFTP support is not compatible with all version of the Java runtime
-        if(com.mucommander.file.impl.sftp.SFTPProtocolProvider.isAvailable())
-            setMnemonic(popupMenu.add(new ServerConnectAction("SFTP...", SFTPPanel.class)), mnemonicHelper);
+        setMnemonic(popupMenu.add(new ServerConnectAction("SFTP...", SFTPPanel.class)), mnemonicHelper);
         setMnemonic(popupMenu.add(new ServerConnectAction("HTTP...", HTTPPanel.class)), mnemonicHelper);
         setMnemonic(popupMenu.add(new ServerConnectAction("NFS...", NFSPanel.class)), mnemonicHelper);
 
@@ -375,18 +374,19 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     private class RefreshDriveNamesAndIcons extends Thread {
         
         private JPopupMenu popupMenu;
-        private ArrayList items;
+        private ArrayList<JMenuItem> items;
 
-        public RefreshDriveNamesAndIcons(JPopupMenu popupMenu, ArrayList items) {
+        public RefreshDriveNamesAndIcons(JPopupMenu popupMenu, ArrayList<JMenuItem> items) {
             super("RefreshDriveNamesAndIcons");
             this.popupMenu = popupMenu;
             this.items = items;
         }
         
+        @Override
         public void run() {
             final boolean useExtendedDriveNames = fileSystemView!=null;
             for(int i=0; i<items.size(); i++) {
-                final JMenuItem item = ((JMenuItem)items.get(i));
+                final JMenuItem item = items.get(i);
 
                 String extendedName = null;
                 if (useExtendedDriveNames) {
@@ -490,6 +490,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public Dimension getPreferredSize() {
         // Limit button's maximum width to something reasonable and leave enough space for location field,
         // as bookmarks name can be as long as users want them to be.
@@ -510,9 +511,9 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
      * protocol.
      */
     private class ServerConnectAction extends AbstractAction {
-        private Class serverPanelClass;
+        private Class<? extends ServerPanel> serverPanelClass;
 
-        private ServerConnectAction(String label, Class serverPanelClass) {
+        private ServerConnectAction(String label, Class<? extends ServerPanel> serverPanelClass) {
             super(label);
             this.serverPanelClass = serverPanelClass;
         }
@@ -529,15 +530,15 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
      */
     private class CustomOpenLocationAction extends OpenLocationAction {
 
-        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, Bookmark bookmark) {
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable<String,Object> properties, Bookmark bookmark) {
             super(mainFrame, properties, bookmark);
         }
 
-        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, AbstractFile file) {
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable<String,Object> properties, AbstractFile file) {
             super(mainFrame, properties, file);
         }
 
-        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable properties, BonjourService bs) {
+        public CustomOpenLocationAction(MainFrame mainFrame, Hashtable<String,Object> properties, BonjourService bs) {
             super(mainFrame, properties, bs);
         }
 
@@ -545,6 +546,7 @@ public class DrivePopupButton extends PopupButton implements LocationListener, B
         // Overridden methods //
         ////////////////////////
 
+        @Override
         protected FolderPanel getFolderPanel() {
             return folderPanel;
         }

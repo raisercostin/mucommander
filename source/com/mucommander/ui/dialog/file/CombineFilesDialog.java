@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,10 @@ package com.mucommander.ui.dialog.file;
 
 import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.filter.*;
+import com.mucommander.file.filter.AndFileFilter;
+import com.mucommander.file.filter.AttributeFileFilter;
+import com.mucommander.file.filter.EqualsFilenameFilter;
+import com.mucommander.file.filter.StartsWithFilenameFilter;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.file.util.PathUtils.ResolvedDestination;
@@ -74,33 +77,32 @@ public class CombineFilesDialog extends TransferDestinationDialog {
 		} catch (NumberFormatException e) {
 			return;
 		}
-		String name = part1.getNameWithoutExtension();
-		FilenameFilter startsFilter = new StartsFilenameFilter(name, false);
-		AttributeFileFilter filesFilter = new AttributeFileFilter(AttributeFileFilter.FILE);
-		EqualsFilenameFilter part1Filter = new EqualsFilenameFilter(part1.getName(), false);
-		part1Filter.setInverted(true);
-		AndFileFilter filter = new AndFileFilter();
-		filter.addFileFilter(startsFilter);
-		filter.addFileFilter(filesFilter);
-		filter.addFileFilter(part1Filter);
+
+		AndFileFilter filter = new AndFileFilter(
+            new StartsWithFilenameFilter(part1.getNameWithoutExtension(), false),
+            new AttributeFileFilter(AttributeFileFilter.FILE),
+            new EqualsFilenameFilter(part1.getName(), false, true)
+        );
+
 		try {
 			AbstractFile[] otherParts = parent.ls(filter);
-			for (int i = 0; i < otherParts.length; i++) {
-				String ext2 = otherParts[i].getExtension();
-				try {
-					int partIdx = Integer.parseInt(ext2);
-					if (partIdx > firstIndex)
-						files.add(otherParts[i]);
-				} catch (NumberFormatException e) {
-					// nothing
-				}
-			}
+            for (AbstractFile otherPart : otherParts) {
+                String ext2 = otherPart.getExtension();
+                try {
+                    int partIdx = Integer.parseInt(ext2);
+                    if (partIdx > firstIndex)
+                        files.add(otherPart);
+                } catch (NumberFormatException e) {
+                    // nothing
+                }
+            }
 		} catch (IOException e) {
             AppLogger.fine("Caught exception", e);
 		}
 		setFiles(files);
 	}
 
+    @Override
     protected boolean isValidDestination(PathUtils.ResolvedDestination resolvedDest, String destPath) {
         // The path entered doesn't correspond to any existing folder
         if (resolvedDest==null) {
@@ -115,20 +117,23 @@ public class CombineFilesDialog extends TransferDestinationDialog {
     // TransferDestinationDialog implementation //
     //////////////////////////////////////////////
 
+    @Override
     protected PathFieldContent computeInitialPath(FileSet files) {
-        String path = destFolder.getAbsolutePath(true) + files.fileAt(0).getNameWithoutExtension();
+        String path = destFolder.getAbsolutePath(true) + files.elementAt(0).getNameWithoutExtension();
         if (files.size() == 1) {
-        	searchParts(files.fileAt(0));
+        	searchParts(files.elementAt(0));
         }
 
         return new PathFieldContent(path);
     }
 
+    @Override
     protected TransferFileJob createTransferFileJob(ProgressDialog progressDialog, ResolvedDestination resolvedDest, int defaultFileExistsAction) {
 		return new CombineFilesJob(progressDialog, mainFrame,
 		       files, resolvedDest.getDestinationFile(), defaultFileExistsAction);
 	}
 
+    @Override
     protected String getProgressDialogTitle() {
         return Translator.get("progress_dialog.processing_files");
     }

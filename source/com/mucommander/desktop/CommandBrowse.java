@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +33,10 @@ import java.net.URL;
 class CommandBrowse extends UrlOperation {
     // - Desktop operation implementation --------------------------------
     // -------------------------------------------------------------------
+    @Override
     public boolean isAvailable() {return CommandManager.getCommandForAlias(CommandManager.URL_OPENER_ALIAS) != null;}
 
+    @Override
     public void execute(URL url) throws IOException {
         Command      command;
         AbstractFile target;
@@ -50,5 +52,6 @@ class CommandBrowse extends UrlOperation {
      * Returns the operation's name.
      * @return the operation's name.
      */
+    @Override
     public String getName() {return "openURL bridge";}
 }

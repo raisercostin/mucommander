@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,13 @@
 
 package com.mucommander.ui.chooser;
 
-import javax.swing.*;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import java.awt.*;
-import java.util.Iterator;
+import java.awt.BorderLayout;
 import java.util.WeakHashMap;
 
 /**
@@ -39,7 +41,7 @@ public class IntegerChooser extends JPanel implements ChangeListener {
     // - Instance variables --------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** List of all registered state change listeners. */
-    private WeakHashMap listeners;
+    private WeakHashMap<ChangeListener, ?> listeners;
 
 
     // - Instance fields --------------------------------------------------------
@@ -63,7 +65,7 @@ public class IntegerChooser extends JPanel implements ChangeListener {
         super();
 
         // Initialises the listeners.
-        listeners = new WeakHashMap();
+        listeners = new WeakHashMap<ChangeListener, Object>();
 
         // Creates the components.
         slider  = new JSlider(JSlider.HORIZONTAL, min, max, initialValue);
@@ -113,7 +115,7 @@ public class IntegerChooser extends JPanel implements ChangeListener {
      */
     public void setValue(int value) {
         slider.setValue(value);
-        spinner.setValue(new Integer(value));
+        spinner.setValue(value);
     }
 
 
@@ -145,19 +147,17 @@ public class IntegerChooser extends JPanel implements ChangeListener {
      * This method is public as an implementation side effect and should never be called directly.
      */
     public void stateChanged(ChangeEvent e) {
-        Iterator    iterator;
         ChangeEvent event;
 
         // Updates the chooser's value.
         if(e.getSource() == spinner)
-            slider.setValue(((Integer)spinner.getValue()).intValue());
+            slider.setValue((Integer) spinner.getValue());
         else if(e.getSource() == slider)
-            spinner.setValue(new Integer(slider.getValue()));
+            spinner.setValue(slider.getValue());
 
         // Notifies listeners.
         event    = new ChangeEvent(this);
-        iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ChangeListener)iterator.next()).stateChanged(event);
+        for(ChangeListener listener : listeners.keySet())
+            listener.stateChanged(event);
     }
 }

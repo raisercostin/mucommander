@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ package com.mucommander.file;
  * This interface extends <code>FileAttributes</code> to add attribute getters. Refer to {@link FileAttributes}'s
  * documentation for more information about attributes.
  *
- * <p>See the {@link SimpleFileAttributes} class for a mutable implementation of this interface.</p>
+ * <p>See the {@link SimpleFileAttributes} class for an implementation of this interface.</p>
  *
  * @author Maxence Bernard
  * @see SimpleFileAttributes

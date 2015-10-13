@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -64,8 +64,8 @@ public class SizeTask extends Task {
         selectedFiles = scanner.getIncludedFiles();
         size          = 0 ;
 
-        for(int i = 0; i < selectedFiles.length; i++)
-            size += new File(files.getDir(getProject()), selectedFiles[i]).length();
+        for (String selectedFile : selectedFiles)
+            size += new File(files.getDir(getProject()), selectedFile).length();
 
         getProject().setProperty(propertyName, Integer.toString(size / 1024));
     }

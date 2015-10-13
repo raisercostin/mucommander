@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,8 @@
 
 package com.mucommander.job;
 
-import com.mucommander.file.AbstractArchiveFile;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractRWArchiveFile;
-import com.mucommander.file.FileFactory;
+import com.mucommander.AppLogger;
+import com.mucommander.file.*;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -82,6 +80,7 @@ public class CopyJob extends AbstractCopyJob {
      * 
      * @return <code>true</code> if the file has been copied.
      */
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Stop if interrupted
         if(getState()==INTERRUPTED)
@@ -154,7 +153,15 @@ public class CopyJob extends AbstractCopyJob {
                     currentDestFile = destFile;
 
                     // Only when finished with folder, set destination folder's date to match the original folder one
-                    destFile.changeDate(file.getDate());
+                    if(destFile.isFileOperationSupported(FileOperation.CHANGE_DATE)) {
+                        try {
+                            destFile.changeDate(file.getDate());
+                        }
+                        catch (IOException e) {
+                            AppLogger.fine("failed to change the date of "+destFile, e);
+                            // Fail silently
+                        }
+                    }
 
                     return true;
                 }
@@ -179,6 +186,7 @@ public class CopyJob extends AbstractCopyJob {
 
 
     // This job modifies baseDestFolder and its subfolders
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return baseDestFolder.isParentOf(folder);
     }
@@ -188,6 +196,7 @@ public class CopyJob extends AbstractCopyJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     protected void jobCompleted() {
         super.jobCompleted();
 
@@ -198,13 +207,14 @@ public class CopyJob extends AbstractCopyJob {
 
         // If this job correponds to a 'local copy' of a single file and in the same directory,
         // select the copied file in the active table after this job has finished (and hasn't been cancelled)
-        if(files.size()==1 && newName!=null && baseDestFolder.equalsCanonical(files.fileAt(0).getParent())) {
+        if(files.size()==1 && newName!=null && baseDestFolder.equalsCanonical(files.elementAt(0).getParent())) {
             // Resolve new file instance now that it exists: some remote files do not immediately update file attributes
             // after creation, we need to get an instance that reflects the newly created file attributes
             selectFileWhenFinished(FileFactory.getFile(baseDestFolder.getAbsolutePath(true)+newName));
         }
     }
 
+    @Override
     public String getStatusString() {
         if(isCheckingIntegrity())
             return super.getStatusString();

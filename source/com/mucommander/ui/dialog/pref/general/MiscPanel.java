@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@ import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.notifier.AbstractNotifier;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
@@ -229,6 +230,7 @@ class MiscPanel extends PreferencesPanel implements ItemListener {
     // PrefPanel implementation //
     //////////////////////////////
 
+    @Override
     protected void commit() {
         MuConfiguration.setVariable(MuConfiguration.CHECK_FOR_UPDATE, checkForUpdatesCheckBox.isSelected());
 
@@ -240,7 +242,7 @@ class MiscPanel extends PreferencesPanel implements ItemListener {
         boolean isAutoDetect = shellEncodingautoDetectCheckbox.isSelected();
         MuConfiguration.setVariable(MuConfiguration.AUTODETECT_SHELL_ENCODING, isAutoDetect);
         if(!isAutoDetect)
-            MuConfiguration.setVariable(MuConfiguration.SHELL_ENCODING, (String)shellEncodingSelectBox.getSelectedEncoding());
+            MuConfiguration.setVariable(MuConfiguration.SHELL_ENCODING, shellEncodingSelectBox.getSelectedEncoding());
 
         MuConfiguration.setVariable(MuConfiguration.CONFIRM_ON_QUIT, quitConfirmationCheckBox.isSelected());
         MuConfiguration.setVariable(MuConfiguration.SHOW_SPLASH_SCREEN, showSplashScreenCheckBox.isSelected());

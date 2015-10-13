@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -156,9 +156,9 @@ public class DebugConsoleDialog extends FocusDialog implements ActionListener, I
         final LogRecord[] records = handler.getLogRecords();
         Formatter formatter = handler.getFormatter();
 
-        for(int i=0; i<records.length; i++) {
-            if(handler.isLoggable(records[i]))
-                listModel.addElement(new LogRecordListItem(records[i], formatter));
+        for (LogRecord record : records) {
+            if (handler.isLoggable(record))
+                listModel.addElement(new LogRecordListItem(record, formatter));
         }
 
         recordsList.setModel(listModel);        
@@ -220,6 +220,7 @@ public class DebugConsoleDialog extends FocusDialog implements ActionListener, I
      */
     private class DebugListCellRenderer extends DefaultListCellRenderer {
 
+        @Override
         public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             if(value==null)
                 return null;

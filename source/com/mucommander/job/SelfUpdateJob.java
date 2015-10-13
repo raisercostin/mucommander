@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@ import com.mucommander.ui.dialog.file.FileCollisionDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
-import com.mucommander.util.StringUtils;
 
 import java.io.IOException;
 
@@ -87,9 +86,10 @@ public class SelfUpdateJob extends CopyJob {
         this.tempDestJar = tempDestJar;
         this.classLoader = getClass().getClassLoader();
 
-        directoryOrClassFileFilter = new OrFileFilter();
-        directoryOrClassFileFilter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.DIRECTORY));
-        directoryOrClassFileFilter.addFileFilter(new ExtensionFilenameFilter(".class"));
+        directoryOrClassFileFilter = new OrFileFilter(
+            new AttributeFileFilter(AttributeFileFilter.DIRECTORY),
+            new ExtensionFilenameFilter(".class")
+        );
     }
 
     private static AbstractFile getTempDestJar(AbstractFile destJar) {
@@ -133,8 +133,8 @@ public class SelfUpdateJob extends CopyJob {
     private void loadClassRecurse(AbstractFile file) throws Exception {
         if(file.isBrowsable()) {
             AbstractFile[] children = file.ls(directoryOrClassFileFilter);
-            for(int i=0; i<children.length; i++)
-                loadClassRecurse(children[i]);
+            for (AbstractFile child : children)
+                loadClassRecurse(child);
         }
         else {          // .class file
 
@@ -142,7 +142,7 @@ public class SelfUpdateJob extends CopyJob {
             // Strip off the JAR file's path and ".class" extension
             classname = classname.substring(destJar.getAbsolutePath(true).length(), classname.length()-6);
             // Replace separator characters by '.'
-            classname = StringUtils.replaceCompat(classname, destJar.getSeparator(), ".");
+            classname = classname.replace(destJar.getSeparator(), ".");
             // We now have a class name, e.g. "com.mucommander.Launcher"
 
             try {
@@ -161,6 +161,7 @@ public class SelfUpdateJob extends CopyJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public String getStatusString() {
         if(loadingClasses) {
             return Translator.get("version_dialog.preparing_for_update");
@@ -169,6 +170,7 @@ public class SelfUpdateJob extends CopyJob {
         return super.getStatusString();
     }
 
+    @Override
     protected void jobStarted() {
         super.jobStarted();
 
@@ -186,6 +188,7 @@ public class SelfUpdateJob extends CopyJob {
         }
     }
 
+    @Override
     protected void jobCompleted() {
         try {
             AbstractFile parent;
@@ -247,13 +250,15 @@ public class SelfUpdateJob extends CopyJob {
         }
     }
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         if(!super.processFile(file, recurseParams))
             return false;
 
         // Move the file from the temporary location to its final destination
         try {
-            return tempDestJar.moveTo(destJar);
+            tempDestJar.moveTo(destJar);
+            return true;
         }
         catch(IOException e) {
             return false;

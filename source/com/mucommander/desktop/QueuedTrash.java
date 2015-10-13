@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ import java.util.Vector;
 public abstract class QueuedTrash extends AbstractTrash {
 
     /** Contains the files that are waiting to be moved to the trash */
-    private final static Vector queuedFiles = new Vector();
+    private final static Vector<AbstractFile> queuedFiles = new Vector<AbstractFile>();
 
     /** Use to synchronize access to the trash */
     protected final static Object moveToTrashLock = new Object();
@@ -68,7 +68,7 @@ public abstract class QueuedTrash extends AbstractTrash {
      * @param queuedFiles a Vector of AbstractFile to move to the trash
      * @return true if all files were moved successfully
      */
-    protected abstract boolean moveToTrash(Vector queuedFiles);
+    protected abstract boolean moveToTrash(Vector<AbstractFile> queuedFiles);
 
 
     //////////////////////////////////
@@ -83,6 +83,7 @@ public abstract class QueuedTrash extends AbstractTrash {
      * knowing if the file was successfully moved to the trash. So this method will return <code>true</code> if the
      * given file has been scheduled to be moved to the trash, but it may end up failing to be moved for whatever reason.
      */
+    @Override
     public boolean moveToTrash(AbstractFile file) {
         if(!canMoveToTrash(file))
             return false;
@@ -101,6 +102,7 @@ public abstract class QueuedTrash extends AbstractTrash {
         return true;
     }
 
+    @Override
     public void waitForPendingOperations() {
         synchronized(moveToTrashLock) {
             if(moveToTrashThread!=null) {
@@ -128,6 +130,7 @@ public abstract class QueuedTrash extends AbstractTrash {
      */
     private class MoveToTrashThread extends Thread {
 
+        @Override
         public void run() {
             // Loops until no files were added during the sleep period
             int queueSize;

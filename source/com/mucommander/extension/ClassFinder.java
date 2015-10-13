@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,9 +53,6 @@ public class ClassFinder {
     /** Used to filter out unwanted classes. */
     private ClassFilter  classFilter;
 
-    public static final int CLASSES_NAMES     = 0;
-    public static final int CLASSES           = 1;
-
 
     // - Initialization ------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
@@ -63,9 +60,10 @@ public class ClassFinder {
      * Creates a new instance of <code>ClassFinder</code>.
      */
     public ClassFinder() {
-        filter = new OrFileFilter();
-        filter.addFileFilter(new ExtensionFilenameFilter(".class"));
-        filter.addFileFilter(new AttributeFileFilter(AttributeFileFilter.DIRECTORY));
+        filter = new OrFileFilter(
+            new ExtensionFilenameFilter(".class"),
+            new AttributeFileFilter(AttributeFileFilter.DIRECTORY)
+        );
     }
 
 
@@ -79,26 +77,27 @@ public class ClassFinder {
      * @return a vector containing all the classes that were found and matched <code>classFilter</code>.
      * @throws IOException    if an error occurs while exploring <code>currentFile</code>.
      */
-    private Vector find(String currentPackage, AbstractFile currentFile) throws IOException {
-        AbstractFile[] files;        // All subfolders or child class files of currentFile.
-        Class          currentClass; // Buffer for the current class.
-        Vector result = new Vector();
+    private Vector<Class<?>> find(String currentPackage, AbstractFile currentFile) throws IOException {
+        AbstractFile[]   files;        // All subfolders or child class files of currentFile.
+        Class<?>         currentClass; // Buffer for the current class.
+        Vector<Class<?>> result = new Vector<Class<?>>();
         
         // Analyses all subdirectories and class files.
         files = currentFile.ls(filter);
-        for(int i = 0; i < files.length; i++) {
+        for (AbstractFile file : files) {
             // Explores subdirectories recursively.
-            if(files[i].isDirectory())
-                result.addAll(find(currentPackage + files[i].getName() + '.', files[i]));
+            if (file.isDirectory())
+                result.addAll(find(currentPackage + file.getName() + '.', file));
 
-            // Passes each class through the class filter.
-            // Errors are treated as 'this class is not wanted'.
+                // Passes each class through the class filter.
+                // Errors are treated as 'this class is not wanted'.
             else {
                 try {
-                    if(classFilter.accept(currentClass = Class.forName(currentPackage + files[i].getNameWithoutExtension(), false, loader)))
-                        result.add(currentClass);                    
+                    if (classFilter.accept(currentClass = Class.forName(currentPackage + file.getNameWithoutExtension(), false, loader)))
+                        result.add(currentClass);
                 }
-                catch(Throwable e) {}
+                catch (Throwable e) {
+                }
             }
         }
         return result;
@@ -121,10 +120,10 @@ public class ClassFinder {
      * @throws IOException if an error occurs while exploring <code>browsable</code>.
      * @see                #find(AbstractFile,ClassFilter)
      */
-    public Vector find(AbstractFile browsable, ClassFilter classFilter, ClassLoader classLoader) throws IOException {
+    public Vector<Class<?>> find(AbstractFile browsable, ClassFilter classFilter, ClassLoader classLoader) throws IOException {
         // Ignore non-browsable files.
         if(!browsable.isBrowsable())
-            return new Vector();
+            return new Vector<Class<?>>();
 
         // Initializes exploring.
         loader           = classLoader;
@@ -151,7 +150,7 @@ public class ClassFinder {
      * @return             a vector containing all the classes that were found and matched <code>classFilter</code>.
      * @throws IOException if an error occurs while exploring <code>browsable</code>.
      */
-    public Vector find(AbstractFile browsable, ClassFilter classFilter) throws IOException {
+    public Vector<Class<?>> find(AbstractFile browsable, ClassFilter classFilter) throws IOException {
         AbstractFileClassLoader classLoader; // Default class loader.
 
         // Initializes the default class loader.

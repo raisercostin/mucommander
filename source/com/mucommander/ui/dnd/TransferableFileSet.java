@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -209,12 +209,12 @@ public class TransferableFileSet implements Transferable {
             }
             // File list DataFlavor
             else if(transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-                List fileList = (List)transferable.getTransferData(DataFlavor.javaFileListFlavor);
+                List<File> fileList = (List<File>)transferable.getTransferData(DataFlavor.javaFileListFlavor);
 
                 int nbFiles = fileList.size();
                 files = new FileSet();
                 for(int i=0; i<nbFiles; i++) {
-                    file = FileFactory.getFile(((File)fileList.get(i)).getAbsolutePath());
+                    file = FileFactory.getFile(fileList.get(i).getAbsolutePath());
 
                     if(file!=null)
                         files.add(file);
@@ -273,7 +273,7 @@ public class TransferableFileSet implements Transferable {
     //////////////////////////
 
     public DataFlavor[] getTransferDataFlavors() {
-        Vector supportedDataFlavorsV = new Vector();
+        Vector<DataFlavor> supportedDataFlavorsV = new Vector<DataFlavor>();
 
         if(fileSetFlavorSupported)
             supportedDataFlavorsV.add(FILE_SET_DATA_FLAVOR);
@@ -317,10 +317,10 @@ public class TransferableFileSet implements Transferable {
         }
         // Return files stored in a java.util.Vector instance
         else if(dataFlavor.equals(DataFlavor.javaFileListFlavor) && javaFileListFlavorSupported) {
-            Vector fileList = new Vector(nbFiles);
+            Vector<File> fileList = new Vector<File>(nbFiles);
 
             for(int i=0; i<nbFiles; i++) {
-                AbstractFile file = fileSet.fileAt(i);
+                AbstractFile file = fileSet.elementAt(i);
                 fileList.add(new File(file.getAbsolutePath()));
             }
             return fileList;
@@ -344,7 +344,7 @@ public class TransferableFileSet implements Transferable {
             StringBuffer sb = new StringBuffer();
             AbstractFile file;
             for(int i=0; i<nbFiles; i++) {
-                file = fileSet.fileAt(i);
+                file = fileSet.elementAt(i);
                 sb.append(stringFlavourTransfersFilename?file.getName():file.getAbsolutePath());
                 if(i!=nbFiles-1)
                     sb.append('\n');
@@ -357,7 +357,7 @@ public class TransferableFileSet implements Transferable {
             StringBuffer sb = new StringBuffer();
             AbstractFile file;
             for(int i=0; i<nbFiles; i++) {
-                file = fileSet.fileAt(i);
+                file = fileSet.elementAt(i);
                 String url = file.getURL().getScheme().equals(FileProtocols.FILE)
                     // Use java.io.File.toURI() for local files (e.g. file:/mnt/music), this is the format expected by
                     // Gnome/Nautilus.

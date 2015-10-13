@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,10 @@ import java.io.IOException;
  * @author Nicolas Rinaudo
  */
 class CommandOpenInFileManager extends LocalFileOperation {
+    @Override
     public boolean isAvailable() {return CommandManager.getCommandForAlias(CommandManager.FILE_MANAGER_ALIAS) != null;}
 
+    @Override
     public void execute(AbstractFile file) throws IOException {
         Command command;
 
@@ -40,6 +42,7 @@ class CommandOpenInFileManager extends LocalFileOperation {
         ProcessRunner.execute(command.getTokens(file), file);
     }
 
+    @Override
     public String getName() {
         Command command;
 

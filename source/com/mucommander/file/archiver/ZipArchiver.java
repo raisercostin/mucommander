@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ class ZipArchiver extends Archiver {
     /**
      * Overrides Archiver's no-op setComment method as Zip supports archive comment.
      */
+    @Override
     public void setComment(String comment) {
         zos.setComment(comment);
     } 
@@ -62,6 +63,7 @@ class ZipArchiver extends Archiver {
     // Archiver implementation //
     /////////////////////////////
 
+    @Override
     public OutputStream createEntry(String entryPath, FileAttributes attributes) throws IOException {
         // Start by closing current entry
         if(!firstEntry)
@@ -92,6 +94,7 @@ class ZipArchiver extends Archiver {
     }
 
 
+    @Override
     public void close() throws IOException {
         zos.close();
     }

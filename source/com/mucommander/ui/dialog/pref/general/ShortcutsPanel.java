@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ import javax.swing.event.TableModelListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Iterator;
 
 /**
  * 'Shortcuts' preferences panel.
@@ -135,18 +134,18 @@ public class ShortcutsPanel extends PreferencesPanel {
 		panel.setBorder(BorderFactory.createEmptyBorder());
 		panel.add(new JLabel(Translator.get("shortcuts_panel" + ".show") + ":"));
 		
-		Iterator actionCategoriesIterator = ActionProperties.getActionCategories().iterator();
 		final JComboBox combo = new JComboBox();
 		combo.addItem(ActionCategories.ALL);
-	    while (actionCategoriesIterator.hasNext())
-	      combo.addItem(actionCategoriesIterator.next());
+	    for(ActionCategory category : ActionProperties.getActionCategories())
+	      combo.addItem(category);
 	    
 	    combo.addActionListener(new ActionListener() {
 
 			public void actionPerformed(ActionEvent e) {
 				final ActionCategory selectedActionCategory = (ActionCategory) combo.getSelectedItem();
 				shortcutsTable.updateModel(new ShortcutsTable.ActionFilter() {
-					public boolean accept(String actionId) {
+					@Override
+                    public boolean accept(String actionId) {
 						return selectedActionCategory.contains(actionId);
 					}
 				});
@@ -165,7 +164,8 @@ public class ShortcutsPanel extends PreferencesPanel {
     // PrefPanel methods //
     ///////////////////////
 	
-	protected void commit() {
+	@Override
+    protected void commit() {
 		shortcutsTable.commitChanges();
 		ActionKeymapIO.setModified();
 	}
@@ -211,7 +211,8 @@ public class ShortcutsPanel extends PreferencesPanel {
 				stopped = true;
 			}
 		
-			public void run() {
+			@Override
+            public void run() {
 				try {
 					Thread.sleep(MESSAGE_SHOWING_TIME);
 				} catch (InterruptedException e) {}

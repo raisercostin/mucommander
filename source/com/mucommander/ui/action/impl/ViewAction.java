@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,14 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
-
-import javax.swing.KeyStroke;
-
 import com.mucommander.command.Command;
 import com.mucommander.command.CommandManager;
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
+
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * User configurable variant of {@link InternalViewAction}.
@@ -44,13 +39,14 @@ public class ViewAction extends InternalViewAction {
      * @param mainFrame  frame to which the action is attached.
      * @param properties action's properties.
      */
-    public ViewAction(MainFrame mainFrame, Hashtable properties) {
+    public ViewAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
 
     // - AbstractViewerAction implementation ---------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
+    @Override
     protected Command getCustomCommand() {
         return CommandManager.getCommandForAlias(CommandManager.VIEWER_ALIAS);
     }
@@ -60,7 +56,7 @@ public class ViewAction extends InternalViewAction {
     // -----------------------------------------------------------------------------------------------------------------
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new ViewAction(mainFrame, properties);
 		}
     }

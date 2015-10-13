@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,10 +35,6 @@ public class JavaVersion extends ComparableRuntimeProperty implements JavaVersio
     private static JavaVersion currentValue;
 
     protected JavaVersion(String stringRepresentation, int intValue) {
-        super(stringRepresentation, new Integer(intValue));
-    }
-
-    protected JavaVersion(String stringRepresentation, Integer intValue) {
         super(stringRepresentation, intValue);
     }
 
@@ -94,8 +90,8 @@ public class JavaVersion extends ComparableRuntimeProperty implements JavaVersio
 
         // Java version property should never be null or empty, but better be safe than sorry ...
         if(javaVersionProp==null || (javaVersionProp=javaVersionProp.trim()).equals(""))
-            // Assume java 1.4 (first supported Java version)
-            javaVersion = JavaVersions.JAVA_1_4;
+            // Assume java 1.5 (first supported Java version)
+            javaVersion = JavaVersions.JAVA_1_5;
         // Java 1.7
         else if(javaVersionProp.startsWith("1.7"))
             javaVersion = JavaVersions.JAVA_1_7;
@@ -132,6 +128,7 @@ public class JavaVersion extends ComparableRuntimeProperty implements JavaVersio
     // ComparableRuntimeProperty implementation //
     //////////////////////////////////////////////
 
+    @Override
     protected RuntimeProperty getCurrentValue() {
         return getCurrent();
     }

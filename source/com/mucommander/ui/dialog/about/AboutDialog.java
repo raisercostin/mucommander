@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -187,23 +187,25 @@ public class AboutDialog extends FocusDialog implements ActionListener {
             insertTitle(doc,         "Powered by");
 
             // External Libraries.
-            insertHeader(doc,         "External libraries");
+            insertHeader(doc,         "Libraries");
             insertDetailedUrl(doc,    "Ant",                 "Apache License",                       "http://ant.apache.org");
+            insertDetailedUrl(doc,    "Apache Commons",      "Apache License",                       "http://commons.apache.org");
+            insertDetailedUrl(doc,    "Apache Hadoop",       "Apache License",                       "http://hadoop.apache.org");
             insertDetailedUrl(doc,    "Furbelow",            "LGPL",                                 "http://sourceforge.net/projects/furbelow");
             insertDetailedUrl(doc,    "ICU4J",               "ICU License",                          "http://www.icu-project.org");
-            insertDetailedUrl(doc,    "Jakarta Commons Net", "Apache License",                       "http://jakarta.apache.org/commons/net");
-            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");            insertDetailedUrl(doc,    "J7Zip",               "LGPL",                                 "http://freshmeat.net/projects/j7zip/");
+            insertDetailedUrl(doc,    "J2SSH",               "LGPL",                                 "http://sourceforge.net/projects/sshtools");
+            insertDetailedUrl(doc,    "J7Zip",               "LGPL",                                 "http://sourceforge.net/projects/p7zip/");
             insertDetailedUrl(doc,    "jCIFS",               "LGPL",                                 "http://jcifs.samba.org");
+            insertDetailedUrl(doc,    "JetS3t",              "Apache License",                       "http://jets3t.s3.amazonaws.com/index.html");
             insertDetailedUrl(doc,    "JmDNS",               "LGPL",                                 "http://jmdns.sourceforge.net");
             insertDetailedUrl(doc,    "JNA",                 "LGPL",                                 "http://jna.dev.java.net");
             insertDetailedUrl(doc,    "JUnRar",              "Freeware",                             "http://sourceforge.net/projects/java-unrar");
-            insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
-            insertDetailedUrl(doc,    "p7zip",               "LGPL",                             	 "http://sourceforge.net/projects/p7zip");
             insertDetailedUrl(doc,    "Yanfs",               "BSD",                                  "http://yanfs.dev.java.net");
+            insertDetailedUrl(doc,    "Mark James' icons",   "Creative Commons Attribution License", "http://famfamfam.com");
             insertLineBreak(doc);
 
             // External tools.
-            insertHeader(doc,         "External tools");
+            insertHeader(doc,         "Tools");
             insertDetailedUrl(doc,    "Ant",                 "Apache Software License",              "http://ant.apache.org");
             insertDetailedUrl(doc,    "AntDoclet",           "GPL",                                  "http://antdoclet.neuroning.com/");
             insertDetailedUrl(doc,    "jdeb",                "Apache Software License",              "http://vafer.org/projects/jdeb/");
@@ -263,12 +265,13 @@ public class AboutDialog extends FocusDialog implements ActionListener {
 
         // Makes sure the panel's a bit roomier than the default configuration.
         mainPanel = new JPanel(new BorderLayout()) {
+                @Override
                 public Insets getInsets() {return new Insets(10, 10, 0, 10);}
             };
 
         tempPanel = new JPanel(new BorderLayout());
 
-        tempPanel.add(new JLabel(IconManager.getIcon("/icon128_24.png")), BorderLayout.NORTH);
+        tempPanel.add(new JLabel(IconManager.getIcon(IconManager.MUCOMMANDER_ICON_SET, "icon128_24.png")), BorderLayout.NORTH);
 
         flowPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         flowPanel.add(createBoldLabel(RuntimeConstants.APP_STRING));

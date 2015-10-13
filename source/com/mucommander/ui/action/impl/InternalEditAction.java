@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,16 +20,15 @@ package com.mucommander.ui.action.impl;
 
 import com.mucommander.command.Command;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.MuAction;
-import com.mucommander.ui.action.ActionFactory;
+import com.mucommander.file.FileOperation;
+import com.mucommander.file.filter.AndFileFilter;
+import com.mucommander.file.filter.FileOperationFilter;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.viewer.EditorRegistrar;
 
-import javax.swing.*;
-
+import javax.swing.ImageIcon;
+import javax.swing.KeyStroke;
 import java.util.Hashtable;
 
 /**
@@ -44,14 +43,19 @@ public class InternalEditAction extends AbstractViewerAction {
      * @param mainFrame  frame to which the action is attached.
      * @param properties action's properties.
      */
-    public InternalEditAction(MainFrame mainFrame, Hashtable properties) {
+    public InternalEditAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
+
+        // Edit requires being able to write the file (in addition to view requirements)
+        setSelectedFileFilter(new AndFileFilter(
+            new FileOperationFilter(FileOperation.WRITE_FILE),
+            getSelectedFileFilter()
+        ));
 
         ImageIcon icon;
         if((icon = getStandardIcon(EditAction.class)) != null)
             setIcon(icon);
     }
-
 
 
     // - AbstractViewerAction implementation ---------------------------------------------------------------------------
@@ -60,20 +64,21 @@ public class InternalEditAction extends AbstractViewerAction {
      * Opens the internal editor on the specified file.
      * @param file file to edit.
      */
+    @Override
     protected void performInternalAction(AbstractFile file) {
         EditorRegistrar.createEditorFrame(mainFrame, file, getIcon().getImage());
     }
 
+    @Override
     protected Command getCustomCommand() {
         return null;
     }
 
 
-
     // - Factory -------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
     public static class Factory implements ActionFactory {
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new InternalEditAction(mainFrame, properties);
 		}
     }

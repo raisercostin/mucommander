@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,8 +35,10 @@ public class WinNtDesktopAdapter extends WindowsDesktopAdapter {
 
     public String toString() {return "Windows NT+ Desktop";}
 
+    @Override
     public boolean isAvailable() {return super.isAvailable() && OsVersion.getCurrent().compareTo(OsVersion.WINDOWS_NT) >= 0;}
 
+    @Override
     public void init(boolean install) throws DesktopInitialisationException {
         super.init(install);
         try {
@@ -50,5 +52,6 @@ public class WinNtDesktopAdapter extends WindowsDesktopAdapter {
         catch(CommandException e) {throw new DesktopInitialisationException(e);}
     }
 
+    @Override
     public String getDefaultShell() {return "cmd /c";}
 }

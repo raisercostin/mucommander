@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package com.mucommander.file.impl.sftp;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileURL;
 import com.mucommander.file.ProtocolProvider;
-import com.mucommander.runtime.JavaVersions;
 
 import java.io.IOException;
 
@@ -33,17 +32,9 @@ import java.io.IOException;
  */
 public class SFTPProtocolProvider implements ProtocolProvider {
 
-    public AbstractFile getFile(FileURL url) throws IOException {
-        return new SFTPFile(url);
-    }
-
-    /**
-     * Returns <code>true</code> if SFTP support is available under the current runtime.
-     * SFTP support currently requires Java 1.5 or higher.
-     *
-     * @return <code>true</code> if SFTP support is available under the current runtime
-     */
-    public static boolean isAvailable() {
-        return JavaVersions.JAVA_1_5.isCurrentOrHigher();
+    public AbstractFile getFile(FileURL url, Object... instantiationParams) throws IOException {
+        return instantiationParams.length==0
+            ?new SFTPFile(url)
+            :new SFTPFile(url, (SFTPFile.SFTPFileAttributes)instantiationParams[0]);
     }
 }

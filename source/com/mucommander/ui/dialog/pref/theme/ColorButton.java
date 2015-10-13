@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
 
 package com.mucommander.ui.dialog.pref.theme;
 
+import com.mucommander.ui.chooser.*;
+import com.mucommander.ui.dialog.pref.PreferencesDialog;
+import com.mucommander.ui.theme.ThemeData;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.border.Border;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -25,20 +34,6 @@ import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Vector;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-import javax.swing.border.Border;
-
-import com.mucommander.ui.chooser.ColorChangeEvent;
-import com.mucommander.ui.chooser.ColorChangeListener;
-import com.mucommander.ui.chooser.ColorChooser;
-import com.mucommander.ui.chooser.ColorPicker;
-import com.mucommander.ui.chooser.PreviewLabel;
-import com.mucommander.ui.dialog.pref.PreferencesDialog;
-import com.mucommander.ui.theme.ThemeData;
 
 /**
  * @author Maxence Bernard, Nicolas Rinaudo
@@ -63,7 +58,7 @@ class ColorButton extends JPanel implements ActionListener, ColorChangeListener 
     /** Name of the preview component's property that gets updated with the current color of this button (can be null) */
     private String previewColorPropertyName;
 
-    private Vector updatedPreviewComponents;
+    private Vector<JComponent> updatedPreviewComponents;
 
     /** Button's border. */
     private Border border = BorderFactory.createEtchedBorder();
@@ -99,8 +94,10 @@ class ColorButton extends JPanel implements ActionListener, ColorChangeListener 
             addUpdatedPreviewComponent(previewComponent);
  
         button = new JButton() {
+                @Override
                 public Dimension getPreferredSize() {return new Dimension(70, 30);}
 
+                @Override
                 public void paint(Graphics g) {
                     int width  = getWidth();
                     int height = getHeight();
@@ -135,7 +132,7 @@ class ColorButton extends JPanel implements ActionListener, ColorChangeListener 
             return;
 
         if(updatedPreviewComponents == null)
-            updatedPreviewComponents = new Vector();
+            updatedPreviewComponents = new Vector<JComponent>();
 
         updatedPreviewComponents.add(previewComponent);
 
@@ -151,7 +148,7 @@ class ColorButton extends JPanel implements ActionListener, ColorChangeListener 
         if(updatedPreviewComponents != null && previewColorPropertyName != null) {
             int nbPreviewComponents = updatedPreviewComponents.size();
             for(int i = 0; i < nbPreviewComponents; i++)
-                ((JComponent)updatedPreviewComponents.elementAt(i)).putClientProperty(previewColorPropertyName, color);
+                updatedPreviewComponents.elementAt(i).putClientProperty(previewColorPropertyName, color);
         }
         
         if (initiatedByUser)

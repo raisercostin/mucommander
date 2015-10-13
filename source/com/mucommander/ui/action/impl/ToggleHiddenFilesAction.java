@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,14 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
-
-import javax.swing.KeyStroke;
-
 import com.mucommander.conf.impl.MuConfiguration;
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
+
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * A simple action that toggles hidden files visibility on and off.
@@ -42,7 +37,9 @@ public class ToggleHiddenFilesAction extends MuAction {
     /**
      * Creates a new <code>ToggleHiddenFilesAction</code>.
      */
-    public ToggleHiddenFilesAction(MainFrame mainFrame, Hashtable properties) {super(mainFrame, properties);}
+    public ToggleHiddenFilesAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
+        super(mainFrame, properties);
+    }
 
 
     // - Action code ---------------------------------------------------------------------
@@ -50,6 +47,7 @@ public class ToggleHiddenFilesAction extends MuAction {
     /**
      * Toggles hidden files display on and off and requests for all file tables to be repainted.
      */
+    @Override
     public void performAction() {
         MuConfiguration.setVariable(MuConfiguration.SHOW_HIDDEN_FILES,
                                     !MuConfiguration.getVariable(MuConfiguration.SHOW_HIDDEN_FILES, MuConfiguration.DEFAULT_SHOW_HIDDEN_FILES));
@@ -58,7 +56,7 @@ public class ToggleHiddenFilesAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new ToggleHiddenFilesAction(mainFrame, properties);
 		}
     }

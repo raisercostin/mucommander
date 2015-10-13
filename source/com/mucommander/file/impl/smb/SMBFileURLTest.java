@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,26 +35,32 @@ public class SMBFileURLTest extends FileURLTestCase {
     // FileURLTestCase implementation //
     ////////////////////////////////////
 
+    @Override
     protected String getScheme() {
         return "smb";
     }
 
+    @Override
     protected int getDefaultPort() {
         return -1;
     }
 
+    @Override
     protected int getAuthenticationType() {
         return AuthenticationTypes.AUTHENTICATION_REQUIRED;
     }
 
+    @Override
     protected Credentials getGuestCredentials() {
         return new Credentials("GUEST", "");
     }
 
+    @Override
     protected String getPathSeparator() {
         return "/";
     }
 
+    @Override
     protected boolean isQueryParsed() {
         return false;
     }
@@ -67,6 +73,7 @@ public class SMBFileURLTest extends FileURLTestCase {
     /**
      * This method is overridden to test SMB's specific notion of realm. 
      */
+    @Override
     public void testRealm() throws MalformedURLException {
         assertEquals(getURL("host", "/share"), getURL("host", "/share/path/to/file").getRealm());
     }

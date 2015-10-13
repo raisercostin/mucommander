@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@ import javax.swing.*;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.event.*;
 import java.io.IOException;
 
@@ -85,17 +87,20 @@ public class KeyboardShortcutChooser extends JPanel implements ItemListener, Com
         this.currentKeyStroke = keyStroke;
 
         textField = new JTextField(30) {
+            @Override
             protected boolean processKeyBinding(KeyStroke keyStroke, KeyEvent keyEvent, int i, boolean b) {
                 return true;
             }
         };
 
         textField.setDocument(new PlainDocument() {
+            @Override
             public void insertString(int i, String string, AttributeSet attributeSet) throws BadLocationException {
                 if(updatingTextField)
                     super.insertString(i, string, attributeSet);
             }
 
+            @Override
             public void remove(int i, int i1) throws BadLocationException {
                 if(updatingTextField)
                     super.remove(i, i1);
@@ -114,8 +119,8 @@ public class KeyboardShortcutChooser extends JPanel implements ItemListener, Com
 
         keyComboBox = new SaneComboBox();
         keyComboBox.addItem(new KeyChoice(0, noneString));
-        for(int k=0; k<KEY_CHOICES.length; k++)
-            addKeyChoice(KEY_CHOICES[k]);
+        for (int keyChoice : KEY_CHOICES)
+            addKeyChoice(keyChoice);
 
         flowPanel.add(keyComboBox);
 

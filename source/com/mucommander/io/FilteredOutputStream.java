@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ public class FilteredOutputStream extends OutputStream {
     // OutputStream implementation //
     /////////////////////////////////
 
+    @Override
     public void write(int b) throws IOException {
         out.write(b);
     }
@@ -60,18 +61,22 @@ public class FilteredOutputStream extends OutputStream {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public void write(byte b[]) throws IOException {
         out.write(b);
     }
 
+    @Override
     public void write(byte b[], int off, int len) throws IOException {
         out.write(b, off, len);
     }
 
+    @Override
     public void flush() throws IOException {
         out.flush();
     }
 
+    @Override
     public void close() throws IOException {
         out.close();
     }

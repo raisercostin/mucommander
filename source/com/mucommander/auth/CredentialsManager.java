@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,11 +56,11 @@ import java.util.Vector;
 public class CredentialsManager implements VectorChangeListener {
 
     /** Contains volatile CredentialsMapping instances, lost when the application terminates */
-    private static Vector volatileCredentialMappings = new Vector();
+    private static Vector<CredentialsMapping> volatileCredentialMappings = new Vector<CredentialsMapping>();
 
     /** Contains persistent CredentialsMapping instances, stored to an XML file when the application
      * terminates, and loaded the next time the application is started */
-    private static AlteredVector persistentCredentialMappings = new AlteredVector();
+    private static AlteredVector<CredentialsMapping> persistentCredentialMappings = new AlteredVector<CredentialsMapping>();
 
     /** Credentials file location */
     private static AbstractFile credentialsFile;
@@ -195,7 +195,7 @@ public class CredentialsManager implements VectorChangeListener {
      */
     public static CredentialsMapping[] getMatchingCredentials(FileURL location) {
         // Retrieve matches
-        Vector matchesV = getMatchingCredentialsV(location);
+        Vector<CredentialsMapping> matchesV = getMatchingCredentialsV(location);
 
         // Transform vector into an array
         CredentialsMapping matches[] = new CredentialsMapping[matchesV.size()];
@@ -212,8 +212,8 @@ public class CredentialsManager implements VectorChangeListener {
      * @param location the location to be compared against known credentials instances, both volatile and persistent
      * @return a Vector of CredentialsMapping matching the given URL's scheme and host, best match at the first position
      */
-    private static Vector getMatchingCredentialsV(FileURL location) {
-        Vector matchesV = new Vector();
+    private static Vector<CredentialsMapping> getMatchingCredentialsV(FileURL location) {
+        Vector<CredentialsMapping> matchesV = new Vector<CredentialsMapping>();
 
         findMatches(location, volatileCredentialMappings, matchesV);
         findMatches(location, persistentCredentialMappings, matchesV);
@@ -282,10 +282,10 @@ public class CredentialsManager implements VectorChangeListener {
         location.setCredentials(credentialsMapping.getCredentials());
 
         FileURL realm = credentialsMapping.getRealm();
-        Enumeration propertyKeys = realm.getPropertyNames();
+        Enumeration<String> propertyKeys = realm.getPropertyNames();
         String key;
         while(propertyKeys.hasMoreElements()) {
-            key = (String)propertyKeys.nextElement();
+            key = propertyKeys.nextElement();
 
             if(location.getProperty(key)==null)
                 location.setProperty(key, realm.getProperty(key));
@@ -334,13 +334,13 @@ public class CredentialsManager implements VectorChangeListener {
      * @param credentials the Vector containing the CredentialsMapping instances to compare to the given location
      * @param matches the Vector where matching CredentialsMapping instances will be added
      */
-    private static void findMatches(FileURL location, Vector credentials, Vector matches) {
+    private static void findMatches(FileURL location, Vector<CredentialsMapping> credentials, Vector<CredentialsMapping> matches) {
         CredentialsMapping tempCredentialsMapping;
         FileURL tempRealm;
 
         int nbEntries = credentials.size();
         for(int i=0; i<nbEntries; i++) {
-            tempCredentialsMapping = (CredentialsMapping)credentials.elementAt(i);
+            tempCredentialsMapping = credentials.elementAt(i);
             tempRealm = tempCredentialsMapping.getRealm();
 
             if(location.schemeEquals(tempRealm)
@@ -365,13 +365,13 @@ public class CredentialsManager implements VectorChangeListener {
      * @param matches CredentialsMapping instances matching the given location
      * @return the CredentialsMapping instance that best matches the given location, -1 if the given matches Vector is empty.
      */
-    private static int getBestMatchIndex(FileURL location, Vector matches) {
+    private static int getBestMatchIndex(FileURL location, Vector<CredentialsMapping> matches) {
         if(matches.size()==0)
             return -1;
 
         // Splits the provided location's path into an array of folder tokens (e.g. "/home/maxence" -> ["home","maxence"])
         String path = location.getPath();
-        Vector pathTokensV = new Vector();
+        Vector<String> pathTokensV = new Vector<String>();
         StringTokenizer st = new StringTokenizer(path, "/\\");
         while(st.hasMoreTokens()) {
             pathTokensV.add(st.nextToken());
@@ -390,7 +390,7 @@ public class CredentialsManager implements VectorChangeListener {
         // Compares the location's path against all the one of all CredentialsMapping instances
         int nbMatches = matches.size();
         for(int i=0; i<nbMatches; i++) {
-            tempCredentialsMapping = (CredentialsMapping)matches.elementAt(i);
+            tempCredentialsMapping = matches.elementAt(i);
             tempURL = tempCredentialsMapping.getRealm();
             tempPath = tempURL.getPath();
 
@@ -431,7 +431,7 @@ public class CredentialsManager implements VectorChangeListener {
      * @param vector the <code>Vector</code> to replace/add the object to
      * @param o the object to replace/add
      */
-    private static void replaceVectorElement(Vector vector, Object o) {
+    private static void replaceVectorElement(Vector<CredentialsMapping> vector, CredentialsMapping o) {
         int index = vector.indexOf(o);
         if(index==-1)
             vector.add(o);
@@ -446,7 +446,7 @@ public class CredentialsManager implements VectorChangeListener {
      * </p>
      * @return the list of known volatile {@link CredentialsMapping}.
      */
-    public static Vector getVolatileCredentialMappings() {
+    public static Vector<CredentialsMapping> getVolatileCredentialMappings() {
         return volatileCredentialMappings;
     }
 
@@ -459,7 +459,7 @@ public class CredentialsManager implements VectorChangeListener {
      * </p>
      * @return the list of known persistent {@link CredentialsMapping}.
      */
-    public static AlteredVector getPersistentCredentialMappings() {
+    public static AlteredVector<CredentialsMapping> getPersistentCredentialMappings() {
         return persistentCredentialMappings;
     }
 

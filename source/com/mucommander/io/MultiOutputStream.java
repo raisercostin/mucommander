@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ import java.util.Vector;
 public class MultiOutputStream extends OutputStream {
 
     /** Registered OutputStreams */
-    protected Vector streams = new Vector();
+    protected Vector<OutputStream> streams = new Vector<OutputStream>();
 
     /**
      * Creates a new MultiOutputStream that initially contains no OutputStream. * Until one or more OutputStream is
@@ -79,7 +79,7 @@ public class MultiOutputStream extends OutputStream {
      *
      * @return an {@link java.util.Enumeration} of the destination output streams
      */
-    public synchronized Enumeration enumOutputStream() {
+    public synchronized Enumeration<OutputStream> enumOutputStream() {
         return streams.elements();
     }
 
@@ -95,10 +95,11 @@ public class MultiOutputStream extends OutputStream {
      * as a whole.
      * </p>
      */
+    @Override
     public synchronized void write(int b) throws IOException {
-        Enumeration elements = streams.elements();
+        Enumeration<OutputStream> elements = streams.elements();
         while(elements.hasMoreElements())
-            ((OutputStream)elements.nextElement()).write(b);
+            elements.nextElement().write(b);
     }
 
     /**
@@ -108,10 +109,11 @@ public class MultiOutputStream extends OutputStream {
      * as a whole.
      * </p>
      */
+    @Override
     public synchronized void write(byte b[], int off, int len) throws IOException {
-        Enumeration elements = streams.elements();
+        Enumeration<OutputStream> elements = streams.elements();
         while(elements.hasMoreElements())
-            ((OutputStream)elements.nextElement()).write(b, off, len);
+            elements.nextElement().write(b, off, len);
     }
 
     /**
@@ -121,10 +123,11 @@ public class MultiOutputStream extends OutputStream {
      * as a whole.
      * </p>
      */
+    @Override
     public synchronized void write(byte b[]) throws IOException {
-        Enumeration elements = streams.elements();
+        Enumeration<OutputStream> elements = streams.elements();
         while(elements.hasMoreElements())
-            ((OutputStream)elements.nextElement()).write(b);
+            elements.nextElement().write(b);
     }
 
     /**
@@ -134,10 +137,11 @@ public class MultiOutputStream extends OutputStream {
      * as a whole.
      * </p>
      */
+    @Override
     public synchronized void flush() throws IOException {
-        Enumeration elements = streams.elements();
+        Enumeration<OutputStream> elements = streams.elements();
         while(elements.hasMoreElements())
-            ((OutputStream)elements.nextElement()).flush();
+            elements.nextElement().flush();
     }
 
     /**
@@ -147,9 +151,10 @@ public class MultiOutputStream extends OutputStream {
      * as a whole.
      * </p>
      */
+    @Override
     public void close() throws IOException {
-        Enumeration elements = streams.elements();
+        Enumeration<OutputStream> elements = streams.elements();
         while(elements.hasMoreElements())
-            ((OutputStream)elements.nextElement()).close();
+            elements.nextElement().close();
     }
 }

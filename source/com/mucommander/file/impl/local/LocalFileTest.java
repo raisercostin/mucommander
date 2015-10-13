@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,27 +19,59 @@
 package com.mucommander.file.impl.local;
 
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractFileTestCase;
+import com.mucommander.file.AbstractFileTest;
 import com.mucommander.file.FileFactory;
+import com.mucommander.file.FileOperation;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 
+import static org.junit.Assert.*;
+
 /**
- * An {@link com.mucommander.file.AbstractFileTestCase} implementation for {@link LocalFile}.
+ * An {@link AbstractFileTest} implementation for {@link LocalFile}.
  *
  * @author Maxence Bernard
  */
-public class LocalFileTest extends AbstractFileTestCase {
+public class LocalFileTest extends AbstractFileTest {
 
+    /////////////////////////////////////
+    // AbstractFileTest implementation //
+    /////////////////////////////////////
 
-    /////////////////////////////////////////
-    // AbstractFileTestCase implementation //
-    /////////////////////////////////////////
-
+    @Override
     public AbstractFile getTemporaryFile() throws IOException {
         return FileFactory.getTemporaryFile(getClass().getName(), false);
+    }
+
+    @Override
+    public FileOperation[] getSupportedOperations() {
+        return new FileOperation[] {
+            FileOperation.READ_FILE,
+            FileOperation.RANDOM_READ_FILE,
+            FileOperation.WRITE_FILE,
+            FileOperation.APPEND_FILE,
+            FileOperation.RANDOM_WRITE_FILE,
+            FileOperation.CREATE_DIRECTORY,
+            FileOperation.LIST_CHILDREN,
+            FileOperation.DELETE,
+            FileOperation.RENAME,
+            FileOperation.CHANGE_DATE,
+            FileOperation.CHANGE_PERMISSION,
+            FileOperation.GET_FREE_SPACE,
+            FileOperation.GET_TOTAL_SPACE
+        };
+    }
+
+
+    ////////////////////////////////////
+    // ConditionalTest implementation //
+    ////////////////////////////////////
+
+    public boolean isEnabled() {
+        return true;
     }
 
 
@@ -53,20 +85,21 @@ public class LocalFileTest extends AbstractFileTestCase {
      * @throws IOException should not normally happen
      * @throws NoSuchAlgorithmException should not happen
      */
-    public void testMoveToCaseVariation() throws IOException, NoSuchAlgorithmException {
+    @Test
+    public void testRenameToCaseVariation() throws IOException, NoSuchAlgorithmException {
         // First test with a regular file
         createFile(tempFile, 1);
         AbstractFile destFile = tempFile.getParent().getDirectChild(tempFile.getName().toUpperCase());
         deleteWhenFinished(destFile);
 
-        assertTrue(tempFile.moveTo(destFile));
+        tempFile.renameTo(destFile);
         assertFalse(destFile.isSymlink());          // Leave me
 
         // Repeat the test with a directory
         destFile.delete();
         tempFile.mkdir();
 
-        assertTrue(tempFile.moveTo(destFile));
+        tempFile.renameTo(destFile);
         assertFalse(destFile.isSymlink());          // Leave me
     }
 
@@ -76,6 +109,7 @@ public class LocalFileTest extends AbstractFileTestCase {
      *
      * @throws IOException should not happen 
      */
+    @Test
     public void testUserHome() throws IOException {
         AbstractFile homeFolder = LocalFile.getUserHome();
         assertNotNull(homeFolder);
@@ -89,6 +123,7 @@ public class LocalFileTest extends AbstractFileTestCase {
     /**
      * Tests methods related to root drives (e.g. C:\).
      */
+    @Test
     public void testRootDriveMethods() {
         // The following test simply assert that the method doesn't produce an uncaught exception.
         LocalFile.hasRootDrives();
@@ -101,8 +136,11 @@ public class LocalFileTest extends AbstractFileTestCase {
      * Asserts that {@link com.mucommander.file.impl.local.LocalFile#getVolumeInfo()} returns the same values as
      * {@link com.mucommander.file.impl.local.LocalFile#getTotalSpace()}
      * and {@link com.mucommander.file.impl.local.LocalFile#getFreeSpace()}.
+     *
+     * @throws IOException should not happen
      */
-    public void testVolumeInfo() {
+    @Test
+    public void testVolumeInfo() throws IOException {
         long volumeInfo[] = ((LocalFile)tempFile).getVolumeInfo();
 
         assertNotNull(volumeInfo);
@@ -116,19 +154,21 @@ public class LocalFileTest extends AbstractFileTestCase {
      *
      * @throws IOException should not happen
      */
+    @Test
     public void testVolumes() throws IOException {
         AbstractFile[] volumes = LocalFile.getVolumes();
 
         assertNotNull(volumes);
         assertTrue(volumes.length>0);
 
-        for(int i=0; i<volumes.length; i++)
-            testVolume(volumes[i]);
+        for (AbstractFile volume : volumes)
+            testVolume(volume);
     }
 
     /**
      * Tests the regex pattern
      */
+    @Test
     public void testDrivePattern() {
         Matcher matcher = LocalFile.driveRootPattern.matcher("C:\\");
         assertTrue(matcher.matches());

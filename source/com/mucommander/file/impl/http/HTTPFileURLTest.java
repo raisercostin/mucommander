@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,26 +33,32 @@ public class HTTPFileURLTest extends FileURLTestCase {
     // FileURLTestCase implementation //
     ////////////////////////////////////
 
+    @Override
     protected String getScheme() {
         return "http";
     }
 
+    @Override
     protected int getDefaultPort() {
         return 80;
     }
 
+    @Override
     protected int getAuthenticationType() {
         return AuthenticationTypes.AUTHENTICATION_OPTIONAL;
     }
 
+    @Override
     protected Credentials getGuestCredentials() {
         return null;
     }
 
+    @Override
     protected String getPathSeparator() {
         return "/";
     }
 
+    @Override
     protected boolean isQueryParsed() {
         return true;
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ import com.mucommander.ui.action.*;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
 
-import javax.swing.*;
+import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.util.Hashtable;
 
@@ -33,17 +33,18 @@ import java.util.Hashtable;
  */
 public class SelectNextPageAction extends SelectForwardAction {
 
-    public SelectNextPageAction(MainFrame mainFrame, Hashtable properties) {
+    public SelectNextPageAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
     }
 
+    @Override
     protected int getRowIncrement() {
         // Note: the page row increment varies with the file table's height
         return mainFrame.getActiveTable().getPageRowIncrement()+1;
     }
 
     public static class Factory implements ActionFactory {
-        public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+        public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
             return new SelectNextPageAction(mainFrame, properties);
         }
     }

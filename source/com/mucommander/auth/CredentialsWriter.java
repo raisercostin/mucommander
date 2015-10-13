@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,14 +53,14 @@ public class CredentialsWriter implements CredentialsConstants {
         out.startElement(ELEMENT_ROOT, attributes);
         out.println();
 
-        Iterator iterator = CredentialsManager.getPersistentCredentialMappings().iterator();
+        Iterator<CredentialsMapping> iterator = CredentialsManager.getPersistentCredentialMappings().iterator();
         CredentialsMapping credentialsMapping;
         FileURL realm;
-        Enumeration propertyKeys;
+        Enumeration<String> propertyKeys;
         String name;
 
         while(iterator.hasNext()) {
-            credentialsMapping = (CredentialsMapping)iterator.next();
+            credentialsMapping = iterator.next();
             realm = credentialsMapping.getRealm();
 
             // Start credentials element
@@ -87,7 +87,7 @@ public class CredentialsWriter implements CredentialsConstants {
             // Write properties, each property is stored in a separate 'property' element
             propertyKeys = realm.getPropertyNames();
             while(propertyKeys.hasMoreElements()) {
-                name = (String)propertyKeys.nextElement();
+                name = propertyKeys.nextElement();
                 attributes = new XmlAttributes();
                 attributes.add(ATTRIBUTE_NAME, name);
                 attributes.add(ATTRIBUTE_VALUE, realm.getProperty(name));

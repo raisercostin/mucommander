@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,7 @@
 
 package com.mucommander.file.impl.iso;
 
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractROArchiveFile;
-import com.mucommander.file.ArchiveEntry;
-import com.mucommander.file.ArchiveEntryIterator;
+import com.mucommander.file.*;
 import com.mucommander.io.FilterRandomAccessInputStream;
 import com.mucommander.io.RandomAccessInputStream;
 
@@ -44,13 +41,15 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
     // AbstractROArchiveFile implementation //
     //////////////////////////////////////////
 
-    public ArchiveEntryIterator getEntryIterator() throws IOException {
+    @Override
+    public ArchiveEntryIterator getEntryIterator() throws IOException, UnsupportedFileOperationException {
         RandomAccessInputStream rais = getRandomAccessInputStream();
 
         return new IsoEntryIterator(IsoParser.getEntries(this, rais).iterator(), rais);
     }
 
-    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException {
+    @Override
+    public InputStream getEntryInputStream(ArchiveEntry entry, ArchiveEntryIterator entryIterator) throws IOException, UnsupportedFileOperationException {
         // Cast the entry before creating the stream, in case it fails
         IsoArchiveEntry isoEntry = (IsoArchiveEntry) entry;
 
@@ -60,6 +59,7 @@ public class IsoArchiveFile extends AbstractROArchiveFile {
             // Override close() as a no-op so that the stream is re-used from one entry to another -- the stream will
             // be closed when the iterator is closed.
             rais = new FilterRandomAccessInputStream(((IsoEntryIterator) entryIterator).getRandomAccessInputStream()) {
+                @Override
                 public void close() throws IOException {
                     // No-op
                 }

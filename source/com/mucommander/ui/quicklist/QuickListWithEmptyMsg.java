@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,12 @@
 
 package com.mucommander.ui.quicklist;
 
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-
-import javax.swing.SwingUtilities;
-
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.quicklist.item.EmptyMessageMenuItem;
+
+import javax.swing.SwingUtilities;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 
 /**
  * FileTablePopupWithEmptyMsg is a FileTablePopup which contains EmptyMessageItem.
@@ -44,7 +43,8 @@ class QuickListWithEmptyMsg extends QuickList implements QuickListFocusableCompo
 		addFocusListener(this);
 	}
 	
-	protected boolean prepareForShowing() {
+	@Override
+    protected boolean prepareForShowing() {
 		getFocus();
 		return true;
 	}

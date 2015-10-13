@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -52,6 +52,7 @@ public class ConfigurationExplorerTest extends TestCase {
     /**
      * Fills the configuration instance with test values.
      */
+    @Override
     public void setUp() {
         StringBuffer buffer;
 

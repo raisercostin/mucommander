@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -129,6 +129,7 @@ class GeneralPanel extends PreferencesPanel implements ItemListener, ActionListe
         // Use a custom combo box renderer to display language icons 
         class LanguageComboBoxRenderer extends BasicComboBoxRenderer {
 
+            @Override
             public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 JLabel label = (JLabel)super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
@@ -200,6 +201,7 @@ class GeneralPanel extends PreferencesPanel implements ItemListener, ActionListe
         };
         // Limit the number of characters in the text field to 1 and enforces only non-alphanumerical characters
         PlainDocument doc = new PlainDocument() {
+                @Override
                 public void insertString(int param, String str, javax.swing.text.AttributeSet attributeSet) throws javax.swing.text.BadLocationException {
                     // Limit field to 1 character max
                     if (str != null && this.getLength() + str.length() > 1)
@@ -333,6 +335,7 @@ class GeneralPanel extends PreferencesPanel implements ItemListener, ActionListe
     ///////////////////////
     // PrefPanel methods //
     ///////////////////////
+    @Override
     protected void commit() {
         MuConfiguration.setVariable(MuConfiguration.LANGUAGE, languages[languageComboBox.getSelectedIndex()]);
         MuConfiguration.setVariable(MuConfiguration.DATE_FORMAT, getDateFormatString());

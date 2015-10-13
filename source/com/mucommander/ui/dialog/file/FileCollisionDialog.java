@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -113,37 +113,37 @@ public class FileCollisionDialog extends QuestionDialog {
 
         // Init choices
 
-        Vector choicesTextV = new Vector();
-        Vector choicesActionsV = new Vector();
+        Vector<String> choicesTextV = new Vector<String>();
+        Vector<Integer> choicesActionsV = new Vector<Integer>();
 
         choicesTextV.add(CANCEL_TEXT);
-        choicesActionsV.add(new Integer(CANCEL_ACTION));
+        choicesActionsV.add(CANCEL_ACTION);
 
         if(multipleFilesMode) {
             choicesTextV.add(SKIP_TEXT);
-            choicesActionsV.add(new Integer(SKIP_ACTION));
+            choicesActionsV.add(SKIP_ACTION);
         }
 
         // Add 'overwrite' / 'overwrite if older' / 'resume' actions only for 'destination file already exists' collision type
         if(collisionType==FileCollisionChecker.DESTINATION_FILE_ALREADY_EXISTS && !destFile.isDirectory()) {
             choicesTextV.add(OVERWRITE_TEXT);
-            choicesActionsV.add(new Integer(OVERWRITE_ACTION));
+            choicesActionsV.add(OVERWRITE_ACTION);
 
             if(sourceFile!=null) {
                 choicesTextV.add(OVERWRITE_IF_OLDER_TEXT);
-                choicesActionsV.add(new Integer(OVERWRITE_IF_OLDER_ACTION));
+                choicesActionsV.add(OVERWRITE_IF_OLDER_ACTION);
 
                 // Give resume option only if destination file is smaller than source file
                 long destSize = destFile.getSize();
                 long sourceSize = sourceFile.getSize();
                 if(destSize!=-1 && (sourceSize==-1 || destSize<sourceSize)) {
                     choicesTextV.add(RESUME_TEXT);
-                    choicesActionsV.add(new Integer(RESUME_ACTION));
+                    choicesActionsV.add(RESUME_ACTION);
                 }
 
                 if (allowRename) {
                     choicesTextV.add(RENAME_TEXT);
-                    choicesActionsV.add(new Integer(RENAME_ACTION));
+                    choicesActionsV.add(RENAME_ACTION);
                 }
             }
         
@@ -157,7 +157,7 @@ public class FileCollisionDialog extends QuestionDialog {
 
         int choicesActions[] = new int[nbChoices];
         for(int i=0; i<nbChoices; i++)
-            choicesActions[i] = ((Integer)choicesActionsV.elementAt(i)).intValue();
+            choicesActions[i] = choicesActionsV.elementAt(i);
 
         // Init UI
 

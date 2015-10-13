@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ package com.mucommander.desktop;
 import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
 
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 
 /**
@@ -51,7 +51,7 @@ public class DefaultDesktopAdapter implements DesktopAdapter {
             if(value==null)
                 multiClickInterval = DEFAULT_MULTICLICK_INTERVAL;
             else
-                multiClickInterval = value.intValue();
+                multiClickInterval = value;
         }
         catch(Exception e) {
             AppLogger.fine("Error while retrieving multi-click interval value desktop property", e);

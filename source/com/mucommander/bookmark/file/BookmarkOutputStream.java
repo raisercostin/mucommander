@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +37,13 @@ class BookmarkOutputStream extends ByteArrayOutputStream implements BookmarkBuil
      * Parses the content that has been written.
      * @throws IOException if an error occurs.
      */
+    @Override
     public void close() throws IOException {
         super.close();
 
         try {BookmarkManager.readBookmarks(new ByteArrayInputStream(toByteArray()), this);}
         catch(IOException e) {throw e;}
-        catch(Exception e) {throw new IOException(e);}
+        catch(Exception e) {throw new IOException(e.getMessage());}
     }
 
 

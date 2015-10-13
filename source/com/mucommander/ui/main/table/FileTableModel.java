@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 
 package com.mucommander.ui.main.table;
 
-import com.mucommander.conf.ConfigurationEvent;
-import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.filter.FileFilter;
@@ -79,26 +77,11 @@ public class FileTableModel extends AbstractTableModel {
     /** String used as size information for directories */
     public final static String DIRECTORY_SIZE_STRING = "<DIR>";
 
-    /** Listens to configuration changes and updates static fields accordingly */
-    public final static ConfigurationListener CONFIGURATION_ADAPTER;
-
 
     static {
         // Initialize the size column format based on the configuration
         setSizeFormat(MuConfiguration.getVariable(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE,
                                                   MuConfiguration.DEFAULT_DISPLAY_COMPACT_FILE_SIZE));
-
-        // Listens to configuration changes and updates static fields accordingly.
-        // Note: a reference to the listener must be kept to prevent it from being garbage-collected.
-        CONFIGURATION_ADAPTER = new ConfigurationListener() {
-            public synchronized void configurationChanged(ConfigurationEvent event) {
-                String var = event.getVariable();
-
-                if (var.equals(MuConfiguration.DISPLAY_COMPACT_FILE_SIZE))
-                    setSizeFormat(event.getBooleanValue());
-            }
-        };
-        MuConfiguration.addConfigurationListener(CONFIGURATION_ADAPTER);
     }
 
 
@@ -107,7 +90,7 @@ public class FileTableModel extends AbstractTableModel {
      *
      * @param compactSize true to use a compact size format, false for full size in bytes 
      */
-    private static void setSizeFormat(boolean compactSize) {
+    static void setSizeFormat(boolean compactSize) {
         if(compactSize)
             sizeFormat = SizeFormat.DIGITS_MEDIUM | SizeFormat.UNIT_SHORT | SizeFormat.ROUND_TO_KB;
         else
@@ -271,8 +254,6 @@ public class FileTableModel extends AbstractTableModel {
 		
         AbstractFile file;
         int fileIndex = 0;
-        boolean canGetOwner = currentFolder.canGetOwner();
-        boolean canGetGroup = currentFolder.canGetGroup();
 
         for(int i=parent==null?0:1; i<len; i++) {
             file = getCachedFileAtRow(i);
@@ -281,10 +262,8 @@ public class FileTableModel extends AbstractTableModel {
             cellValuesCache[cellIndex][Columns.SIZE-1] = file.isDirectory()?DIRECTORY_SIZE_STRING:SizeFormat.format(file.getSize(), sizeFormat);
             cellValuesCache[cellIndex][Columns.DATE-1] = CustomDateFormat.format(new Date(file.getDate()));
             cellValuesCache[cellIndex][Columns.PERMISSIONS-1] = file.getPermissionsString();
-            if(canGetOwner)
-                cellValuesCache[cellIndex][Columns.OWNER-1] = file.getOwner();
-            if(canGetGroup)
-                cellValuesCache[cellIndex][Columns.GROUP-1] = file.getGroup();
+            cellValuesCache[cellIndex][Columns.OWNER-1] = file.getOwner();
+            cellValuesCache[cellIndex][Columns.GROUP-1] = file.getGroup();
 
             fileIndex++;
         }
@@ -728,6 +707,7 @@ public class FileTableModel extends AbstractTableModel {
         return Columns.COLUMN_COUNT; // icon, name, size, date, permissions, owner, group
     }
 
+    @Override
     public String getColumnName(int columnIndex) {
         return Columns.getColumnLabel(columnIndex);
     }
@@ -768,6 +748,7 @@ public class FileTableModel extends AbstractTableModel {
      * Returns <code>true</code> if name column has temporarily be made editable by FileTable
      * and given row doesn't correspond to parent file '..', <code>false</code> otherwise.
      */
+    @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         // Name column can temporarily be made editable by FileTable
         // but parent file '..' name should never be editable

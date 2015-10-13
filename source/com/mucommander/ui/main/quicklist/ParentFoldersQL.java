@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ import java.util.Vector;
  * @author Arik Hadas
  */
 public class ParentFoldersQL extends QuickListWithIcons implements LocationListener {
-	protected Vector parents = new Vector();
+	protected Vector<AbstractFile> parents = new Vector<AbstractFile>();
 	protected boolean updated = true;
 		
 	public ParentFoldersQL(FolderPanel folderPanel) {
@@ -45,7 +45,8 @@ public class ParentFoldersQL extends QuickListWithIcons implements LocationListe
 		folderPanel.getLocationManager().addLocationListener(this);		
 	}
 	
-	protected void acceptListItem(Object item) {
+	@Override
+    protected void acceptListItem(Object item) {
 		folderPanel.tryChangeCurrentFolder((AbstractFile)item);
 	}
 	
@@ -54,7 +55,7 @@ public class ParentFoldersQL extends QuickListWithIcons implements LocationListe
 	}
 	
 	protected void populateParentFolders(AbstractFile folder) {
-		parents = new Vector();
+		parents = new Vector<AbstractFile>();
 				
 		while((folder=folder.getParent())!=null)
             parents.add(folder);
@@ -66,14 +67,16 @@ public class ParentFoldersQL extends QuickListWithIcons implements LocationListe
 
 	public void locationFailed(LocationEvent locationEvent) {}	
 
-	public Object[] getData() {
+	@Override
+    public Object[] getData() {
 		if (!updated && (updated = true))
 			populateParentFolders(folderPanel.getCurrentFolder());
 		
 		return parents.toArray();
 	}
 
-	protected Icon itemToIcon(Object item) {
+	@Override
+    protected Icon itemToIcon(Object item) {
 		return getIconOfFile((AbstractFile)item);
 	}
 }

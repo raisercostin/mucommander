@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,8 @@ public class EditableHeader extends JTableHeader implements CellEditorListener {
 		recreateTableColumn(columnModel);
 	}
 
-	public void updateUI() {
+	@Override
+    public void updateUI() {
 		setUI(new EditableHeaderUI());
 		resizeAndRepaint();
 		invalidate();
@@ -109,12 +110,10 @@ public class EditableHeader extends JTableHeader implements CellEditorListener {
 		// firePropertyChange
 
 		if (oldEditor != null && oldEditor instanceof TableCellEditor) {
-			((TableCellEditor) oldEditor)
-			.removeCellEditorListener((CellEditorListener) this);
+			oldEditor.removeCellEditorListener(this);
 		}
 		if (newEditor != null && newEditor instanceof TableCellEditor) {
-			((TableCellEditor) newEditor)
-			.addCellEditorListener((CellEditorListener) this);
+			newEditor.addCellEditorListener(this);
 		}
 	}
 

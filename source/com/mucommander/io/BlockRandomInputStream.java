@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,6 +110,7 @@ public abstract class BlockRandomInputStream extends RandomAccessInputStream {
     // RandomAccessInputStream implementation //
     ////////////////////////////////////////////
 
+    @Override
     public int read() throws IOException {
         if(eofReached())
             return -1;
@@ -124,6 +125,7 @@ public abstract class BlockRandomInputStream extends RandomAccessInputStream {
         return ret;
     }
 
+    @Override
     public int read(byte b[], int off, int len) throws IOException {
         if(len==0)
             return 0;

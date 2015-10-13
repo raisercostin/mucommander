@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ package com.mucommander.file.impl;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileLogger;
 import com.mucommander.file.FilePermissions;
+import com.mucommander.file.UnsupportedFileOperationException;
 
+import java.io.IOException;
 import java.util.Random;
 
 /**
@@ -100,6 +102,7 @@ public class DebugFile extends ProxyFile {
     // Overridden methods (traced/slowed down methods) //
     /////////////////////////////////////////////////////
 
+    @Override
     public long getDate() {
         FileLogger.finest(getDebugString());
         lag();
@@ -107,6 +110,7 @@ public class DebugFile extends ProxyFile {
         return super.getDate();
     }
 
+    @Override
     public long getSize() {
         FileLogger.finest(getDebugString());
         lag();
@@ -114,6 +118,7 @@ public class DebugFile extends ProxyFile {
         return super.getSize();
     }
 
+    @Override
     public boolean exists() {
         FileLogger.finest(getDebugString());
         lag();
@@ -121,6 +126,7 @@ public class DebugFile extends ProxyFile {
         return super.exists();
     }
 
+    @Override
     public boolean isDirectory() {
         FileLogger.finest(getDebugString());
         lag();
@@ -128,6 +134,7 @@ public class DebugFile extends ProxyFile {
         return super.isDirectory();
     }
 
+    @Override
     public boolean isSymlink() {
         FileLogger.finest(getDebugString());
         lag();
@@ -135,20 +142,23 @@ public class DebugFile extends ProxyFile {
         return super.isSymlink();
     }
 
-    public long getFreeSpace() {
+    @Override
+    public long getFreeSpace() throws IOException, UnsupportedFileOperationException {
         FileLogger.finest(getDebugString());
         lag();
 
         return super.getFreeSpace();
     }
 
-    public long getTotalSpace() {
+    @Override
+    public long getTotalSpace() throws IOException, UnsupportedFileOperationException {
         FileLogger.finest(getDebugString());
         lag();
 
         return super.getTotalSpace();
     }
 
+    @Override
     public String getName() {
         FileLogger.finest(getDebugString());
         lag();
@@ -156,6 +166,7 @@ public class DebugFile extends ProxyFile {
         return super.getName();
     }
 
+    @Override
     public String getExtension() {
         FileLogger.finest(getDebugString());
         lag();
@@ -163,6 +174,7 @@ public class DebugFile extends ProxyFile {
         return super.getExtension();
     }
 
+    @Override
     public String getAbsolutePath() {
         FileLogger.finest(getDebugString());
         lag();
@@ -170,6 +182,7 @@ public class DebugFile extends ProxyFile {
         return super.getAbsolutePath();
     }
 
+    @Override
     public String getCanonicalPath() {
         FileLogger.finest(getDebugString());
         lag();
@@ -177,6 +190,7 @@ public class DebugFile extends ProxyFile {
         return super.getCanonicalPath();
     }
 
+    @Override
     public AbstractFile getCanonicalFile() {
         FileLogger.finest(getDebugString());
         lag();
@@ -184,6 +198,7 @@ public class DebugFile extends ProxyFile {
         return super.getCanonicalFile();
     }
 
+    @Override
     public boolean isArchive() {
         FileLogger.finest(getDebugString());
         lag();
@@ -191,6 +206,7 @@ public class DebugFile extends ProxyFile {
         return super.isArchive();
     }
 
+    @Override
     public boolean isHidden() {
         FileLogger.finest(getDebugString());
         lag();
@@ -198,6 +214,7 @@ public class DebugFile extends ProxyFile {
         return super.isHidden();
     }
 
+    @Override
     public FilePermissions getPermissions() {
         FileLogger.finest(getDebugString());
         lag();
@@ -205,6 +222,7 @@ public class DebugFile extends ProxyFile {
         return super.getPermissions();
     }
 
+    @Override
     public String getOwner() {
         FileLogger.finest(getDebugString());
         lag();
@@ -212,6 +230,7 @@ public class DebugFile extends ProxyFile {
         return super.getOwner();
     }
 
+    @Override
     public String getGroup() {
         FileLogger.finest(getDebugString());
         lag();
@@ -219,6 +238,7 @@ public class DebugFile extends ProxyFile {
         return super.getGroup();
     }
 
+    @Override
     public AbstractFile getRoot() {
         FileLogger.finest(getDebugString());
         lag();
@@ -226,6 +246,7 @@ public class DebugFile extends ProxyFile {
         return super.getRoot();
     }
 
+    @Override
     public boolean isRoot() {
         FileLogger.finest(getDebugString());
         lag();
@@ -233,6 +254,7 @@ public class DebugFile extends ProxyFile {
         return super.isRoot();
     }
 
+    @Override
     public boolean equalsCanonical(Object f) {
         FileLogger.finest(getDebugString());
         lag();
@@ -247,6 +269,7 @@ public class DebugFile extends ProxyFile {
         return super.toString();
     }
 
+    @Override
     public AbstractFile getParent() {
         FileLogger.finest(getDebugString());
         lag();

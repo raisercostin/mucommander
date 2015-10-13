@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@ import java.util.List;
  * @author Mariusz Jakubowski
  */
 public class BatchRenameJob extends MoveJob {
-    private List newNames;
+    private List<String> newNames;
 
-    public BatchRenameJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet files, List newNames) {
+    public BatchRenameJob(ProgressDialog progressDialog, MainFrame mainFrame, FileSet files, List<String> newNames) {
         super(progressDialog, mainFrame, files, files.getBaseFolder(), null, FileCollisionDialog.ASK_ACTION, true);
         this.newNames = newNames;
     }
@@ -43,8 +43,9 @@ public class BatchRenameJob extends MoveJob {
     // FileJob implementation //
     ////////////////////////////
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
-        this.newName = (String) newNames.get(getCurrentFileIndex());
+        this.newName = newNames.get(getCurrentFileIndex());
         return super.processFile(file, recurseParams);
     }
 

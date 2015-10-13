@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -26,19 +26,19 @@ import java.util.Vector;
  * @ant.type name="j2se" category="webstart"
  */
 public class J2seElement {
-    private String version;
-    private String href;
-    private int    initialHeap;
-    private int    maxHeap;
-    private Vector resources;
+    private String                   version;
+    private String                   href;
+    private int                      initialHeap;
+    private int                      maxHeap;
+    private Vector<ResourcesElement> resources;
 
-    public J2seElement() {resources = new Vector();}
+    public J2seElement() {resources = new Vector<ResourcesElement>();}
 
     public String getVersion() {return version;}
     public String getHref() {return href;}
     public int getInitialHeap() {return initialHeap;}
     public int getMaxHeap() {return maxHeap;}
-    public Iterator resources() {return resources.iterator();}
+    public Iterator<ResourcesElement> resources() {return resources.iterator();}
     public boolean hasResources() {return !resources.isEmpty();}
     public void setVersion(String s) {version = s;}
     public void setHref(String s) {href = s;}

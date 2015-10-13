@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 package com.mucommander.file;
 
-import com.mucommander.util.StringUtils;
 import junit.framework.TestCase;
 
 /**
@@ -31,7 +30,7 @@ public class DefaultPathCanonizerTest extends TestCase {
 
     private String getNormalizedPath(String path, String separator) {
         if(!separator.equals("/"))
-            path = StringUtils.replaceCompat(path, "/", separator);
+            path = path.replace("/", separator);
 
         return path;
     }

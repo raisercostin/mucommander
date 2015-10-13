@@ -67,8 +67,8 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
     /** Buffer used by Deflater to deflate data */
     protected byte[] deflaterBuf;
 
-    /** List of ZipEntries written so far */
-    private Vector entries = new Vector();
+    /** List of zip entries written so far */
+    private Vector<ZipEntry> entries = new Vector<ZipEntry>();
 
     /** Count the bytes written to out */
     private long written = 0;
@@ -185,7 +185,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
         int nbEntries = entries.size();
         ZipEntry ze;
         for (int i=0; i <nbEntries; i++) {
-            ze =  (ZipEntry)entries.elementAt(i);
+            ze =  entries.elementAt(i);
             written += writeCentralFileHeader(ze, out, encoding, ze.getEntryInfo().headerOffset, !hasRandomAccess, zipBuffer);
         }
         long cdLength = written - cdOffset;
@@ -660,6 +660,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
      * @param length the number of bytes to write
      * @throws IOException on error
      */
+    @Override
     public void write(byte[] b, int offset, int length) throws IOException {
         (zeos==null?out:zeos).write(b, offset, length);
     }
@@ -672,6 +673,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
      * @param b the byte array to write
      * @throws IOException on error
      */
+    @Override
     public void write(byte[] b) throws IOException {
         (zeos==null?out:zeos).write(b, 0, b.length);
     }
@@ -685,6 +687,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
      * @param b the byte to write
      * @throws IOException on error
      */
+    @Override
     public void write(int b) throws IOException {
         (zeos==null?out:zeos).write(b);
     }
@@ -694,6 +697,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
      *
      * @exception IOException  if an I/O error occurs.
      */
+    @Override
     public void close() throws IOException {
         finish();
 
@@ -710,6 +714,7 @@ public class ZipOutputStream extends OutputStream implements ZipConstants {
      *
      * @exception  IOException  if an I/O error occurs.
      */
+    @Override
     public void flush() throws IOException {
         out.flush();
     }

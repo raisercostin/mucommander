@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@ package com.mucommander.ui.combobox;
 
 import com.mucommander.runtime.JavaVersions;
 
-import javax.swing.*;
+import javax.swing.ComboBoxModel;
+import javax.swing.JTextField;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.util.Iterator;
 import java.util.Vector;
 import java.util.WeakHashMap;
 
@@ -53,7 +55,7 @@ public class EditableComboBox extends SaneComboBox {
     private JTextField textField;
 
     /** Contains all registered EditableComboBoxListener instances, stored as weak references */
-    private WeakHashMap editableCBListeners = new WeakHashMap();
+    private WeakHashMap<EditableComboBoxListener, Object> listeners = new WeakHashMap<EditableComboBoxListener, Object>();
 
     /** Specifies whether the text field's contents is updated when an item is selected in the associated combo box */
     private boolean comboSelectionUpdatesTextField;
@@ -108,7 +110,7 @@ public class EditableComboBox extends SaneComboBox {
      * will be created and used.
      * @param items items used to populate the initial items list.
      */
-    public EditableComboBox(JTextField textField, Vector items) {
+    public EditableComboBox(JTextField textField, Vector<Object> items) {
         super(items);
         init(textField);
     }
@@ -155,6 +157,7 @@ public class EditableComboBox extends SaneComboBox {
 
         // Use a custom editor that uses the text field
         setEditor(new BasicComboBoxEditor() {
+                @Override
                 public Component getEditorComponent() {
                     return EditableComboBox.this.textField;
                 }
@@ -172,13 +175,14 @@ public class EditableComboBox extends SaneComboBox {
         // can safely implement KeyListener without risking to override those methods by accident.
         this.textField.addKeyListener(new KeyAdapter() {
 
+            @Override
             public void keyPressed(KeyEvent keyEvent) {
                 int keyCode = keyEvent.getKeyCode();
 
                 // Combo popup menu is visible
                 if(isPopupVisible()) {
                     if(keyCode==KeyEvent.VK_ENTER) {
-                        // Under Java 1.5 or under, we need to explicitely hide the popup.
+                        // Under Java 1.5 or lower, we need to explicitely hide the popup.
                         if(JavaVersions.JAVA_1_5.isCurrentOrLower())
                             hidePopup();
                         // Note that since the event is not consumed, JComboBox will catch it and fire
@@ -222,7 +226,7 @@ public class EditableComboBox extends SaneComboBox {
      */
     public void addEditableComboBoxListener(EditableComboBoxListener listener) {
         addComboBoxListener(listener);
-        editableCBListeners.put(listener, null);
+        listeners.put(listener, null);
     }
 
     /**
@@ -232,7 +236,7 @@ public class EditableComboBox extends SaneComboBox {
      */
     public void removeEditableComboBoxListener(EditableComboBoxListener listener) {
         removeComboBoxListener(listener);
-        editableCBListeners.remove(listener);
+        listeners.remove(listener);
     }
 
 
@@ -240,6 +244,7 @@ public class EditableComboBox extends SaneComboBox {
      * Overrides {@link SaneComboBox#fireComboBoxSelectionChanged()} to set the text field's contents to the item that
      * has been selected, if {@link #setComboSelectionUpdatesTextField(boolean)} has been enabled.  
      */
+    @Override
     protected void fireComboBoxSelectionChanged() {
         if(comboSelectionUpdatesTextField) {
             // Replace the text field's contents by the selected item's string representation,
@@ -261,9 +266,8 @@ public class EditableComboBox extends SaneComboBox {
      */
     protected void fireComboFieldValidated() {
         // Iterate on all listeners
-        Iterator iterator = editableCBListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((EditableComboBoxListener)iterator.next()).textFieldValidated(this);
+        for(EditableComboBoxListener listener: listeners.keySet())
+            listener.textFieldValidated(this);
     }
 
 
@@ -275,14 +279,14 @@ public class EditableComboBox extends SaneComboBox {
      */
     protected void fireComboFieldCancelled() {
         // Iterate on all listeners
-        Iterator iterator = editableCBListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((EditableComboBoxListener)iterator.next()).textFieldCancelled(this);
+        for(EditableComboBoxListener listener: listeners.keySet())
+            listener.textFieldCancelled(this);
     }
 
 
     // - Aspect managenement -------------------------------------------------------------
     // -----------------------------------------------------------------------------------
+    @Override
     public void setForeground(Color color) {
         if(renderer == null)
 	    super.setForeground(color);
@@ -292,6 +296,7 @@ public class EditableComboBox extends SaneComboBox {
         }
     }
 
+    @Override
     public void setBackground(Color color) {
         if(renderer == null)
 	    super.setBackground(color);
@@ -315,6 +320,7 @@ public class EditableComboBox extends SaneComboBox {
         }
     }
 
+    @Override
     public void setFont(Font font) {
         super.setFont(font);
         if(renderer != null) {

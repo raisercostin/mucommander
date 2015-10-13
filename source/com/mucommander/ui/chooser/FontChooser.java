@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,12 @@ import com.mucommander.ui.layout.YBoxPanel;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Iterator;
 import java.util.WeakHashMap;
 
 /**
@@ -57,7 +59,7 @@ public class FontChooser extends YBoxPanel implements ActionListener {
     /** Currently selected font. */
     private Font        font;
     /** List of all registered state change listeners. */
-    private WeakHashMap listeners = new WeakHashMap();
+    private WeakHashMap<ChangeListener, ?> listeners = new WeakHashMap<ChangeListener, Object>();
 
 
     // - Initialisation ---------------------------------------------------------
@@ -102,8 +104,8 @@ public class FontChooser extends YBoxPanel implements ActionListener {
 
         // Font sizes.
         sizes = new JComboBox();
-        for(int i = 0; i < FONT_SIZES.length; i++)
-            sizes.addItem(Integer.toString(FONT_SIZES[i]));
+        for (int fontSize : FONT_SIZES)
+            sizes.addItem(Integer.toString(fontSize));
         sizes.setSelectedItem(Integer.toString(selection.getSize()));
         sizes.addActionListener(this);
 
@@ -172,7 +174,6 @@ public class FontChooser extends YBoxPanel implements ActionListener {
      * Called when the font description has been changed.
      */
     public void actionPerformed(ActionEvent e) {
-        Iterator    iterator;
         ChangeEvent event;
 
         font = createFont();
@@ -180,9 +181,8 @@ public class FontChooser extends YBoxPanel implements ActionListener {
 
         // Notifies listeners.
         event    = new ChangeEvent(this);
-        iterator = listeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ChangeListener)iterator.next()).stateChanged(event);
+        for(ChangeListener listener : listeners.keySet())
+            listener.stateChanged(event);
     }
 
 

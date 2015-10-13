@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
 
     // Variables used for XML parsing
     private FileURL url;
-    private Hashtable urlProperties;
+    private Hashtable<String, String> urlProperties;
     private String login;
     private String password;
     private StringBuffer characters;
@@ -98,6 +98,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
     // ContentHandler implementation //
     ///////////////////////////////////
 
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         characters.setLength(0);
 
@@ -111,7 +112,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
         // Property element (properties will be set when credentials element ends
         else if(qName.equals(ELEMENT_PROPERTY)) {
             if(urlProperties==null)
-                urlProperties = new Hashtable();
+                urlProperties = new Hashtable<String, String>();
             urlProperties.put(attributes.getValue(ATTRIBUTE_NAME), attributes.getValue(ATTRIBUTE_VALUE));
         }
         // Root element, the 'encryption' attribute specifies which encoding was used to encrypt passwords
@@ -121,6 +122,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
         }
     }
 
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         if(qName.equals(ELEMENT_CREDENTIALS)) {
             if(url ==null || login ==null || password ==null) {
@@ -130,11 +132,11 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
 
             // Copy properties into FileURL instance (if any)
             if(urlProperties!=null) {
-                Enumeration propertyKeys = urlProperties.keys();
+                Enumeration<String> propertyKeys = urlProperties.keys();
                 String key;
                 while(propertyKeys.hasMoreElements()) {
-                    key = (String)propertyKeys.nextElement();
-                    url.setProperty(key, (String)urlProperties.get(key));
+                    key = propertyKeys.nextElement();
+                    url.setProperty(key, urlProperties.get(key));
                 }
             }
 
@@ -160,6 +162,7 @@ class CredentialsParser extends DefaultHandler implements CredentialsConstants {
             password = characters.toString().trim();
     }
 
+    @Override
     public void characters(char[] ch, int offset, int length) {
         characters.append(ch, offset, length);
     }

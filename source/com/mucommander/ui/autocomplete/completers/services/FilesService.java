@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,8 +52,8 @@ public abstract class FilesService implements CompletionService {
 	 */
 	protected abstract AbstractFile[] getFiles(AbstractFile directory) throws IOException;
 	
-	public Vector getPossibleCompletions(String path) {
-		Vector result = new Vector();
+	public Vector<String> getPossibleCompletions(String path) {
+		Vector<String> result = new Vector<String>();
 		int index = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'));	
 		if (index != -1) {
 	        String currentDirectoryName = path.substring(0, index+1);
@@ -67,7 +67,7 @@ public abstract class FilesService implements CompletionService {
 						currentDirectoryFiles = getFiles(currentDirectory);
 					} catch (IOException e) {
                         AppLogger.fine("Caught exception", e);
-						return new Vector();
+						return new Vector<String>();
 					}
 		
 		        	int nbCurrentDirectoryFiles = currentDirectoryFiles.length;

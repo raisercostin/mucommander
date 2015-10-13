@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,25 +18,11 @@
 
 package com.mucommander.ui.main.toolbar;
 
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Insets;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.util.Hashtable;
-
-import javax.swing.Action;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JPopupMenu;
-import javax.swing.JToolBar;
-
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
 import com.mucommander.conf.impl.MuConfiguration;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.FileURL;
-import com.mucommander.runtime.JavaVersions;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.runtime.OsVersions;
 import com.mucommander.ui.action.ActionManager;
@@ -50,6 +36,14 @@ import com.mucommander.ui.button.PopupButton;
 import com.mucommander.ui.button.RolloverButtonAdapter;
 import com.mucommander.ui.icon.IconManager;
 import com.mucommander.ui.main.MainFrame;
+
+import javax.swing.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.Hashtable;
 
 /**
  * This class is the icon toolbar attached to a MainFrame, triggering events when buttons are clicked.
@@ -66,11 +60,10 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
     /** Dimension of button separators */
     private final static Dimension SEPARATOR_DIMENSION = new Dimension(10, 16);
 
-    /** Whether to use the new JButton decorations introduced in Mac OS X 10.5 (Leopard) with Java 1.5 and up */
+    /** Whether to use the new JButton decorations introduced in Mac OS X 10.5 (Leopard) */
     private final static boolean USE_MAC_OS_X_CLIENT_PROPERTIES =
             OsFamilies.MAC_OS_X.isCurrent() &&
-            OsVersions.MAC_OS_X_10_5.isCurrentOrHigher() &&
-            JavaVersions.JAVA_1_5.isCurrentOrHigher();
+            OsVersions.MAC_OS_X_10_5.isCurrentOrHigher();
 
     /** Current icon scale value */
     // The math.max(1.0f, ...) part is to workaround a bug which cause(d) this value to be set to 0.0 in the configuration file.
@@ -271,7 +264,7 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
     // ToolBarAttributesListener methods //
     ///////////////////////////////////////
     
-	public void ToolBarActionsChanged() {
+	public void toolBarActionsChanged() {
 		removeAll();
 		addButtons(ToolBarAttributes.getActions());
 	}
@@ -289,6 +282,7 @@ public class ToolBar extends JToolBar implements ConfigurationListener, MouseLis
             this.action = action;
         }
 
+        @Override
         public JPopupMenu getPopupMenu() {
             FileURL history[] = action instanceof GoBackAction?
                     mainFrame.getActivePanel().getFolderHistory().getBackFolders()

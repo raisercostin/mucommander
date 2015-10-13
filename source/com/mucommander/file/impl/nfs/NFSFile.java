@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ package com.mucommander.file.impl.nfs;
 
 import com.mucommander.file.*;
 import com.mucommander.file.filter.FilenameFilter;
-import com.mucommander.io.FileTransferException;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
 import com.sun.xfile.XFile;
@@ -153,67 +152,76 @@ public class NFSFile extends ProtocolFile {
     // AbstractFile methods implementation //
     /////////////////////////////////////////
 
+    @Override
     public long getDate() {
         return file.lastModified();
     }
 
     /**
-     * Always returns <code>false</code> (date cannot be changed).
+     * Implementation notes: always throws {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always.
      */
-    public boolean canChangeDate() {
-        return false;
-    }
-
-    /**
-     * Always returns <code>false</code> (date cannot be changed).
-     */
-    public boolean changeDate(long lastModified) {
+    @Override
+    @UnsupportedFileOperation
+    public void changeDate(long lastModified) throws UnsupportedFileOperationException {
         // XFile has no method for that purpose
-        return false;
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);
     }
 
+    @Override
     public long getSize() {
         return file.length();
     }
 
+    @Override
     public AbstractFile getParent() {
         // Retrieve parent AbstractFile and cache it
         if (!parentValueSet) {
             FileURL parentURL = getURL().getParent();
             if(parentURL != null) {
                 parent = FileFactory.getFile(parentURL);
+                // Note: parent may be null if it can't be resolved
             }
+
             parentValueSet = true;
         }
         return parent;
     }
 
+    @Override
     public void setParent(AbstractFile parent) {
         this.parent = parent;
         this.parentValueSet = true;
     }
 
+    @Override
     public boolean exists() {
         return file.exists();
     }
 
+    @Override
     public FilePermissions getPermissions() {
         return permissions;
     }
 
+    @Override
     public PermissionBits getChangeablePermissions() {
         // no permission can be changed
         return PermissionBits.EMPTY_PERMISSION_BITS;
     }
 
-    public boolean changePermission(int access, int permission, boolean enabled) {
+    @Override
+    @UnsupportedFileOperation
+    public void changePermission(int access, int permission, boolean enabled) throws UnsupportedFileOperationException {
         // XFile has no method for that unfortunately
-        return false;
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);
     }
 
     /**
      * Always returns <code>null</code>, this information is not available unfortunately.
      */
+    @Override
     public String getOwner() {
         return null;
     }
@@ -221,6 +229,7 @@ public class NFSFile extends ProtocolFile {
     /**
      * Always returns <code>false</code>, this information is not available unfortunately.
      */
+    @Override
     public boolean canGetOwner() {
         return false;
     }
@@ -228,6 +237,7 @@ public class NFSFile extends ProtocolFile {
     /**
      * Always returns <code>null</code>, this information is not available unfortunately.
      */
+    @Override
     public String getGroup() {
         return null;
     }
@@ -235,10 +245,12 @@ public class NFSFile extends ProtocolFile {
     /**
      * Always returns <code>false</code>, this information is not available unfortunately.
      */
+    @Override
     public boolean canGetGroup() {
         return false;
     }
 
+    @Override
     public boolean isDirectory() {
         return file.isDirectory();
     }
@@ -246,49 +258,41 @@ public class NFSFile extends ProtocolFile {
     /**
      * Always returns <code>false</code> (symlinks are not detected).
      */
+    @Override
     public boolean isSymlink() {
         // Yanfs is unable to detect symlinks at this time
         return false;
     }
 
+    @Override
     public AbstractFile[] ls() throws IOException {
         return ls(null);
     }
 
+    @Override
     public void mkdir() throws IOException {
         if(!new XFile(absPath).mkdir())
             throw new IOException();
     }
 
+    @Override
     public InputStream getInputStream() throws IOException {
         return new XFileInputStream(file);
     }
 
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        return new XFileOutputStream(absPath, append);
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return new XFileOutputStream(absPath, false);
     }
 
-    /**
-     * Returns <code>true</code>: {@link #getRandomAccessInputStream()} is implemented.
-     *
-     * @return true
-     */
-    public boolean hasRandomAccessInputStream() {
-        return true;
+    @Override
+    public OutputStream getAppendOutputStream() throws IOException {
+        return new XFileOutputStream(absPath, true);
     }
 
+    @Override
     public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
         return new NFSRandomAccessInputStream(new XRandomAccessFile(file, "r"));
-    }
-
-    /**
-     * Returns <code>false</code>: {@link #getRandomAccessOutputStream()} is implemented but the returned
-     * <code>RandomAccessOutputStream</code> is not fully functional.
-     *
-     * @return false
-     */
-    public boolean hasRandomAccessOutputStream() {
-        return false;
     }
 
     /**
@@ -299,10 +303,13 @@ public class NFSFile extends ProtocolFile {
      * @return a RandomAccessOutputStream that is not fully functional
      * @throws IOException if the file could not be opened for random write access
      */
+    @Override
+    @UnsupportedFileOperation
     public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
         return new NFSRandomAccessOutputStream(new XRandomAccessFile(file, "rw"));
     }
 
+    @Override
     public void delete() throws IOException {
         boolean ret = file.delete();
 
@@ -311,26 +318,63 @@ public class NFSFile extends ProtocolFile {
     }
 
     /**
-     * Always returns <code>-1</code> (not available)
+     * Implementation notes: server-to-server renaming will work if the destination file also uses the 'NFS' scheme
+     * and is located on the same host.
      */
-    public long getFreeSpace() {
-        // XFile has no method to provide that information
-        return -1;
-    }
+    @Override
+    public void renameTo(AbstractFile destFile) throws IOException {
+        // Throw an exception if the file cannot be renamed to the specified destination
+        checkRenamePrerequisites(destFile, true, false);
 
-    /**
-     * Always returns <code>-1</code> (not available)
-     */
-    public long getTotalSpace() {
-        // XFile has no method to provide that information
-        return -1;
+        // Rename file
+        if(!file.renameTo(((NFSFile)destFile).file))
+            throw new IOException();
     }
 
     /**
      * Returns a <code>com.sun.xfile.XFile</code> instance corresponding to this file.
      */
+    @Override
     public Object getUnderlyingFileObject() {
         return file;
+    }
+
+
+    // Unsupported file operations
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public void copyRemotelyTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.COPY_REMOTELY);
+    }
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getFreeSpace() throws UnsupportedFileOperationException {
+        // XFile has no method to provide that information
+        throw new UnsupportedFileOperationException(FileOperation.GET_FREE_SPACE);
+    }
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {
+        // XFile has no method to provide that information
+        throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);
     }
 
 
@@ -338,6 +382,7 @@ public class NFSFile extends ProtocolFile {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public AbstractFile[] ls(FilenameFilter filenameFilter) throws IOException {
         String names[] = file.list();
 
@@ -349,7 +394,6 @@ public class NFSFile extends ProtocolFile {
 
         AbstractFile children[] = new AbstractFile[names.length];
         FileURL childURL;
-        NFSFile child;
         String baseURLPath = fileURL.getPath();
         if(!baseURLPath.endsWith("/"))
             baseURLPath += SEPARATOR;
@@ -360,35 +404,10 @@ public class NFSFile extends ProtocolFile {
             childURL.setPath(baseURLPath+names[i]);
 
             // Create the child NFSFile using this file as a parent
-            child = new NFSFile(childURL);
-            child.setParent(this);
-
-            // Wrap archives
-            children[i] = FileFactory.wrapArchive(child);
+            children[i] = FileFactory.getFile(childURL, this);
         }
 
         return children;
-    }
-
-
-    /**
-     * Overrides {@link AbstractFile#moveTo(AbstractFile)} to move/rename the file directly if the destination file
-     * is also an NFSFile.
-     */
-    public boolean moveTo(AbstractFile destFile) throws FileTransferException {
-        if(!destFile.getURL().getScheme().equals(FileProtocols.NFS)) {
-            return super.moveTo(destFile);
-        }
-
-        // If destination file is not an NFSFile nor has an NFSFile ancestor (for instance an archive entry),
-        // server renaming won't work so use the default moveTo() implementation instead
-        destFile = destFile.getTopAncestor();
-        if(!(destFile instanceof NFSFile)) {
-            return super.moveTo(destFile);
-        }
-
-        // Move file
-        return file.renameTo(((NFSFile)destFile).file);
     }
 
 
@@ -407,14 +426,17 @@ public class NFSFile extends ProtocolFile {
             this.raf = raf;
         }
 
+        @Override
         public int read() throws IOException {
             return raf.read();
         }
 
+        @Override
         public int read(byte b[], int off, int len) throws IOException {
             return raf.read(b, off, len);
         }
 
+        @Override
         public void close() throws IOException {
             raf.close();
         }
@@ -446,18 +468,22 @@ public class NFSFile extends ProtocolFile {
             this.raf = raf;
         }
 
+        @Override
         public void write(int i) throws IOException {
             raf.write(i);
         }
 
+        @Override
         public void write(byte b[]) throws IOException {
             raf.write(b);
         }
 
+        @Override
         public void write(byte b[], int off, int len) throws IOException {
             raf.write(b, off, len);
         }
 
+        @Override
         public void close() throws IOException {
             raf.close();
         }
@@ -482,6 +508,7 @@ public class NFSFile extends ProtocolFile {
          * @param newLength the new file's length
          * @throws IOException If an I/O error occurred while trying to change the file's length
          */
+        @Override
         public void setLength(long newLength) throws IOException {
             // This operation is supported only if the new length is greater (or equal) than the current length
             long currentLength = getLength();

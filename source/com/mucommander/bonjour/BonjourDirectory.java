@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ public class BonjourDirectory implements ServiceListener {
     /** Does all the hard work */
     private static JmDNS jmDNS;
     /** List of discovered and currently active Bonjour services */
-    private static Vector services = new Vector();
+    private static Vector<BonjourService> services = new Vector<BonjourService>();
 
     /** Known Bonjour/Zeroconf service types and their corresponding protocol */
     private final static String KNOWN_SERVICE_TYPES[][] = {
@@ -159,6 +159,7 @@ public class BonjourDirectory implements ServiceListener {
         // Resolve service info in a separate thread, serviceResolved() will be called once service info has been resolved.
         // Not spawning a thread often leads to service info loss (serviceResolved() not called).
         new Thread() {
+            @Override
             public void run() {
                 jmDNS.requestServiceInfo(serviceEvent.getType(), serviceEvent.getName(), SERVICE_RESOLUTION_TIMEOUT);
             }

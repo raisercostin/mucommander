@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,11 +35,13 @@ public class PathCompleter extends Completer {
 		registerService(ServiceFactory.getAllFilesService());
     }
  
-	protected Vector getUpdatedSuggestions(AutocompleterTextComponent component) {
+	@Override
+    protected Vector<String> getUpdatedSuggestions(AutocompleterTextComponent component) {
     	return getPossibleCompletionsFromServices(component.getText());
     } 
  
-    public void updateTextComponent(final String selected, AutocompleterTextComponent comp){ 
+    @Override
+    public void updateTextComponent(final String selected, AutocompleterTextComponent comp){
         if(selected==null) 
             return;
                                  

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -311,12 +311,14 @@ public class SpinningDial extends AnimatedIcon {
      * Returns the icon's height.
      * @return the icon's height.
      */
+    @Override
     public int getIconHeight() {return height;}
 
     /**
      * Returns the icon's width.
      * @return the icon's width.
      */
+    @Override
     public int getIconWidth() {return width;}
 
 
@@ -348,6 +350,7 @@ public class SpinningDial extends AnimatedIcon {
      * @param x        horizontal coordinate at which to paint the dial.
      * @param y        vertical coordinate at which to paint the dial.
      */
+    @Override
     public synchronized void paintFrame(Component c, Graphics graphics, int x, int y) {
         int currentFrame;
 
@@ -405,6 +408,7 @@ public class SpinningDial extends AnimatedIcon {
      * </p>
      * @param a whether to start or stop the animation.
      */
+    @Override
     public void setAnimated(boolean a) {
         super.setAnimated(a);
 

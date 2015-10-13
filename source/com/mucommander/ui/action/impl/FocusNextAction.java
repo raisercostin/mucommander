@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,24 +18,18 @@
 
 package com.mucommander.ui.action.impl;
 
-import java.awt.Component;
-import java.awt.event.KeyEvent;
-import java.util.Hashtable;
-
-import javax.swing.JComponent;
-import javax.swing.JTextField;
-import javax.swing.JTree;
-import javax.swing.KeyStroke;
-
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
+import com.mucommander.ui.action.*;
 import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.table.FileTable;
+
+import javax.swing.JTextField;
+import javax.swing.JTree;
+import javax.swing.KeyStroke;
+import java.awt.Component;
+import java.awt.event.KeyEvent;
+import java.util.Hashtable;
 
 /**
  * This action allows to cycle forward through the current FolderPanel's focusable components: file table, folder tree
@@ -45,13 +39,14 @@ import com.mucommander.ui.main.table.FileTable;
  */
 public class FocusNextAction extends MuAction {
 
-    public FocusNextAction(MainFrame mainFrame, Hashtable properties) {
+    public FocusNextAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
 
         // Perform the action also when in 'no events' mode
         setHonourNoEventsMode(false);
     }
 
+    @Override
     public void performAction() {
         Component focusOwner = mainFrame.getFocusOwner();
 
@@ -67,7 +62,7 @@ public class FocusNextAction extends MuAction {
         // Request focus on the 'next' component, the cycle order being from left to right, top to bottom.
         Component nextComponent;
         if(focusOwner==locationField)
-            nextComponent = folderPanel.isTreeVisible()?(JComponent)tree:fileTable;
+            nextComponent = folderPanel.isTreeVisible()?tree:fileTable;
         else if(focusOwner==tree)
             nextComponent = fileTable;
         else if(focusOwner==fileTable)
@@ -80,7 +75,7 @@ public class FocusNextAction extends MuAction {
     
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new FocusNextAction(mainFrame, properties);
 		}
     }

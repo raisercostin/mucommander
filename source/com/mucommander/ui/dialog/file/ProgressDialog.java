@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
 
     static {
         // Disable JProgressBar animation which is a real CPU hog under Mac OS X
-        UIManager.put("ProgressBar.repaintInterval", new Integer(Integer.MAX_VALUE));
+        UIManager.put("ProgressBar.repaintInterval", Integer.MAX_VALUE);
     }
 
 
@@ -439,6 +439,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
     // Overridden WindowListener methods // 
     ///////////////////////////////////////
 
+    @Override
     public void windowActivated(WindowEvent e) {
         // This method is called each time the dialog is activated
         super.windowActivated(e);
@@ -448,6 +449,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
         }
     }
 
+    @Override
     public void windowClosed(WindowEvent e) {
         super.windowClosed(e);
         
@@ -485,7 +487,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
 
         private static final int STROKE_WIDTH = 1;
 
-        private Vector samples = new Vector(NB_SAMPLES_MAX);
+        private Vector<Long> samples = new Vector<Long>(NB_SAMPLES_MAX);
 
         private Stroke lineStroke = new BasicStroke(STROKE_WIDTH);
 
@@ -501,13 +503,14 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
                     samples.removeElementAt(0);
 
                 // Add sample to the vector
-                samples.add(new Long(bytesPerSecond));
+                samples.add(bytesPerSecond);
             }
 
             repaint();
         }
 
 
+        @Override
         public void paint(Graphics g) {
             Graphics2D g2d = (Graphics2D)g;
 
@@ -536,7 +539,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
                 // Calculate the maximum bytes per second of all the samples to be displayed
                 long maxBps = 0;
                 for(int i=firstSample; i<firstSample+nbLines; i++) {
-                    long sample = ((Long)samples.elementAt(i)).longValue();
+                    long sample = samples.elementAt(i);
                     if(sample>maxBps)
                         maxBps = sample;
                 }
@@ -558,7 +561,7 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
                 Polygon p = new Polygon();
                 int sampleOffset = firstSample;
                 for(int l=0; l<nbLines; l++) {
-                    p.addPoint(x, height-STROKE_WIDTH-(int)(((Long)samples.elementAt(sampleOffset++)).longValue()/yRatio));
+                    p.addPoint(x, height-STROKE_WIDTH-(int)((Long) samples.elementAt(sampleOffset++) /yRatio));
                     x+=LINE_SPACING;
                 }
                 p.addPoint(x-LINE_SPACING, height-1);
@@ -570,8 +573,8 @@ public class ProgressDialog extends FocusDialog implements ActionListener, ItemL
                 x = STROKE_WIDTH;
                 sampleOffset = firstSample;
                 for(int l=0; l<nbLines-1; l++) {
-                    g.drawLine(x, height-STROKE_WIDTH-(int)(((Long)samples.elementAt(sampleOffset)).longValue()/yRatio),
-                              (x+=LINE_SPACING), height-STROKE_WIDTH-(int)(((Long)samples.elementAt(++sampleOffset)).longValue()/yRatio));
+                    g.drawLine(x, height-STROKE_WIDTH-(int)((Long) samples.elementAt(sampleOffset) /yRatio),
+                              (x+=LINE_SPACING), height-STROKE_WIDTH-(int)((Long) samples.elementAt(++sampleOffset) /yRatio));
                 }
 
                 // Draw an horizontal line at the bottom of the graph

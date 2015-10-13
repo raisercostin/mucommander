@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@ class BufferedConfigurationExplorer extends ConfigurationExplorer {
     // - Instance variables --------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /** Sections that have been passed through. */
-    private Stack sections;
+    private Stack<ConfigurationSection> sections;
 
 
 
@@ -44,7 +44,7 @@ class BufferedConfigurationExplorer extends ConfigurationExplorer {
      */
     public BufferedConfigurationExplorer(ConfigurationSection root) {
         super(root);
-        sections = new Stack();
+        sections = new Stack<ConfigurationSection>();
     }
 
 
@@ -61,7 +61,7 @@ class BufferedConfigurationExplorer extends ConfigurationExplorer {
      * Returns the next section in history.
      * @return the next section in history.
      */
-    public ConfigurationSection popSection() {return (ConfigurationSection)sections.pop();}
+    public ConfigurationSection popSection() {return sections.pop();}
 
 
 
@@ -73,6 +73,7 @@ class BufferedConfigurationExplorer extends ConfigurationExplorer {
      * @param  create if <code>true</code> and <code>name</code> doesn't exist, it will be created.
      * @return        <code>true</code> if we could move to <code>name</code>, <code>false</code> otherwise.
      */
+    @Override
     public boolean moveTo(String name, boolean create) {
         if(super.moveTo(name, create)) {
             sections.push(getSection());

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
 /**
- * Dialog used to split a file into parts.
+ * Dialog used to split a file into several parts.
  * 
  * @author Mariusz Jakubowski
  */
@@ -134,7 +134,8 @@ public class SplitFileDialog extends JobDialog implements ActionListener {
 		cbSize.setComboSelectionUpdatesTextField(true);
 		cbSize.setSelectedIndex(1);
 		edtSize.addKeyListener(new KeyAdapter() {
-			public void keyReleased(KeyEvent e) {
+			@Override
+            public void keyReleased(KeyEvent e) {
 				updatePartsNumber();
 			}
 		});
@@ -147,8 +148,8 @@ public class SplitFileDialog extends JobDialog implements ActionListener {
 		pnlSize.addSpace(10);
 		pnlSize.add(new JLabel(Translator.get("split_file_dialog.parts") + ":"));
 		pnlSize.addSpace(5);
-		spnParts = new JSpinner(new SpinnerNumberModel(Long.valueOf(1), Long.valueOf(1), 
-				Long.valueOf(file.getSize()), Long.valueOf(1)));
+		spnParts = new JSpinner(new SpinnerNumberModel(1, 1,
+                file.getSize(), 1));
 		spnParts.addChangeListener(new ChangeListener() {			
 			public void stateChanged(ChangeEvent e) {
 				if (!edtChange) {
@@ -227,7 +228,7 @@ public class SplitFileDialog extends JobDialog implements ActionListener {
     private long getBytes() {
 		String strVal = edtSize.getText().trim();
 		if (MSG_AUTO.equals(strVal)) {
-			return (long) file.getSize();
+			return file.getSize();
 		}
 		String[] strArr = strVal.split(" ");
 		if (strArr.length < 1 || strArr.length > 2) {
@@ -278,7 +279,7 @@ public class SplitFileDialog extends JobDialog implements ActionListener {
 			return;
 		}
 		edtChange = true;
-		spnParts.setValue(Long.valueOf(parts));
+		spnParts.setValue(parts);
 		edtChange = false;
 	}
 

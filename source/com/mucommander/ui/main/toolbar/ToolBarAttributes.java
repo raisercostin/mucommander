@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ package com.mucommander.ui.main.toolbar;
 
 import com.mucommander.ui.action.impl.*;
 
-import java.util.Iterator;
 import java.util.WeakHashMap;
 
 /**
@@ -37,7 +36,7 @@ public class ToolBarAttributes {
     private static boolean useDefaultActions = true;
     
     /** Contains all registered toolbar-attributes listeners, stored as weak references */
-    private final static WeakHashMap listeners = new WeakHashMap();
+    private final static WeakHashMap<ToolBarAttributesListener, ?> listeners = new WeakHashMap<ToolBarAttributesListener, Object>();
     
     /** Default command bar actions: Class instances or null to signify a separator */
     private final static String[] DEFAULT_TOOLBAR_ACTIONS = new String[] {
@@ -160,10 +159,8 @@ public class ToolBarAttributes {
     
     public static void fireActionsChanged() {
     	synchronized(listeners) {
-            // Iterate on all listeners
-            Iterator iterator = listeners.keySet().iterator();
-            while(iterator.hasNext())
-                ((ToolBarAttributesListener)iterator.next()).ToolBarActionsChanged();
+            for(ToolBarAttributesListener listener : listeners.keySet())
+                listener.toolBarActionsChanged();
         }
     }
 }

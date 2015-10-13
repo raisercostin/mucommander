@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@
 
 package com.mucommander.job;
 
+import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
@@ -57,6 +59,7 @@ public class ChangeFileAttributesJob extends FileJob {
     // FileJob implementation //
     ////////////////////////////
 
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Stop if interrupted
         if(getState()==INTERRUPTED)
@@ -89,14 +92,35 @@ public class ChangeFileAttributesJob extends FileJob {
             while(true);
         }
 
-        if(permissions!=-1)
-            return file.changePermissions(permissions);
+        if(permissions!=-1) {
+            if(!file.isFileOperationSupported(FileOperation.CHANGE_PERMISSION))
+                return false;
+
+            try {
+                file.changePermissions(permissions);
+                return true;
+            }
+            catch(IOException e) {
+                return false;
+            }
+        }
 
 //        if(date!=-1)
-        return file.changeDate(date);
+        if(!file.isFileOperationSupported(FileOperation.CHANGE_DATE))
+            return false;
+
+        try {
+            file.changeDate(date);
+            return true;
+        }
+        catch (IOException e) {
+            AppLogger.fine("failed to change the date of "+file, e);
+            return false;
+        }
     }
 
     // This job modifies the FileSet's base folder and potentially its subfolders
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return files.getBaseFolder().isParentOf(folder);
     }

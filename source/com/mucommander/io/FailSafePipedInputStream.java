@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     public synchronized int read() throws IOException {
         int ret = super.read();
 
@@ -101,6 +102,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
         return ret;
     }
 
+    @Override
     public synchronized int read(byte b[], int off, int len) throws IOException {
         int ret = super.read(b, off, len);
 
@@ -109,6 +111,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
         return ret;
     }
 
+    @Override
     public synchronized int read(byte b[]) throws IOException {
         int ret = super.read(b);
 
@@ -118,6 +121,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
     }
 
 
+    @Override
     public long skip(long n) throws IOException {
         long ret = super.skip(n);
 
@@ -126,6 +130,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
         return ret;
     }
 
+    @Override
     public synchronized int available() throws IOException {
         int ret = super.available();
 
@@ -134,6 +139,7 @@ public class FailSafePipedInputStream extends PipedInputStream {
         return ret;
     }
 
+    @Override
     public void close() throws IOException {
         super.close();
 

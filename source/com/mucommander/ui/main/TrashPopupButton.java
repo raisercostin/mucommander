@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,8 +27,9 @@ import com.mucommander.ui.button.PopupButton;
 import com.mucommander.ui.button.RolloverButtonAdapter;
 import com.mucommander.ui.icon.IconManager;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import java.awt.Insets;
 
 /**
  * TrashPopupButton is a button that allows to interact with the current platform's trash, as returned by
@@ -59,6 +60,7 @@ public class TrashPopupButton extends PopupButton {
         addMouseListener(rolloverButtonAdapter);
     }
 
+    @Override
     public JPopupMenu getPopupMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
 
@@ -97,6 +99,7 @@ public class TrashPopupButton extends PopupButton {
     /**
      * Replace the default insets to be exactly (2,2,2,2).
      */
+    @Override
     public Insets getInsets() {
         return new Insets(2, 2, 2, 2);
     }

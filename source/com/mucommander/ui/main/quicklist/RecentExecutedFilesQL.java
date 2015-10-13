@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,6 @@
 
 package com.mucommander.ui.main.quicklist;
 
-import java.io.IOException;
-import java.util.LinkedList;
-
-import javax.swing.Icon;
-
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileProtocols;
@@ -36,6 +31,10 @@ import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.WindowManager;
 import com.mucommander.ui.quicklist.QuickListWithIcons;
 
+import javax.swing.Icon;
+import java.io.IOException;
+import java.util.LinkedList;
+
 /**
  * This quick list shows recently executed files.
  * 
@@ -43,14 +42,15 @@ import com.mucommander.ui.quicklist.QuickListWithIcons;
  */
 
 public class RecentExecutedFilesQL extends QuickListWithIcons {
-	public static LinkedList list = new LinkedList();
+	public static LinkedList<AbstractFile> list = new LinkedList<AbstractFile>();
 	private static final int MAX_NUM_OF_ELEMENTS = 10;
 
 	public RecentExecutedFilesQL() {
 		super(ActionProperties.getActionLabel(ShowRecentExecutedFilesQLAction.Descriptor.ACTION_ID), Translator.get("recent_executed_files_quick_list.empty_message"));
 	}
 	
-	protected void acceptListItem(Object item) {
+	@Override
+    protected void acceptListItem(Object item) {
 		AbstractFile file = (AbstractFile)item;
 		MainFrame mainFrame = WindowManager.getCurrentMainFrame();
 
@@ -73,11 +73,13 @@ public class RecentExecutedFilesQL extends QuickListWithIcons {
 		list.addFirst(file);
 	}
 
-	protected Object[] getData() {
+	@Override
+    protected Object[] getData() {
 		return list.toArray();
 	}
 
-	protected Icon itemToIcon(Object item) {
+	@Override
+    protected Icon itemToIcon(Object item) {
 		return getIconOfFile((AbstractFile)item);
 	}
 }

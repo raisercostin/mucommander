@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ import java.util.List;
 public class IOThread extends Thread {
     
     /** a queue with tasks to execute */
-    private List queue;
+    private List<Runnable> queue;
     
     /** a time after this thread is marked as blocked */
     private long blockThreshold;
@@ -44,7 +44,7 @@ public class IOThread extends Thread {
      * @param queue a queue with tasks
      * @param blockThreshold a time after this thread is marked as blocked [ms]
      */
-    public IOThread(List queue, long blockThreshold) {
+    public IOThread(List<Runnable> queue, long blockThreshold) {
         super("IOThread");
         this.queue = queue;
         this.blockThreshold = blockThreshold;
@@ -52,12 +52,13 @@ public class IOThread extends Thread {
     
     
     
+    @Override
     public void run() {
         
         while (!interrupted()) {
             lastActionTime = System.currentTimeMillis(); 
             while (queue.size() > 0) {
-                Runnable task = (Runnable) queue.remove(0);
+                Runnable task = queue.remove(0);
                 try {
                     task.run();
                 } catch (Exception e) {

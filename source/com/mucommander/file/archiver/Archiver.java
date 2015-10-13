@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ package com.mucommander.file.archiver;
 
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileAttributes;
+import com.mucommander.file.FileOperation;
+import com.mucommander.file.UnsupportedFileOperationException;
 import com.mucommander.io.BufferedRandomOutputStream;
 import com.mucommander.io.RandomAccessOutputStream;
 import org.apache.tools.bzip2.CBZip2OutputStream;
@@ -228,11 +230,12 @@ public abstract class Archiver {
      * @return an Archiver for the specified format and that uses the given {@link AbstractFile} to write entries to ;
      * null if the specified format is not valid.
      * @throws IOException if the file cannot be opened for write, or if an error occurred while intializing the archiver
+     * @throws UnsupportedFileOperationException if the underlying filesystem does not support write operations
      */
-    public static Archiver getArchiver(AbstractFile file, int format) throws IOException {
+    public static Archiver getArchiver(AbstractFile file, int format) throws IOException, UnsupportedFileOperationException {
         OutputStream out = null;
 
-        if(file.hasRandomAccessOutputStream()) {
+        if(file.isFileOperationSupported(FileOperation.RANDOM_WRITE_FILE)) {
             try {
                 // Important: if the file exists, it has to be overwritten as AbstractFile#getRandomAccessOutputStream()
                 // does NOT overwrite the file. This fixes bug #30.
@@ -247,7 +250,7 @@ public abstract class Archiver {
         }
 
         if(out==null)
-            out = new BufferedOutputStream(file.getOutputStream(false));
+            out = new BufferedOutputStream(file.getOutputStream());
 
         return getArchiver(out, format);
     }

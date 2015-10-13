@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.mucommander.job;
 import com.apple.eio.FileManager;
 import com.mucommander.AppLogger;
 import com.mucommander.file.AbstractFile;
+import com.mucommander.file.FileOperation;
 import com.mucommander.file.FilePermissions;
 import com.mucommander.file.impl.local.LocalFile;
 import com.mucommander.file.util.FileSet;
@@ -117,22 +118,28 @@ public abstract class TransferFileJob extends FileJob {
         if(sourceFile.equalsCanonical(destFile))
             throw new FileTransferException(FileTransferException.SOURCE_AND_DESTINATION_IDENTICAL);
 
-        // Determine whether AbstractFile.copyTo() should be used to copy file or streams should be copied manually.
-        // Some file protocols do not provide a getOutputStream() method and require the use of copyTo(). Some other
+        // Determine whether or not AbstractFile.copyRemotelyTo() should be used to copy the file.
+        // Some file protocols do not provide a getOutputStream() method and require the use of copyRemotelyTo(). Some other
         // may also offer server to server copy which is more efficient than stream copy.
-        int copyToHint = sourceFile.getCopyToHint(destFile);
 
-        // copyTo() should or must be used
         boolean copied = false;
-        if(copyToHint==AbstractFile.SHOULD_HINT || copyToHint==AbstractFile.MUST_HINT) {
-            copied = sourceFile.copyTo(destFile);
+        if(sourceFile.isFileOperationSupported(FileOperation.COPY_REMOTELY)) {
+            try {
+                sourceFile.copyRemotelyTo(destFile);
+                copied = true;
+            }
+            catch(IOException e) {
+                // The file will be copied manually
+            }
         }
 
-        // If the file wasn't copied using copyTo(), or if copyTo() didn't work (return false)
+        // If the file wasn't copied using copyRemotelyTo(), or if copyRemotelyTo() failed
         InputStream in = null;
         if(!copied) {
             // Copy source file stream to destination file
             try {
+                long inLength = sourceFile.getSize();
+
                 // Try to open InputStream
                 try  {
                     long destFileSize = destFile.getSize();
@@ -140,7 +147,7 @@ public abstract class TransferFileJob extends FileJob {
                         in = sourceFile.getInputStream(destFileSize);
                         // Do not calculate checksum, as it needs to be calculated on the whole file
 
-                        setCurrentInputStream(in);
+                        inLength -= destFileSize;
                         // Increase current file ByteCounter by the number of bytes skipped
                         currentFileByteCounter.add(destFileSize);
                         // Increase skipped ByteCounter by the number of bytes skipped
@@ -150,9 +157,9 @@ public abstract class TransferFileJob extends FileJob {
                         in = sourceFile.getInputStream();
                         if(integrityCheckEnabled)
                             in = new ChecksumInputStream(in, MessageDigest.getInstance(CHECKSUM_VERIFICATION_ALGORITHM));
-
-                        setCurrentInputStream(in);
                     }
+
+                    setCurrentInputStream(in);
                 }
                 catch(Exception e) {
                     AppLogger.fine("IOException caught, throwing FileTransferException", e);
@@ -160,7 +167,7 @@ public abstract class TransferFileJob extends FileJob {
                 }
 
                 // Copy source stream to destination file
-                destFile.copyStream(tlin, append);
+                destFile.copyStream(tlin, append, inLength);
             }
             finally {
                 // This block will always be executed, even if an exception
@@ -172,11 +179,27 @@ public abstract class TransferFileJob extends FileJob {
         }
 
         // Preserve source file's date
-        destFile.changeDate(sourceFile.getDate());
+        if(destFile.isFileOperationSupported(FileOperation.CHANGE_DATE)) {
+            try {
+                destFile.changeDate(sourceFile.getDate());
+            }
+            catch (IOException e) {
+                AppLogger.fine("failed to change the date of "+destFile, e);
+                // Fail silently
+            }
+        }
 
         // Preserve source file's permissions: preserve only the permissions bits that are supported by the source file
         // and use default permissions for the rest of them.
-        destFile.importPermissions(sourceFile, FilePermissions.DEFAULT_FILE_PERMISSIONS);  // use #importPermissions(AbstractFile, int) to avoid isDirectory test
+        if(destFile.isFileOperationSupported(FileOperation.CHANGE_PERMISSION)) {
+            try {
+                destFile.importPermissions(sourceFile, FilePermissions.DEFAULT_FILE_PERMISSIONS);  // use #importPermissions(AbstractFile, int) to avoid isDirectory test
+            }
+            catch(IOException e) {
+                AppLogger.fine("failed to import "+sourceFile+" permissions into "+destFile, e);
+                // Fail silently
+            }
+        }
 
         // Under Mac OS X only, preserving the file type and creator
         if(OsFamilies.MAC_OS_X.isCurrent()
@@ -207,7 +230,7 @@ public abstract class TransferFileJob extends FileJob {
                 sourceChecksum = ((ChecksumInputStream)in).getChecksumString();
             }
             else {
-                // The file was copied using AbstractFile#copyTo(), or the transfer was resumed:
+                // The file was copied using AbstractFile#copyRemotelyTo(), or the transfer was resumed:
                 // we have to calculate the source file's checksum from scratch.
                 try {
                     sourceChecksum = calculateChecksum(sourceFile);
@@ -515,6 +538,7 @@ public abstract class TransferFileJob extends FileJob {
     /**
      * Overrides {@link FileJob#jobStopped()} to stop any file processing by closing the source InputStream.
      */
+    @Override
     protected void jobStopped() {
         super.jobStopped();
 
@@ -532,6 +556,7 @@ public abstract class TransferFileJob extends FileJob {
      * Overrides {@link FileJob#jobPaused()} to pause any file processing
      * by having the source InputStream's read methods lock.
      */
+    @Override
     protected void jobPaused() {
         super.jobPaused();
 
@@ -546,6 +571,7 @@ public abstract class TransferFileJob extends FileJob {
      * Overrides {@link FileJob#jobResumed()} to resume any file processing by releasing
      * the lock on the source InputStream's read methods.
      */
+    @Override
     protected void jobResumed() {
         super.jobResumed();
 
@@ -561,6 +587,7 @@ public abstract class TransferFileJob extends FileJob {
      * Advances file index and resets current file's byte counters. This method should be called by subclasses
      * whenever the job starts processing a new file.
      */
+    @Override
     protected void nextFile(AbstractFile file) {
         totalByteCounter.add(currentFileByteCounter, true);
         totalSkippedByteCounter.add(currentFileSkippedByteCounter, true);
@@ -575,6 +602,7 @@ public abstract class TransferFileJob extends FileJob {
      * Method overridden to return a more accurate percentage of job processed so far by taking into account the current
      * file's percentage of completion.
      */
+    @Override
     public float getTotalPercentDone() {
         float nbFilesProcessed = getCurrentFileIndex();
         int nbFiles = getNbFiles();
@@ -594,6 +622,7 @@ public abstract class TransferFileJob extends FileJob {
      * This method is overridden to return a custom string "Checking integrity of CURRENT_FILE" when the current file
      * is being checked for integrity.
      */
+    @Override
     public String getStatusString() {
         if(isCheckingIntegrity())
             return Translator.get("progress_dialog.verifying_file", getCurrentFilename());

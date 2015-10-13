@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,8 @@ import com.mucommander.file.FileURL;
 import com.mucommander.ui.autocomplete.AutocompleterTextComponent;
 import com.mucommander.ui.autocomplete.completers.services.CompletionService;
 
-import javax.swing.*;
-
+import javax.swing.JList;
 import java.net.MalformedURLException;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Vector;
@@ -42,10 +40,10 @@ import java.util.Vector;
  */
 
 public abstract class Completer {
-	private Set services;
+	private Set<CompletionService> services;
 	
 	public Completer() {
-		services = new LinkedHashSet();
+		services = new LinkedHashSet<CompletionService>();
 	}
 	
 	/**
@@ -55,7 +53,7 @@ public abstract class Completer {
 	 * @param component - an AutocompleterTextComponent.
 	 * @return Vector of suggestions for completion.
 	 */
-	protected abstract Vector getUpdatedSuggestions(AutocompleterTextComponent component);
+	protected abstract Vector<String> getUpdatedSuggestions(AutocompleterTextComponent component);
     
 	/**
 	 * update list model depending on the data in text component
@@ -109,11 +107,10 @@ public abstract class Completer {
 	 * @return Vector that contain all the possible completions
 	 * 			which were retured from the registered services.
 	 */
-	protected Vector getPossibleCompletionsFromServices(String path) {
-		Vector result = new Vector();
-		Iterator iter = services.iterator();
-		while(iter.hasNext())
-			result.addAll(((CompletionService) iter.next()).getPossibleCompletions(path));
+	protected Vector<String> getPossibleCompletionsFromServices(String path) {
+		Vector<String> result = new Vector<String>();
+        for (CompletionService service : services)
+            result.addAll(service.getPossibleCompletions(path));
 		return result;
 	}
 	
@@ -130,10 +127,9 @@ public abstract class Completer {
 	 */
 	protected String tryToCompleteFromServices(String selectedString) {
 		String location = null;
-		Iterator iter = services.iterator();
-		while(iter.hasNext())
-			if ((location = ((CompletionService) iter.next()).complete(selectedString)) != null)
-				break;
+        for (CompletionService service : services)
+            if ((location = (service).complete(selectedString)) != null)
+                break;
 		return location;
 	}
 }

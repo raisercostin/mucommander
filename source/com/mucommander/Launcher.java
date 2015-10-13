@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ import com.mucommander.file.impl.ftp.FTPProtocolProvider;
 import com.mucommander.file.impl.smb.SMBProtocolProvider;
 import com.mucommander.runtime.OsFamilies;
 import com.mucommander.shell.ShellHistoryManager;
+import com.mucommander.text.Translator;
 import com.mucommander.ui.action.ActionManager;
 import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.debug.DebugConsoleHandler;
@@ -43,6 +44,7 @@ import com.mucommander.ui.main.WindowManager;
 import com.mucommander.ui.main.commandbar.CommandBarIO;
 import com.mucommander.ui.main.toolbar.ToolBarIO;
 
+import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.logging.*;
@@ -256,6 +258,16 @@ public class Launcher {
         }
     }
 
+    /**
+     * Checks whether a graphics environment is available and exit with an error otherwise.
+     */
+    private static void checkHeadless() {
+        if(GraphicsEnvironment.isHeadless()) {
+            System.err.println("Error: no graphical environment detected.");
+            System.exit(1);
+        }
+    }
+
 
     /**
      * Main method used to startup muCommander.
@@ -396,6 +408,8 @@ public class Launcher {
             // - Configuration init ---------------------------------------
             // ------------------------------------------------------------
 
+            // Ensure that a graphics environment is available, exit otherwise.
+            checkHeadless();
 
             // Attempts to guess whether this is the first time muCommander is booted or not.
             boolean isFirstBoot;
@@ -421,9 +435,9 @@ public class Launcher {
                 // Use reflection to create an OSXIntegration instance so that ClassLoader
                 // doesn't throw an NoClassDefFoundException under platforms other than Mac OS X
                 try {
-                    Class osxIntegrationClass = Class.forName("com.mucommander.ui.macosx.OSXIntegration");
-                    Constructor constructor   = osxIntegrationClass.getConstructor(new Class[]{});
-                    constructor.newInstance(new Object[]{});
+                    Class<?> osxIntegrationClass = Class.forName("com.mucommander.ui.macosx.OSXIntegration");
+                    Constructor<?> constructor   = osxIntegrationClass.getConstructor(new Class[]{});
+                    constructor.newInstance();
                 }
                 catch(Exception e) {
                     AppLogger.fine("Exception thrown while initializing Mac OS X integration", e);
@@ -592,8 +606,10 @@ public class Launcher {
             if(splashScreen!=null)
                 splashScreen.dispose();
 
+            AppLogger.severe("Startup failed", t);
+            
             // Display an error dialog with a proper message and error details
-            InformationDialog.showErrorDialog(null, null, "startup_error", null, t);
+            InformationDialog.showErrorDialog(null, null, Translator.get("startup_error"), null, t);
 
             // Quit the application
             WindowManager.quit();
@@ -630,15 +646,15 @@ public class Launcher {
         // Remove default handlers
         Logger rootLogger = LogManager.getLogManager().getLogger("");
         Handler handlers[] = rootLogger.getHandlers();
-        for(int i=0; i<handlers.length; i++)
-            rootLogger.removeHandler(handlers[i]);
+        for (Handler handler : handlers)
+            rootLogger.removeHandler(handler);
 
         // and add ours
         handlers = new Handler[] { new ConsoleHandler(), new DebugConsoleHandler()};
         Formatter formatter = new SingleLineFormatter();
-        for(int i=0; i<handlers.length; i++) {
-            handlers[i].setFormatter(formatter);
-            rootLogger.addHandler(handlers[i]);
+        for (Handler handler : handlers) {
+            handler.setFormatter(formatter);
+            rootLogger.addHandler(handler);
         }
 
         // Set the log level to the value defined in the configuration
@@ -688,7 +704,7 @@ public class Launcher {
 
         Logger rootLogger = LogManager.getLogManager().getLogger("");
         Handler handlers[] = rootLogger.getHandlers();
-        for(int i=0; i<handlers.length; i++)
-            handlers[i].setLevel(level);
+        for (Handler handler : handlers)
+            handler.setLevel(level);
     }
 }

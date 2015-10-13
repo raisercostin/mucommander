@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,8 +42,10 @@ abstract class GnomeDesktopAdapter extends DefaultDesktopAdapter {
     /** Key to the double-click interval value in the GNOME configuration */
     private String DOUBLE_CLICK_CONFIG_KEY = "/desktop/gnome/peripherals/mouse/double_click";
 
+    @Override
     public abstract boolean isAvailable();
 
+    @Override
     public void init(boolean install) throws DesktopInitialisationException {
         // Initialises trash management.
         DesktopManager.setTrashProvider(new GnomeTrashProvider());
@@ -96,6 +98,7 @@ abstract class GnomeDesktopAdapter extends DefaultDesktopAdapter {
      * </p>
      * @return the <code>/desktop/gnome/peripherals/mouse/double_click</code> GNOME configuration value.
      */
+    @Override
     public int getMultiClickInterval() {
         return multiClickInterval;
     }

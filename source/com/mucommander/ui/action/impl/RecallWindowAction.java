@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,21 +18,16 @@
 
 package com.mucommander.ui.action.impl;
 
+import com.mucommander.AppLogger;
+import com.mucommander.text.Translator;
+import com.mucommander.ui.action.*;
+import com.mucommander.ui.main.MainFrame;
+import com.mucommander.ui.main.WindowManager;
+
+import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.util.Hashtable;
 import java.util.Vector;
-
-import javax.swing.KeyStroke;
-
-import com.mucommander.AppLogger;
-import com.mucommander.text.Translator;
-import com.mucommander.ui.action.AbstractActionDescriptor;
-import com.mucommander.ui.action.ActionCategories;
-import com.mucommander.ui.action.ActionCategory;
-import com.mucommander.ui.action.ActionFactory;
-import com.mucommander.ui.action.MuAction;
-import com.mucommander.ui.main.MainFrame;
-import com.mucommander.ui.main.WindowManager;
 
 /**
  * Brings a {@link }MainFrame} window to the front. This action operates on a specific window number specified in the
@@ -50,7 +45,7 @@ public class RecallWindowAction extends MuAction {
     public final static String WINDOW_NUMBER_PROPERTY_KEY = "window_number";
 
 
-    public RecallWindowAction(MainFrame mainFrame, Hashtable properties) {
+    public RecallWindowAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
         super(mainFrame, properties);
 
         Object windowNumberValue = getValue(WINDOW_NUMBER_PROPERTY_KEY);
@@ -63,7 +58,7 @@ public class RecallWindowAction extends MuAction {
             throw new IllegalArgumentException(WINDOW_NUMBER_PROPERTY_KEY+" ("+windowNumberValue+")");
     }
 
-    public RecallWindowAction(MainFrame mainFrame, Hashtable properties, int windowNumber) {
+    public RecallWindowAction(MainFrame mainFrame, Hashtable<String,Object> properties, int windowNumber) {
         super(mainFrame, properties);
 
         this.windowNumber = windowNumber;
@@ -71,8 +66,9 @@ public class RecallWindowAction extends MuAction {
             throw new IllegalArgumentException("windowNumber ("+windowNumber+")");
     }
 
+    @Override
     public void performAction() {
-        Vector mainFrames = WindowManager.getMainFrames();
+        Vector<MainFrame> mainFrames = WindowManager.getMainFrames();
 
         // Checks that the window number currently exists
         if(windowNumber<=0 || windowNumber>mainFrames.size()) {
@@ -81,12 +77,12 @@ public class RecallWindowAction extends MuAction {
         }
 
         // Brings the MainFrame to front
-        ((MainFrame)mainFrames.elementAt(windowNumber-1)).toFront();
+        mainFrames.elementAt(windowNumber-1).toFront();
     }
 
     public static class Factory implements ActionFactory {
 
-		public MuAction createAction(MainFrame mainFrame, Hashtable properties) {
+		public MuAction createAction(MainFrame mainFrame, Hashtable<String,Object> properties) {
 			return new RecallWindowAction(mainFrame, properties);
 		}
     }
@@ -117,10 +113,12 @@ public class RecallWindowAction extends MuAction {
             return KeyStroke.getKeyStroke(Character.forDigit(windowNumber==10 ? 0 : windowNumber, 10), KeyEvent.CTRL_DOWN_MASK);
         }
 
+        @Override
         public String getLabel() {
             return Translator.get(getLabelKey(), windowNumber==-1?"?":""+windowNumber);
         }
 
+        @Override
         public boolean isParameterized() {
             return windowNumber==-1;
         }

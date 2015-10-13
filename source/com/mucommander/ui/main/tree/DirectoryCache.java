@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import java.util.Map;
 public class DirectoryCache {
     
     /** a map that holds cached folders */
-    private Map cache;
+    private Map<AbstractFile, CachedDirectory> cache;
     
     /** Comparator used to sort folders */
     private FileComparator sort;
@@ -54,7 +54,7 @@ public class DirectoryCache {
      */
     public DirectoryCache(FileFilter filter, FileComparator sort) {
         //this.cache = Collections.synchronizedMap(new HashMap());
-        this.cache = new HashMap();
+        this.cache = new HashMap<AbstractFile, CachedDirectory>();
         this.filter = filter;
         this.sort = sort;
     }
@@ -104,7 +104,7 @@ public class DirectoryCache {
     }
 
     public synchronized CachedDirectory get(AbstractFile key) {
-        return (CachedDirectory) cache.get(key);
+        return cache.get(key);
     }
 
     public synchronized void put(AbstractFile key, CachedDirectory value) {
@@ -115,13 +115,13 @@ public class DirectoryCache {
      * Deletes entry and all children from the cache.
      */
     public synchronized void removeWithChildren(AbstractFile key) {
-        CachedDirectory cachedDir = (CachedDirectory) cache.get(key);
+        CachedDirectory cachedDir = cache.get(key);
         if (cachedDir != null) {
             cache.remove(key);
             AbstractFile[] children = cachedDir.get();
             if (children != null) {
-                for (int i=0; i<children.length; i++) {
-                    removeWithChildren(children[i]);
+                for (AbstractFile child : children) {
+                    removeWithChildren(child);
                 }
             }
         }
@@ -134,7 +134,7 @@ public class DirectoryCache {
      * @return a cached file instance
      */
     public synchronized CachedDirectory getOrAdd(AbstractFile key) {
-        CachedDirectory cachedDir = (CachedDirectory) cache.get(key);
+        CachedDirectory cachedDir = cache.get(key);
         if (cachedDir == null) {
             cachedDir = new CachedDirectory(key, this);
             cache.put(key, cachedDir);

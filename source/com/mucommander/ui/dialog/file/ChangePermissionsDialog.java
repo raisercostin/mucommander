@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,25 +18,6 @@
 
 package com.mucommander.ui.dialog.file;
 
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.awt.GridLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
-
 import com.mucommander.file.AbstractFile;
 import com.mucommander.file.PermissionAccesses;
 import com.mucommander.file.PermissionTypes;
@@ -49,6 +30,20 @@ import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.layout.YBoxPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.text.SizeConstrainedDocument;
+
+import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 
 /**
  * This dialog allows the user to change the permissions of the currently selected/marked file(s). The permissions can be
@@ -87,7 +82,7 @@ public class ChangePermissionsDialog extends JobDialog
         permCheckBoxes = new JCheckBox[5][5];
         JCheckBox permCheckBox;
 
-        AbstractFile firstFile = files.fileAt(0);
+        AbstractFile firstFile = files.elementAt(0);
         int permSetMask = firstFile.getChangeablePermissions().getIntValue();
         boolean canSetPermission = permSetMask!=0;
         int defaultPerms = firstFile.getPermissions().getIntValue();
@@ -120,6 +115,7 @@ public class ChangePermissionsDialog extends JobDialog
         octalPermTextField = new JTextField(3);
         // Constrains text field to 3 digits, from 0 to 7 (octal base)
         Document doc = new SizeConstrainedDocument(3) {
+            @Override
             public void insertString(int offset, String str, AttributeSet attributeSet) throws BadLocationException {
                 int strLen = str.length();
                 char c;
@@ -137,7 +133,6 @@ public class ChangePermissionsDialog extends JobDialog
         updateOctalPermTextField();
 
         if(canSetPermission) {
-            setInitialFocusComponent(octalPermTextField);
             doc.addDocumentListener(this);
         }
         // Disable text field if no permission bit can be set
@@ -155,7 +150,7 @@ public class ChangePermissionsDialog extends JobDialog
 
         recurseDirCheckBox = new JCheckBox(Translator.get("recurse_directories"));
         // Disable check box if no permission bit can be set
-        recurseDirCheckBox.setEnabled(canSetPermission && (files.size()>1 || ((AbstractFile)files.elementAt(0)).isDirectory()));
+        recurseDirCheckBox.setEnabled(canSetPermission && (files.size()>1 || files.elementAt(0).isDirectory()));
         mainPanel.add(recurseDirCheckBox);
 
         // Create file details button and OK/cancel buttons and lay them out a single row

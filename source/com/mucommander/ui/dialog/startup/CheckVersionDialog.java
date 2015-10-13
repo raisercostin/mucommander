@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +33,11 @@ import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.layout.InformationPane;
 import com.mucommander.ui.main.MainFrame;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JCheckBox;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.net.URL;
 import java.util.Vector;
 
@@ -149,16 +152,16 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         // Set title
         setTitle(title);
 
-        Vector actionsV = new Vector();
-        Vector labelsV = new Vector();
+        Vector<Integer> actionsV = new Vector<Integer>();
+        Vector<String> labelsV = new Vector<String>();
 
         // 'OK' choice
-        actionsV.add(new Integer(OK_ACTION));
+        actionsV.add(OK_ACTION);
         labelsV.add(Translator.get("ok"));
 
         // 'Go to website' choice (if available)
         if(downloadOption) {
-            actionsV.add(new Integer(GO_TO_WEBSITE_ACTION));
+            actionsV.add(GO_TO_WEBSITE_ACTION);
             labelsV.add(ActionProperties.getActionLabel(GoToWebsiteAction.Descriptor.ACTION_ID));
         }
 
@@ -173,8 +176,8 @@ public class CheckVersionDialog extends QuestionDialog implements Runnable {
         int actions[] = new int[nbChoices];
         String labels[] = new String[nbChoices];
         for(int i=0; i<nbChoices; i++) {
-            actions[i] = ((Integer)actionsV.elementAt(i)).intValue();
-            labels[i] = (String)labelsV.elementAt(i);
+            actions[i] = actionsV.elementAt(i);
+            labels[i] = labelsV.elementAt(i);
         }
 
         init(new InformationPane(message, null, Font.PLAIN, InformationPane.INFORMATION_ICON),

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
 
 package com.mucommander.ui.combobox;
 
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.ComboBoxModel;
+import javax.swing.JComboBox;
 import java.awt.event.ActionEvent;
-import java.util.Iterator;
 import java.util.Vector;
 import java.util.WeakHashMap;
 
@@ -38,7 +39,7 @@ import java.util.WeakHashMap;
  */
 public class SaneComboBox extends JComboBox {
 
-    private WeakHashMap cbListeners = new WeakHashMap();
+    private WeakHashMap<ComboBoxListener, Object> listeners = new WeakHashMap<ComboBoxListener, Object>();
     private boolean ignoreActionEvent;
 
 
@@ -57,7 +58,7 @@ public class SaneComboBox extends JComboBox {
         init();
     }
 
-    public SaneComboBox(Vector items) {
+    public SaneComboBox(Vector<Object> items) {
         super(items);
         init();
     }
@@ -96,7 +97,7 @@ public class SaneComboBox extends JComboBox {
      * @param listener the ComboBoxListener to add to the list of registered listeners.
      */
     public void addComboBoxListener(ComboBoxListener listener) {
-        cbListeners.put(listener, null);
+        listeners.put(listener, null);
     }
 
     /**
@@ -105,7 +106,7 @@ public class SaneComboBox extends JComboBox {
      * @param listener the ComboBoxListener to remove from the list of registered listeners.
      */
     public void removeComboBoxListener(ComboBoxListener listener) {
-        cbListeners.remove(listener);
+        listeners.remove(listener);
     }
 
     /**
@@ -117,9 +118,8 @@ public class SaneComboBox extends JComboBox {
      */
     protected void fireComboBoxSelectionChanged() {
         // Iterate on all listeners
-        Iterator iterator = cbListeners.keySet().iterator();
-        while(iterator.hasNext())
-            ((ComboBoxListener)iterator.next()).comboBoxSelectionChanged(this);
+        for(ComboBoxListener listener : listeners.keySet())
+            listener.comboBoxSelectionChanged(this);
     }
 
 
@@ -128,30 +128,35 @@ public class SaneComboBox extends JComboBox {
     ////////////////////////
 
 
+    @Override
     public void addItem(Object object) {
         ignoreActionEvent = true;
         super.addItem(object);
         ignoreActionEvent = false;
     }
 
+    @Override
     public void insertItemAt(Object object, int i) {
         ignoreActionEvent = true;
         super.insertItemAt(object, i);
         ignoreActionEvent = false;
     }
 
+    @Override
     public void removeItem(Object object) {
         ignoreActionEvent = true;
         super.removeItem(object);
         ignoreActionEvent = false;
     }
 
+    @Override
     public void removeItemAt(int i) {
         ignoreActionEvent = true;
         super.removeItemAt(i);
         ignoreActionEvent = false;
     }
 
+    @Override
     public void removeAllItems() {
         ignoreActionEvent = true;
         super.removeAllItems();

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ import com.mucommander.file.AbstractFile;
 import com.mucommander.file.FileFactory;
 import com.mucommander.file.FileLogger;
 import com.mucommander.file.impl.local.LocalFile;
-import com.mucommander.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -146,17 +145,17 @@ public class ResourceLoader {
         if(separator.equals("/"))
             nativePath = path;
         else
-            nativePath = StringUtils.replaceCompat(path, "/", separator);
+            nativePath = path.replace("/", separator);
 
         try {
             // Iterate through all resources that match the given path, and return the one located inside the
             // given root package file.
-            Enumeration resourceEnum = classLoader.getResources(path);
+            Enumeration<URL> resourceEnum = classLoader.getResources(path);
             String rootPackagePath = rootPackageFile.getAbsolutePath();
             String resourcePath = rootPackageFile.getAbsolutePath(true)+nativePath;
             URL resourceURL;
             while(resourceEnum.hasMoreElements()) {
-                resourceURL = (URL)resourceEnum.nextElement();
+                resourceURL = resourceEnum.nextElement();
 
                 if("jar".equals(resourceURL.getProtocol())) {
                     if(getJarFilePath(resourceURL).equals(rootPackagePath))
@@ -344,7 +343,7 @@ public class ResourceLoader {
      * @param aClass the class for which to locate the root package.
      * @return an AbstractFile to the root package of the given <code>Class</code>
      */
-    public static AbstractFile getRootPackageAsFile(Class aClass) {
+    public static AbstractFile getRootPackageAsFile(Class<?> aClass) {
         ClassLoader classLoader = aClass.getClassLoader();
         if(classLoader==null)
             classLoader = getDefaultClassLoader();
@@ -382,7 +381,7 @@ public class ResourceLoader {
      * @param cclass the class for which to return a path
      * @return a path to the given package
      */
-    public static String getRelativeClassPath(Class cclass) {
+    public static String getRelativeClassPath(Class<?> cclass) {
         return cclass.getName().replace('.', '/')+".class";
     }
 
@@ -463,7 +462,7 @@ public class ResourceLoader {
         // Use the local file separator
         String separator = LocalFile.SEPARATOR;
         if(!"/".equals(separator))
-            path = StringUtils.replaceCompat(path, "/", separator);
+            path = path.replace("/", separator);
 
         return path;
     }

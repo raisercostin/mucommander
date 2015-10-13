@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 
 package com.mucommander.ui.dialog.file;
 
+import com.mucommander.file.AbstractArchiveEntryFile;
 import com.mucommander.file.AbstractArchiveFile;
 import com.mucommander.file.AbstractFile;
-import com.mucommander.file.ArchiveEntryFile;
+import com.mucommander.file.ArchiveEntry;
 import com.mucommander.file.util.FileSet;
 import com.mucommander.file.util.PathUtils;
 import com.mucommander.job.CopyJob;
@@ -63,6 +64,7 @@ public class CopyDialog extends AbstractCopyDialog {
     // TransferDestinationDialog implementation //
     //////////////////////////////////////////////
 
+    @Override
     protected TransferFileJob createTransferFileJob(ProgressDialog progressDialog, PathUtils.ResolvedDestination resolvedDest, int defaultFileExistsAction) {
         AbstractFile baseFolder = files.getBaseFolder();
         AbstractArchiveFile parentArchiveFile = baseFolder.getParentArchive();
@@ -74,9 +76,9 @@ public class CopyDialog extends AbstractCopyDialog {
         if(parentArchiveFile!=null) {
             // Add all selected archive entries to a vector
             int nbFiles = files.size();
-            Vector selectedEntries = new Vector();
+            Vector<ArchiveEntry> selectedEntries = new Vector<ArchiveEntry>();
             for(int i=0; i<nbFiles; i++) {
-                selectedEntries.add((files.fileAt(i).getAncestor(ArchiveEntryFile.class).getUnderlyingFileObject()));
+                selectedEntries.add((ArchiveEntry)files.elementAt(i).getAncestor(AbstractArchiveEntryFile.class).getUnderlyingFileObject());
             }
 
             job = new UnpackJob(
@@ -104,6 +106,7 @@ public class CopyDialog extends AbstractCopyDialog {
         return job;
     }
 
+    @Override
     protected String getProgressDialogTitle() {
         return Translator.get("copy_dialog.copying");
     }

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -125,11 +125,13 @@ public class XmlConfigurationReader extends DefaultHandler implements Configurat
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void characters(char[] ch, int start, int length) {buffer.append(ch, start, length);}
 
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         depth++;
         if(depth == 1)
@@ -147,6 +149,7 @@ public class XmlConfigurationReader extends DefaultHandler implements Configurat
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         depth--;
         if(depth == 0)
@@ -178,6 +181,7 @@ public class XmlConfigurationReader extends DefaultHandler implements Configurat
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void startDocument() throws SAXException {
         try {builder.startConfiguration();}
         catch(Exception e) {throw new SAXParseException(e.getMessage(), locator, e);}
@@ -186,6 +190,7 @@ public class XmlConfigurationReader extends DefaultHandler implements Configurat
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void endDocument() throws SAXException {
         try {builder.endConfiguration();}
         catch(Exception e) {throw new SAXParseException(e.getMessage(), locator, e);}
@@ -194,5 +199,6 @@ public class XmlConfigurationReader extends DefaultHandler implements Configurat
     /**
      * This method is public as an implementation side effect and should never be called directly.
      */
+    @Override
     public void setDocumentLocator(Locator locator) {this.locator = locator;}
 }

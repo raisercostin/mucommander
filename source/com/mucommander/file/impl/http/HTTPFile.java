@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package com.mucommander.file.impl.http;
 import com.mucommander.auth.AuthException;
 import com.mucommander.auth.Credentials;
 import com.mucommander.file.*;
-import com.mucommander.file.util.PathTokenizer;
 import com.mucommander.io.BlockRandomInputStream;
 import com.mucommander.io.RandomAccessInputStream;
 import com.mucommander.io.RandomAccessOutputStream;
@@ -112,11 +111,11 @@ public class HTTPFile extends ProtocolFile {
 
     protected HTTPFile(FileURL fileURL) throws IOException {
         // TODO: optimize this
-        this(fileURL, new URL(fileURL.toString(false)), fileURL.toString(false));
+        this(fileURL, new URL(fileURL.toString(false)));
     }
 
 	
-    protected HTTPFile(FileURL fileURL, URL url, String absPath) throws IOException {
+    protected HTTPFile(FileURL fileURL, URL url) throws IOException {
         super(fileURL);
 
         String scheme = fileURL.getScheme().toLowerCase();
@@ -125,22 +124,16 @@ public class HTTPFile extends ProtocolFile {
 
         this.url = url;
 
-//        // Determine file name (URL-decoded)
-//        this.name = fileURL.getFilename(true);
-//        // Name may contain '/' or '\' characters once decoded, let's remove them
-//        if(name!=null) {
-//            name = name.replace('/', ' ');
-//            name = name.replace('\\', ' ');
-//        }
-
-        attributes = getDefaultAttributes(absPath);
+        attributes = getDefaultAttributes();
 
         String mimeType;
-        // Test if based on the URL, the file looks like an HTML file :
-        //  - URL contains no path after hostname (e.g. http://google.com)
-        //  - URL points to dynamic content (e.g. http://lulu.superblog.com?param=hola&val=...), even though dynamic scripts do not always return HTML/XHTML
-        //  - No filename with a known mime type can be extracted from the last part of the URL (e.g. NOT http://mucommander.com/download/mucommander-0_7.tgz)
-        if(fileURL.getPath().equals("/")  || fileURL.getQuery()!=null || ((mimeType=MimeTypes.getMimeType(this))==null || isParsableMimeType(mimeType))) {
+        String filename = fileURL.getFilename();
+        // Simple/fuzzy heuristic to avoid file resolution (HEAD) in cases where we have good reasons to believe that
+        // the URL denotes a HTML/XTHML document:
+        //  - URL's path has no filename (e.g. http://www.mucommander.com/) or path ends with '/' (e.g. http://www.mucommander.com/download/)
+        //  - URL has a query part (works most of the time, must not always)
+        //  - URL has an extension that registered with an HTML/XHTML mime type
+        if((filename==null || fileURL.getPath().endsWith("/") || fileURL.getQuery()!=null || ((mimeType=MimeTypes.getMimeType(this))!=null && isParsableMimeType(mimeType)))) {
             attributes.setDirectory(true);
             resolve = false;
         }
@@ -150,14 +143,14 @@ public class HTTPFile extends ProtocolFile {
     }
 
 
-    private SimpleFileAttributes getDefaultAttributes(String absPath) {
-        attributes = new SimpleFileAttributes();
-        attributes.setPath(absPath);
+    private static SimpleFileAttributes getDefaultAttributes() {
+        SimpleFileAttributes attributes = new SimpleFileAttributes();
         attributes.setDate(System.currentTimeMillis());
         attributes.setSize(-1); // Unknown
         attributes.setPermissions(PERMISSIONS);
         // exist = false
         // isDirectory = false
+        // path = null (unused)
 
         return attributes;
     }
@@ -295,40 +288,39 @@ public class HTTPFile extends ProtocolFile {
     // AbstractFile methods implementation //
     /////////////////////////////////////////
 	
+    @Override
     public long getDate() {
         checkResolveFile();
 
         return attributes.getDate();
     }
 
-    public boolean canChangeDate() {
-        // File is read-only, return false
-        return false;
-    }
-
-    public boolean changeDate(long date) {
-        // File is read-only, return false
-        return false;
+    /**
+     * Implementation notes: always throws {@link UnsupportedFileOperationException}.
+     *
+     * @throws UnsupportedFileOperationException always.
+     */
+    @Override
+    @UnsupportedFileOperation
+    public void changeDate(long date) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);
     }
 	
+    @Override
     public long getSize() {
         checkResolveFile();
 
         return attributes.getSize();	// Size == -1 if not known
     }
 	
+    @Override
     public AbstractFile getParent() {
         if(!parentValSet) {
             FileURL parentURL = fileURL.getParent();
             if(parentURL==null)
                 this.parent = null;
             else {
-                try {
-                    this.parent = new HTTPFile(parentURL);
-                }
-                catch(IOException e) {
-                    // No parent, that's all
-                }
+                this.parent = FileFactory.getFile(parentURL);
             }
             this.parentValSet = true;
         }
@@ -337,11 +329,13 @@ public class HTTPFile extends ProtocolFile {
     }
 	
 
+    @Override
     public void setParent(AbstractFile parent) {
         this.parent = parent;
         this.parentValSet = true;
     }
 
+    @Override
     public boolean exists() {
         if(!fileResolved) {
             // Note: file will only be resolved once, even if the request failed
@@ -352,44 +346,55 @@ public class HTTPFile extends ProtocolFile {
         return attributes.exists();
     }
 
+    @Override
     public FilePermissions getPermissions() {
         return attributes.getPermissions();
     }
 
+    @Override
     public PermissionBits getChangeablePermissions() {
         return PermissionBits.EMPTY_PERMISSION_BITS;
     }
 
-    public boolean changePermission(int access, int permission, boolean enabled) {
-        return false;
+    @Override
+    @UnsupportedFileOperation
+    public void changePermission(int access, int permission, boolean enabled) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);
     }
 
+    @Override
     public String getOwner() {
         return null;
     }
 
+    @Override
     public boolean canGetOwner() {
         return false;
     }
 
+    @Override
     public String getGroup() {
         return null;
     }
 
+    @Override
     public boolean canGetGroup() {
         return false;
     }
 
+    @Override
     public boolean isDirectory() {
         checkResolveFile();
 
         return attributes.isDirectory();
     }
 	
+    @Override
     public boolean isSymlink() {
         return false;
     }
 
+    @Override
     public InputStream getInputStream() throws IOException {
         HttpURLConnection conn = getHttpURLConnection(this.url);
 
@@ -403,65 +408,118 @@ public class HTTPFile extends ProtocolFile {
     }
 
     /**
-     * Not available, always throws an <code>IOException</code>.
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public OutputStream getOutputStream(boolean append) throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.WRITE_FILE);
     }
 
-    public boolean hasRandomAccessInputStream() {
-        return true;
+    /**
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getAppendOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.APPEND_FILE);
     }
 
+    @Override
     public RandomAccessInputStream getRandomAccessInputStream() throws IOException {
         return new HTTPRandomAccessInputStream();
     }
 
-    public boolean hasRandomAccessOutputStream() {
-        return false;
-    }
-
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {
-        throw new IOException();
+    /**
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RANDOM_WRITE_FILE);
     }
 
     /**
-     * Not available, always throws an <code>IOException</code>.
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public void delete() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public void delete() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.DELETE);
     }
 
     /**
-     * Not available, always throws an <code>IOException</code>.
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
      */
-    public void mkdir() throws IOException {
-        throw new IOException();
+    @Override
+    @UnsupportedFileOperation
+    public void copyRemotelyTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.COPY_REMOTELY);
     }
 
     /**
-     * Not available, always returns <code>-1</code>.
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public long getFreeSpace() {
-        // This information is obviously not available over HTTP, return -1
-        return -1;
+    @Override
+    @UnsupportedFileOperation
+    public void renameTo(AbstractFile destFile) throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.RENAME);
     }
 
     /**
-     * Not available, always returns <code>-1</code>.
+     * Always throws an {@link UnsupportedFileOperationException}: HTTP files are read-only.
+     *
+     * @throws UnsupportedFileOperationException always
      */
-    public long getTotalSpace() {
-        // This information is obviously not available over HTTP, return -1
-        return -1;
-    }	
-	
+    @Override
+    @UnsupportedFileOperation
+    public void mkdir() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.CREATE_DIRECTORY);
+    }
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getFreeSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_FREE_SPACE);
+    }
+
+    /**
+     * Always throws {@link UnsupportedFileOperationException} when called.
+     *
+     * @throws UnsupportedFileOperationException, always
+     */
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {
+        throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);
+    }
+
     /**
      * Returns a <code>java.net.URL</code> instance corresponding to this file.
      */
+    @Override
     public Object getUnderlyingFileObject() {
         return url;
     }
 
+    @Override
     public AbstractFile[] ls() throws IOException {
         // Implementation note: javax.swing.text.html.HTMLEditorKit isn't quite powerful enough to be used
 
@@ -526,10 +584,9 @@ public class HTTPFile extends ProtocolFile {
 
             br = new BufferedReader(ir);
 
-            Vector children = new Vector();
+            Vector<AbstractFile> children = new Vector<AbstractFile>();
             // List that contains children URL, a TreeSet for fast (log(n)) search operations
-            TreeSet childrenURL = new TreeSet();
-            HTTPFile child;
+            TreeSet<String> childrenURL = new TreeSet<String>();
             URL childURL;
             FileURL childFileURL;
             Credentials credentials = fileURL.getCredentials();
@@ -565,34 +622,16 @@ public class HTTPFile extends ProtocolFile {
                             FileLogger.finest("creating child "+link+" context="+contextURL);
                             childURL = new URL(contextURL, link);
 
-                            // Extract the filename from the child URL
-                            PathTokenizer pt = new PathTokenizer(childURL.getPath(), "/", false);
-                            String filename = null;
-                            while(pt.hasMoreFilenames())
-                                filename = pt.nextFilename();
-
-                            // If filename is null (For example if path is '/'), use host instead
-                            if(filename==null)
-                                filename = url.getHost();
-
                             // Create the child FileURL instance
                             childFileURL = FileURL.getFileURL(childURL.toExternalForm());
                             // Keep the parent's credentials (HTTP basic authentication), only if the host is the same.
-                            // It would otherwise constitue a security issue.
+                            // It would otherwise be unsafe.
                             if(parentHost.equals(childFileURL.getHost()))
                                 childFileURL.setCredentials(credentials);
 
-                            // Important note: URL and absolute path may differ. If for instance,
-                            // http://mucommander.com contains a link to http://java.com, the child file's
-                            // absolute path will be http://mucommander.com/java.com whereas its URL (and canonical path)
-                            // will be http://java.com .
-                            // This is done to ensure that every children listed have this file as a parent.
-                            tempChildURL.setPath(parentPath+filename);
-                            child = new HTTPFile(childFileURL, childURL, tempChildURL.toString());
+                            // TODO: resolve file here instead of in the constructor, and multiplex requests just like a browser
 
-                            FileLogger.finest("childFileURL="+child.getURL()+" absPath="+child.getAbsolutePath()+" parent="+child.getParent());
-
-                            children.add(FileFactory.wrapArchive(child));
+                            children.add(FileFactory.getFile(childFileURL, null, childURL, childURL.toString()));
                             childrenURL.add(link);
                         }
                         catch(IOException e) {
@@ -632,18 +671,12 @@ public class HTTPFile extends ProtocolFile {
     // Overridden methods //
     ////////////////////////
 
-    public String getAbsolutePath() {
-        return attributes.getPath();
-    }
-
-    public String getCanonicalPath() {
-        return url.toExternalForm();
-    }
-
+    @Override
     public boolean isHidden() {
         return false;
     }
 
+    @Override
     public String getName() {
         try {return java.net.URLDecoder.decode(super.getName(), "utf-8");}
         catch(Exception e) {return super.getName();}
@@ -653,6 +686,7 @@ public class HTTPFile extends ProtocolFile {
      * Overrides AbstractFile's getInputStream(long) method to provide a more efficient implementation:
      * use the HTTP 1.1 header to start the transfer at the given offset.
      */
+    @Override
     public InputStream getInputStream(long offset) throws IOException {
         HttpURLConnection conn = getHttpURLConnection(this.url);
 
@@ -704,6 +738,7 @@ public class HTTPFile extends ProtocolFile {
         // BlockRandomInputStream implementation //
         ///////////////////////////////////////////
 
+        @Override
         protected int readBlock(long fileOffset, byte block[], int blockLen) throws IOException {
             HttpURLConnection conn = getHttpURLConnection(url);
 
@@ -714,9 +749,8 @@ public class HTTPFile extends ProtocolFile {
             checkHTTPResponse(conn);
 
             // Read up to blockLen bytes
-            InputStream in = null;
+            InputStream in = conn.getInputStream();
             try {
-                in = conn.getInputStream();
                 int totalRead = 0;
                 int read;
                 while(totalRead<blockLen) {
@@ -730,8 +764,7 @@ public class HTTPFile extends ProtocolFile {
                 return totalRead;
             }
             finally {
-                if(in!=null)
-                    in.close();
+                in.close();
             }
         }
 
@@ -739,6 +772,7 @@ public class HTTPFile extends ProtocolFile {
             return length;
         }
 
+        @Override
         public void close() throws IOException {
             // No-op, the underlying stream is already closed
         }

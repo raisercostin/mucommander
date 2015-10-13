@@ -1,37 +1,92 @@
-           _____                           _        
+
+           _____                           _
  _____ _ _|     |___ _____ _____ ___ ___ _| |___ ___
 |     | | |   --| . |     |     | .'|   | . | -_|  _|
 |_|_|_|___|_____|___|_|_|_|_|_|_|__,|_|_|___|___|_| 
 
 
-----------------------------
-muCommander v0.8.4 (nightly)
-----------------------------
+------------------
+muCommander v0.8.5
+------------------
 
-muCommander is a cross-platform file manager featuring a Norton Commander
-style interface and running on any operating system with Java support
-(Mac OS X, Windows, Linux, *BSD, Solaris...).
+muCommander is a lightweight, cross-platform file manager with a dual-pane
+interface. It runs on any operating system with Java support (Mac OS X,
+Windows, Linux, *BSD, Solaris...).
 
-Please use the muCommander forums (http://www.mucommander.com/forums)
-to post your questions, suggestions or bug reports.
-Your feedback is important and always welcome!
+Documentation can be found at http://trac.mucommander.com/ .
+Please visit the muCommander forums (http://www.mucommander.com/forums) to ask
+questions, suggest features or report a bug. Your feedback is always welcome!
 
-Official website: http://www.mucommander.com
-Copyright (C) 2002-2009 Maxence Bernard.
+Official website: http://www.mucommander.com .
+Copyright (C) 2002-2010 Maxence Bernard.
 
 
 Requirements
 ------------
 
-Java Runtime Environment 1.4.0 (JRE) or later is required to run
-muCommander. JRE 1.6 is recommended, you can download it at http://java.com.
+A Java Runtime Environment (JRE) 1.5 or later is required to run muCommander.
+Java 1.6 is recommended, you can download it at http://java.com.
 
 Mac OS X users: your favorite OS already comes with a Java runtime so you're
 good to go!
 
-If you're having problems launching muCommander, make sure the $JAVA_HOME
+If you're having problems launching muCommander, make sure the JAVA_HOME
 environment variable points to the directory where your Java runtime is
 installed.
+
+
+What's new since v0.8.4 ?
+-------------------------
+
+New features:
+- Added support for Amazon S3.
+- Added support for the Hadoop HDFS filesystem.
+
+Improvements:
+- A proper error message is displayed when muCommander is started in a
+  headless environment.
+- Upgraded the commons-net FTP library to version 2.0 for increased
+  server compatibility.
+- Actions relying on a file operation that is not supported by the current
+  folder's filesystem are now disabled contextually.
+- Optimized the opening speed of Zip files.
+- Mac OS X: updated JavaApplicationStub and Info.plist to enable 64-bit
+  operation on x86_64 architecture.
+- Improved the HTTP filesystem: better HTML/XHTML detection, follows links
+  correctly.
+- Free space indicator now changes color gradually (ticket #311) ; adjusted
+  free space warning threshold.
+- Adjusted the layout of the main window to save some screen estate around the
+  toolbar. Contributed by Radomír Černoch.
+- Lowered memory usage by caching file attributes only when they are in use.
+- Migrated the codebase to Java 1.5 ; Java 1.4 is no longer supported.
+
+Localization:
+- Dutch translation updated with a few corrections.
+
+Bug fixes:
+- "Round displayed file sizes" checkbox does not refresh the panel correctly
+  (ticket #328).
+- Single click on folder panel treated as double click (ticket #321).
+- Fixed 'startup_error' message that wasn't properly localized.
+- Fixed 7zip files left open after being browsed (ticket #334).
+- Mac OS X: raised the maximum memory that can be allocated to 128MB,
+  to cope with directories that contain more than 80K files (ticket #332).
+- Unsafe behavior when deleting a bookmark from the file panel (ticket #329).
+
+Known issues:
+- Some translations may not be up-to-date. Refer to
+  http://trac.mucommander.com/wiki/Translations for more information.
+- Recycle Bin not working on Windows 64-bit (ticket #234).
+- Executable permissions on local files are not properly preserved
+  when running a unix-based OS with Java 1.5.
+- SMB support may not work properly on non multi-language JRE.
+- 'Copy files to clipboard' not working with some applications (files are not
+  pasted).
+- Mac OS X: some keyboard shortcuts may conflict with global system shortcuts.
+- Authentication issues when using several sets of credentials (login/password)
+  for the same server (see ticket #76).
+- Untrusted HTTPS connections are allowed without a warning.
 
 
 License
@@ -45,22 +100,34 @@ muCommander uses the following great third party works :
 - the Ant library released under the Apache License.
  Ant can be found at http://ant.apache.org .
 
+- Apache Commons libraries released under the Apache License.
+ Apache Commons can be found at http://commons.apache.org .
+
+- Apache Hadoop released under the Apache License.
+ Apache Hadoop can be found at http://hadoop.apache.org .
+
+- the Furbelow library released under the GNU LGPL.
+ Furbelow can be found at http://sourceforge.net/projects/furbelow .
+
 - the ICU4J library released under the ICU License.
  the ICU project can be found at http://icu-project.org .
 
-- the J2SSH library released under the GNU LGPL license.
+- the J2SSH library released under the GNU LGPL.
  J2SSH can be found at http://www.sshtools.com .
 
-- the Jakarta Commons Net library released under the Apache License.
- Jarkata Commons Net can be found at http://jakarta.apache.org .
+- the J7Zip library released under the GNU LGPL.
+ J7Zip can be found at http://sourceforge.net/projects/p7zip/ .
 
-- the jCIFS library released under the GNU LGPL license.
+- the jCIFS library released under the GNU LGPL.
  jCIFS can be found at http://jcifs.samba.org .
 
-- the JmDNS library released under the GNU LGPL license.
+- the JetS3t library released under the Apache License.
+ JetS3t can be found at http://jets3t.s3.amazonaws.com/index.html .
+
+- the JmDNS library released under the GNU LGPL.
  JmDNS can be found at http://jmdns.sourceforge.net .
 
-- the JNA library released under the GNU LGPL license.
+- the JNA library released under the GNU LGPL.
  JmDNS can be found at http://jna.dev.java.net .
 
 - the JUnRar library released as Freeware.
@@ -71,9 +138,6 @@ muCommander uses the following great third party works :
 
 - Icons by Mark James released under the Creative Commons Attribution License.
  Mark James can be found at http://famfamfam.com .
-
-- the Furbelow library released under the GNU LGPL license.
-Furbelow can be found at http://sourceforge.net/projects/furbelow .
 
 
 Credits
@@ -128,142 +192,6 @@ Many thanks to all of you who suggested new features, reported bugs, sent warm
 emails or generously donated to the project !
 
 
-What's new since v0.8.3 ?
--------------------------
-
-New features:
-- Added native support for 7z archives.
-- Added a keyboard shortcuts editor. Originally contributed by Johann Schmitz
-  and improved by Arik Hadas (ticket #84).
-- Added a command bar editor.
-- Added a debug console that shows recent log messages.
-- New 'Skip errors' option added to copy/move/unpack/download file operations,
-  allowing file transfer errors to be ignored silently (ticket #231).
-- Files can be selected or marked one block at a time (ticket #116).
-  Default shortcuts are Control+UP/DOWN and Shift+Control+UP/DOWN respectively.
-- New split and combine files functionality.
-
-Improvements:
-- Tar/TGZ and Zip unpacking speed has been improved significantly (ticket #74).
-- Improved RAR compatibility.
-- jCIFS library upgraded to version 1.3.12.
-- SMB domain-based authentication is now supported.
-- Added shortcuts to browse nearby SMB network shares.
-- JNA library upgraded to version 3.2.2.
-- Character encodings can be more easily selected (ticket #15).
-- Added icon mappings for Office 2007 file extensions.
-- 'Mark/Unmark files' is no longer case-sensitive by default.
-- Mac OS X: muCommander can now be interacted with from the Finder (Open with)
-  or by dragging file/folders to the Dock icon (ticket #153).
-- New and improved application icon, contributed by Semyon Filippov.
-- Added a 'New window' item to the system tray menu.
-- Improved support for NRG images ; audio tracks can now be dumped as WAV files.
-  Contributed by Xavier Martin.
-- Improved the toolbar's behavior when the window is too small for all buttons
-  to be displayed (ticket #165). Contributed by LeO.
-- File table's right-click menu now has visibility toggles for all columns
-  instead of just the current one, and one for Auto-Size columns (ticket #226).
-- Leading and trailing toolbar separators are no longer displayed (ticket #166).
-- 'Permanent delete' no longer asks whether symlinks should be followed, they
-  are now silently deleted without being followed (easier and safer).
-- Improvements made to the filename selection algorithm used in
-  Copy/Move/Unpack/Rename destination fields (ticket #167).
-- Added support for KDE 4 (ticket #257).
-- Startup failures are now handled gracefully by displaying a proper message
-  and error details.
-- Local UNIX volumes are now resolved using /proc/mounts (dynamic) rather rather
-  than /etc/fstab (static). Contributed by Kowy (ticket #227).
-- Added the Java runtime version to the 'Version information' section of the
-  'About' dialog (ticket #274).
-- 'mka', 'mkv' and 'divx' files now have proper audio/video icons. Suggested
-  by Tenzer (ticket #279).
-
-Localization:
-- Arabic (AR) translation, contributed by ChArLoK_16.
-
-Bug fixes:
-- Zip entries using '\' as a path separator are now tolerated and handled
-  appropriately (ticket #98).
-- Fixed image viewer not updating the zoom level in the window title
-  (ticket #102). Contributed by Joshua Lebo.
-- Fixed date of Zip entries incorrectly displayed under certain conditions
-  (ticket #107). Contributed by Oliver Burgmaier.
-- Fixed SMB connection issues (ticket #106).
-- Fixed connection issues with FTP servers not supporting the SYST command ;
-  those are now considered as Unix servers (ticket #121).
-- Fixed credentials ignored when setting a remote startup folder (ticket #108).
-- Fixed unconsistent handling of destination when unpacking an archive 
-  (ticket #93).
-- Fixed the display of homonymous volumes in the drive popup button (ticket #138).
-- Swap partitions declared in /etc/fstab are now properly handled (ticket #139).
-  Contributed by Johann Schmitz.
-- Fixed issues with Look & Feel (ticket #145).
-- Fixed slow downs affecting the drive popup button under Windows (ticket #122).
-  Contributed by Alexander Yerenkow. 
-- Fixed an exception occuring in the 'Run dialog' when pressing Enter
-  repeatedly (ticket #212).
-- Fixed an issue with the panel separator being set incorrectly after a resize
-  of the main window (ticket #163).
-- Improved the toolbar's behavior when the window is too small for all buttons
-  to be displayed (ticket #165). Contributed by LeO.
-- Fixed flashing command windows under Windows 95/98/Me (ticket #63).
-- The authentication dialog's login field is now prefilled with the current
-  user's name (ticket #185). Contributed by LeO.
-- Fixed exceptions occurring while copying text to the clipboard from an external
-  application under certain conditions (ticket #164).
-- Added support for forward slash-separated paths on backslash-separated OSes
-  (Windows, OS/2) (ticket #94).
-- Double-click speed system preference is now honoured under GNOME and KDE
-  (ticket #221). Contributed by LeO.
-- Folder auto-refresh can be disabled in the preferences by setting the
-  prefs.auto_refresh.check_period value to -1 (requested in ticket #233).
-- Fixed viewer/editor menus not appearing since Java for Mac OS X 10.5 Update 4
-  (ticket #243).
-- Fixed malfunctioning encoding detection in text viewer/editor (ticket #244).
-- Text viewer/editor no longer treats the Unicode BOM as an editable character
-  (ticket #245).
-- UTF-16 and UTF-32 text files are no longer recognized as binary files
-  (ticket #235).
-- Fixed erratic current file selection when 'Refresh' is called repeatedly
-  (ticket #250).
-- Text editor now preserves Unicode BOMs when saving files (ticket #251).
-- Fixed file selection issues when middle clicking and dragging the mouse
-  (ticket #176).
-- Fixed an issue causing icons not to appear on certain files when using
-  system icons (ticket #225). Fix contributed by LeO.
-- Fixed UI freezes when invoking Copy/Move/Unpack dialogs on a remote
-  filesystem (ticket #12).
-- Fixed 'open natively' opening all files when invoked on a remote filesystem
-  or on archive entries (ticket #147).
-- Fixed auto-refresh not picking changes changes made to a file that was edited
-  (ticket #258).
-- Fixed 'Move to trash' failures under GNOME (ticket #97).
-- Credentials could end up not being saved upon application exit (ticket #173).
-- Fixed connection issues when using a password containing a slash character
-  (ticket #137).
-- Fixed a case where the application would freeze when browsing HTTP shares
-  with the tree view enabled (ticket #266).
-- Fixed quick search issues under Mac OS X Snow Leopard (ticket #309).   
-
-Known issues:
-- Some translations are not up-to-date. Refer to
-  http://trac.mucommander.com/wiki/Translations for more information.
-- Recycle Bin not working on Windows 64-bit (ticket #234).
-- RAR and SFTP support are only available under Java 1.5 or higher.
-- Executable permissions are not preserved properly for local files prior to
-  Java 1.6.
-- SMB support may not work properly on non multi-language JRE.
-- 'Copy files to clipboard' not working with some applications (files are not
-  pasted).
-- Mac OS X: some keyboard shortcuts may conflict with global system shortcuts.
-- Mac OS X: text fields don't work correctly when using a fractionally-scaled
-  font (known Java bug,
-   http://lists.apple.com/archives/Java-dev/2005/May/msg00670.html).
-- Authentication issues when using several sets of credentials (login/password)
-  for the same server (see ticket #76).
-- Untrusted HTTPS connections are allowed without a warning.
-
-
 Command Line Interface
 ----------------------
 
@@ -272,16 +200,12 @@ The following options are available:
  -a FILE, --assoc FILE             Load associations from FILE.
  -b FILE, --bookmarks FILE         Load bookmarks from FILE.
  -c FILE, --configuration FILE     Load configuration from FILE
- -C FILE, --commandbar FILE        Load command bar from FILE
+ -C FILE, --commandbar FILE        Load command bar from FILE.
  -e FOLDER, --extensions FOLDER    Load extensions from FOLDER.
  -f FILE, --commands FILE          Load custom commands from FILE.
  -i, --ignore-warnings             Do not fail on warnings (default).
  -k FILE, --keymap FILE            Load keymap from FILE
- -n, --no-debug                    Disable debug output to stdout
- -d, --debug                       Enable debug output to stdout (default)
  -p FOLDER, --preferences FOLDER   Store configuration files in FOLDER
- --no-splash                       Disable splashscreen on startup
- --splash                          Enable splashscreen on startup (default)
  -S, --silent                      Do not print verbose error messages
  -s FILE, --shell-history FILE     Load shell history from FILE
  -t FILE, --toolbar FILE           Load toolbar from FILE
@@ -306,64 +230,8 @@ Will:
  - load the default directory in the second window's fourth panel
 
 
-Advanced configuration
-----------------------
+Documentation
+-------------
 
-muCommander has some advanced configuration options which cannot (yet) be
-accessed through the GUI.
-After having booted the application for the first time, the following files will
-be created in muCommander's preferences folder:
- - action_keymap.xml (keyboard shortcuts description file).
- - command_bar.xml   (commandbar description file).
- - toolbar.xml       (toolbar description file).
-
-Brave users can edit these XML files and tune muCommander to their own needs.
-Here are a few hints on how to edit these files.
-
-
- - action_keymap.xml
-All customisable actions are listed in that file, using the following format:
-<action class="com.mucommander.ui.action.CopyFilesToClipboardAction"
-        keystroke="control C" alt_keystroke="meta C"/>
-
-It's probably safer not to mess around with the class argument, as this could
-actually remove features from muCommander.
-keystroke and alt_keystroke should be fairly safe explanatory. It's important to
-note, however, that due to Java's capricious nature, the case is important.
-CONTROL C will not be understood, and neither will control c.
-
-
- - command_bar.xml
-This file describes the content of your command bar (the bit will all the
-buttons on the lower part of the window).
-Each item in the file corresponds to a button in the bar. You can edit them, add
-some or remove some.
-
-The syntax is as follows:
-<button action="com.mucommander.ui.action.CopyAction"
-        alt_action="com.mucommander.ui.action.LocalCopyAction"/>
-Where:
- - action is the main action executed by the button
- - alt_action is the action executed by the button when the shift key is held
-   down
-
-For a list of legal actions, please refer to action_keymap.xml
-
-
- - toolbar.xml
-This file controls the content of your toolbar. It works in the same way as
-command_bar.xml, with two notable differences:
-  - you can use a <separator/> element to add a separator in the toolbar
-  - alt_action is not available
-
-
-- commands.xml
-This file controls the various system commands that muCommander can call.
-Documentation on how to customise those commands can be found here:
-http://www.mucommander.com/forums/viewtopic.php?t=420
-
-
-- associations.xml
-This file controls custom command / file associations.
-Documentation on how to customise those associations can be found here:
-http://www.mucommander.com/forums/viewtopic.php?t=634
+Documentation on how to use, customize and extend muCommander is available at:
+http://trac.mucommander.com

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,6 +72,7 @@ public abstract class AbstractCopyDialog extends TransferDestinationDialog {
     // TransferDestinationDialog partial implementation //
     //////////////////////////////////////////////////////
 
+    @Override
     protected PathFieldContent computeInitialPath(FileSet files) {
         String fieldText;     // Text to display in the destination field.
         int    startPosition; // Index of the first selected character in the destination field.
@@ -85,7 +86,7 @@ public abstract class AbstractCopyDialog extends TransferDestinationDialog {
         // and if the file is not a directory that already exists in destination
         // (otherwise folder would be copied into the destination folder)
         if(nbFiles==1) {
-            AbstractFile file = ((AbstractFile)files.elementAt(0));
+            AbstractFile file = files.elementAt(0);
             AbstractFile destFile;
 
             startPosition  = fieldText.length();

@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ import java.util.List;
 public class AbstractIOThreadManager extends Thread {
   
     /** a queue with tasks to execute */
-    protected final List queue = Collections.synchronizedList(new ArrayList());
+    protected final List<Runnable> queue = Collections.synchronizedList(new ArrayList<Runnable>());
 
     /** a thread that executes tasks */
     protected IOThread ioThread;
@@ -66,13 +66,14 @@ public class AbstractIOThreadManager extends Thread {
      */
     public void addTask(Runnable task) {
         queue.add(task);
-        synchronized (ioThread) {
+        synchronized(ioThread) {
             ioThread.notify();
         }
     }
     
 
     
+    @Override
     public void run() {
         while (!interrupted()) {
             synchronized (queue) {

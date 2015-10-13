@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,13 @@
 
 package com.mucommander.ui.layout;
 
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.text.JTextComponent;
-import java.awt.*;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 
 
 /**
@@ -155,6 +159,7 @@ public class XAlignedComponentPanel extends JPanel {
      * Overrides JPanel#requestFocus() method to request focus on the first component
      * and select its contents if it is an instance of JTextComponent.
      */
+    @Override
     public void requestFocus() {
         if(firstComponent ==null)
             super.requestFocus();

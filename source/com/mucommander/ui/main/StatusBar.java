@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 package com.mucommander.ui.main;
 
 import com.mucommander.AppLogger;
+import com.mucommander.cache.FastLRUCache;
 import com.mucommander.cache.LRUCache;
 import com.mucommander.conf.ConfigurationEvent;
 import com.mucommander.conf.ConfigurationListener;
@@ -41,12 +42,15 @@ import com.mucommander.ui.main.table.FileTableModel;
 import com.mucommander.ui.theme.*;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 
 /**
@@ -94,7 +98,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
     /** Caches volume info strings (free/total space) for a while, since this information is expensive to retrieve
      * (I/O bound). This map uses folders' volume path as its key. */
-    private static LRUCache volumeInfoCache = LRUCache.createInstance(VOLUME_INFO_CACHE_CAPACITY);
+    private static LRUCache<String, Long[]> volumeInfoCache = new FastLRUCache<String, Long[]>(VOLUME_INFO_CACHE_CAPACITY);
 	
     /** Icon that is displayed when folder is changing */
     public final static String WAITING_ICON = "waiting.png";
@@ -283,7 +287,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         // Resolve the current folder's volume and use its path as a key for the volume info cache
         final String volumePath = currentFolder.getVolume().getAbsolutePath(true);
 
-        long cachedVolumeInfo[] = (long[])volumeInfoCache.get(volumePath);
+        Long cachedVolumeInfo[] = volumeInfoCache.get(volumePath);
         if(cachedVolumeInfo!=null) {
             AppLogger.finer("Cache hit!");
             volumeSpaceLabel.setVolumeSpace(cachedVolumeInfo[0], cachedVolumeInfo[1]);
@@ -293,29 +297,42 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
             // Perform volume info retrieval in a separate thread as this method may be called
             // by the event thread and it can take a while, we want to return as soon as possible
             new Thread("StatusBar.updateVolumeInfo") {
+                @Override
                 public void run() {
                     // Free space on current volume, -1 if this information is not available 
                     long volumeFree;
                     // Total space on current volume, -1 if this information is not available 
                     long volumeTotal;
 
-                    // Folder is a local file and Java version is 1.5 or lower: call getVolumeInfo() instead of 
+                    // Folder is a local file and Java version is 1.5: call getVolumeInfo() instead of
                     // separate calls to getFreeSpace() and getTotalSpace() as it is twice as fast.
                     if(currentFolder instanceof LocalFile && JavaVersions.JAVA_1_5.isCurrentOrLower()) {
-                        long volumeInfo[] = ((LocalFile)currentFolder).getVolumeInfo();
-                        volumeTotal = volumeInfo[0];
-                        volumeFree = volumeInfo[1];
+                        try {
+                            long volumeInfo[] = ((LocalFile)currentFolder).getVolumeInfo();
+                            volumeTotal = volumeInfo[0];
+                            volumeFree = volumeInfo[1];
+                        }
+                        catch(IOException e) {
+                            volumeTotal = -1;
+                            volumeFree = -1;
+                        }
                     }
                     // Java 1.6 and up or any other file type
                     else {
-                        volumeFree = currentFolder.getFreeSpace();
-                        volumeTotal = currentFolder.getTotalSpace();
+                        try { volumeFree = currentFolder.getFreeSpace(); }
+                        catch(IOException e) { volumeFree = -1; }
+
+                        try { volumeTotal = currentFolder.getTotalSpace(); }
+                        catch(IOException e) { volumeTotal = -1; }
                     }
 
+// For testing the free space indicator 
+//volumeFree = (long)(volumeTotal * Math.random());
+                    
                     volumeSpaceLabel.setVolumeSpace(volumeTotal, volumeFree);
 
                     AppLogger.finer("Adding to cache");
-                    volumeInfoCache.add(volumePath, new long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
+                    volumeInfoCache.add(volumePath, new Long[]{volumeTotal, volumeFree}, VOLUME_INFO_TIME_TO_LIVE);
                 }
             }.start();
         }
@@ -377,6 +394,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
     /**
      * Overrides JComponent.setVisible(boolean) to start/stop volume info auto-update thread.
      */
+    @Override
     public void setVisible(boolean visible) {
         if(visible) {
             // Start auto-update thread
@@ -557,7 +575,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         private Color criticalColor;
 
         private final static float SPACE_WARNING_THRESHOLD = 0.1f;
-        private final static float SPACE_CRITICAL_THRESHOLD = 0.01f;
+        private final static float SPACE_CRITICAL_THRESHOLD = 0.05f;
 
 
         private VolumeSpaceLabel() {
@@ -615,16 +633,29 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         /**
          * Adds some empty space around the label.
          */
+        @Override
         public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
             return new Dimension(d.width+4, d.height+2);
         }
 
-//        public Insets getInsets() {
-//            return new Insets(2, 0, 2, 0);
-//        }
-//
+        /**
+         * Returns an interpolated color value, located at percent between c1 and c2 in the RGB space.
+         *
+         * @param c1 first color
+         * @param c2 end color
+         * @param percent distance between c1 and c2, comprised between 0 and 1.
+         * @return an interpolated color value, located at percent between c1 and c2 in the RGB space.
+         */
+        private Color interpolateColor(Color c1, Color c2, float percent) {
+            return new Color(
+                    (int)(c1.getRed()+(c2.getRed()-c1.getRed())*percent),
+                    (int)(c1.getGreen()+(c2.getGreen()-c1.getGreen())*percent),
+                    (int)(c1.getBlue()+(c2.getBlue()-c1.getBlue())*percent)
+            );
+        }
 
+        @Override
         public void paint(Graphics g) {
 
             // If free or total space is not available, this label will just be painted as a normal JLabel
@@ -635,9 +666,18 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
                 // Paint amount of free volume space if both free and total space are available
                 float freeSpacePercentage = freeSpace/(float)totalSpace;
 
-                g.setColor(freeSpacePercentage<=SPACE_CRITICAL_THRESHOLD?criticalColor
-                           :freeSpacePercentage<=SPACE_WARNING_THRESHOLD?warningColor
-                           :okColor);
+                Color c;
+                if(freeSpacePercentage<=SPACE_CRITICAL_THRESHOLD) {
+                    c = criticalColor;
+                }
+                else if(freeSpacePercentage<=SPACE_WARNING_THRESHOLD) {
+                    c = interpolateColor(warningColor, criticalColor, (SPACE_WARNING_THRESHOLD-freeSpacePercentage)/SPACE_WARNING_THRESHOLD);
+                }
+                else {
+                    c = interpolateColor(okColor, warningColor, (1-freeSpacePercentage)/(1-SPACE_WARNING_THRESHOLD));
+                }
+
+                g.setColor(c);
 
                 int freeSpaceWidth = Math.max(Math.round(freeSpacePercentage*(float)(width-2)), 1);
                 g.fillRect(1, 1, freeSpaceWidth + 1, height - 2);
@@ -649,6 +689,44 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
 
             super.paint(g);
         }
+
+
+// Total/Free space reversed, doesn't look quite right
+
+//        @Override
+//        public void paint(Graphics g) {
+//            // If free or total space is not available, this label will just be painted as a normal JLabel
+//            if(freeSpace!=-1 && totalSpace!=-1) {
+//                int width = getWidth();
+//                int height = getHeight();
+//
+//                // Paint amount of free volume space if both free and total space are available
+//                float freeSpacePercentage = freeSpace/(float)totalSpace;
+//                float usedSpacePercentage = (totalSpace-freeSpace)/(float)totalSpace;
+//
+//                Color c;
+//                if(freeSpacePercentage<=SPACE_CRITICAL_THRESHOLD) {
+//                    c = criticalColor;
+//                }
+//                else if(freeSpacePercentage<=SPACE_WARNING_THRESHOLD) {
+//                    c = interpolateColor(warningColor, criticalColor, (SPACE_WARNING_THRESHOLD-freeSpacePercentage)/SPACE_WARNING_THRESHOLD);
+//                }
+//                else {
+//                    c = interpolateColor(okColor, warningColor, (1-freeSpacePercentage)/(1-SPACE_WARNING_THRESHOLD));
+//                }
+//
+//                g.setColor(c);
+//
+//                int usedSpaceWidth = Math.max(Math.round(usedSpacePercentage*(float)(width-2)), 1);
+//                g.fillRect(1, 1, usedSpaceWidth + 1, height - 2);
+//
+//                // Fill background
+//                g.setColor(backgroundColor);
+//                g.fillRect(usedSpaceWidth + 1, 1, width - usedSpaceWidth - 1, height - 2);
+//            }
+//
+//            super.paint(g);
+//        }
 
         public void fontChanged(FontChangedEvent event) {}
 

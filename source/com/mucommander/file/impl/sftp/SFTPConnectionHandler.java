@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ class SFTPConnectionHandler extends ConnectionHandler {
     // ConnectionHandler implementation //
     //////////////////////////////////////
 
+    @Override
     public void startConnection() throws IOException {
         FileLogger.finer("starting connection to "+realm);
         try {
@@ -94,7 +95,7 @@ class SFTPConnectionHandler extends ConnectionHandler {
             // Retrieve a list of available authentication methods on the server.
             // Some SSH servers support the 'password' auth method (e.g. OpenSSH on Debian unstable), some don't
             // and only support the 'keyboard-interactive' method.
-            List authMethods = sshClient.getAvailableAuthMethods(credentials.getLogin());
+            List<String> authMethods = sshClient.getAvailableAuthMethods(credentials.getLogin());
             if(authMethods==null)   // this can happen
                 throw new IOException();
 
@@ -203,6 +204,7 @@ class SFTPConnectionHandler extends ConnectionHandler {
     }
 
 
+    @Override
     public synchronized boolean isConnected() {
         return sshClient!=null && sshClient.isConnected()
             && sftpClient!=null && !sftpClient.isClosed()
@@ -210,6 +212,7 @@ class SFTPConnectionHandler extends ConnectionHandler {
     }
 
 
+    @Override
     public synchronized void closeConnection() {
         if(sftpClient!=null) {
             try { sftpClient.quit(); }
@@ -226,6 +229,7 @@ class SFTPConnectionHandler extends ConnectionHandler {
     }
 
 
+    @Override
     public void keepAlive() {
         // No-op, keep alive is not available and shouldn't really be necessary, SSH servers such as OpenSSH usually
         // maintain connections open without limit.

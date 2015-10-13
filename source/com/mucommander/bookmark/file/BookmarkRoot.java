@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ class BookmarkRoot extends ProtocolFile implements BookmarkListener {
 
     // - AbstractFile methods --------------------------------------------------
     // -------------------------------------------------------------------------
+    @Override
     public AbstractFile[] ls() throws IOException {
         AbstractFile[] files;
         Object[]       buffer;
@@ -68,8 +69,10 @@ class BookmarkRoot extends ProtocolFile implements BookmarkListener {
         return files;
     }
 
+    @Override
     public String getName() {return "";}
 
+    @Override
     public boolean isDirectory() {return true;}
 
 
@@ -85,6 +88,7 @@ class BookmarkRoot extends ProtocolFile implements BookmarkListener {
      * Returns the date at which the bookmark list was last modified.
      * @return the date at which the bookmark list was last modified.
      */
+    @Override
     public long getDate() {return lastModified;}
 
 
@@ -94,29 +98,67 @@ class BookmarkRoot extends ProtocolFile implements BookmarkListener {
     // The following methods are not used by BookmarkFile. They will throw an exception,
     // return an 'operation non supported' value or return a default value.
 
+    @Override
     public AbstractFile getParent() {return null;}
-    public void delete() throws IOException {throw new IOException();}
-    public boolean canChangeDate() {return false;}
-    public boolean changeDate(long lastModified) {return false;}
+    @Override
+    @UnsupportedFileOperation
+    public void delete() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.DELETE);}
+    @Override
+    @UnsupportedFileOperation
+    public void copyRemotelyTo(AbstractFile destFile) throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.COPY_REMOTELY);}
+    @Override
+    @UnsupportedFileOperation
+    public void renameTo(AbstractFile destFile) throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.RENAME);}
+    @Override
+    @UnsupportedFileOperation
+    public void changeDate(long lastModified) throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.CHANGE_DATE);}
+    @Override
     public long getSize() {return -1;}
+    @Override
     public void setParent(AbstractFile parent) {}
+    @Override
     public boolean exists() {return true;}
+    @Override
     public FilePermissions getPermissions() {return BookmarkFile.PERMISSIONS;}
-    public boolean changePermission(int access, int permission, boolean enabled) {return false;}
+    @Override
+    @UnsupportedFileOperation
+    public void changePermission(int access, int permission, boolean enabled) throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.CHANGE_PERMISSION);}
+    @Override
     public PermissionBits getChangeablePermissions() {return PermissionBits.EMPTY_PERMISSION_BITS;}
+    @Override
     public boolean isSymlink() {return false;}
-    public void mkdir() throws IOException {throw new IOException();}
-    public InputStream getInputStream() throws IOException {throw new IOException();}
-    public OutputStream getOutputStream(boolean append) throws IOException {throw new IOException();}
-    public boolean hasRandomAccessInputStream() {return false;}
-    public RandomAccessInputStream getRandomAccessInputStream() throws IOException {throw new IOException();}
-    public boolean hasRandomAccessOutputStream() {return false;}
-    public RandomAccessOutputStream getRandomAccessOutputStream() throws IOException {throw new IOException();}
-    public long getFreeSpace() {return -1;}
-    public long getTotalSpace() {return -1;}
+    @Override
+    @UnsupportedFileOperation
+    public void mkdir() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.CREATE_DIRECTORY);}
+    @Override
+    @UnsupportedFileOperation
+    public InputStream getInputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.READ_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getOutputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.WRITE_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public OutputStream getAppendOutputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.APPEND_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessInputStream getRandomAccessInputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.RANDOM_READ_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public RandomAccessOutputStream getRandomAccessOutputStream() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.RANDOM_WRITE_FILE);}
+    @Override
+    @UnsupportedFileOperation
+    public long getFreeSpace() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.GET_FREE_SPACE);}
+    @Override
+    @UnsupportedFileOperation
+    public long getTotalSpace() throws UnsupportedFileOperationException {throw new UnsupportedFileOperationException(FileOperation.GET_TOTAL_SPACE);}
+    @Override
     public Object getUnderlyingFileObject() {return null;}
+    @Override
     public String getOwner() {return null;}
+    @Override
     public boolean canGetOwner() {return false;}
+    @Override
     public String getGroup() {return null;}
+    @Override
     public boolean canGetGroup() {return false;}
 }

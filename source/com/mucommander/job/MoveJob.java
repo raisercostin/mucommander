@@ -1,6 +1,6 @@
 /*
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,8 @@
 package com.mucommander.job;
 
 import com.mucommander.AppLogger;
-import com.mucommander.file.AbstractArchiveFile;
-import com.mucommander.file.AbstractFile;
-import com.mucommander.file.AbstractRWArchiveFile;
-import com.mucommander.file.FileFactory;
+import com.mucommander.file.*;
 import com.mucommander.file.util.FileSet;
-import com.mucommander.io.FileTransferException;
 import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.MainFrame;
@@ -75,6 +71,7 @@ public class MoveJob extends AbstractCopyJob {
      * 
      * @return <code>true</code> if the file has been moved completly (copied + deleted).
      */
+    @Override
     protected boolean processFile(AbstractFile file, Object recurseParams) {
         // Stop if interrupted
         if(getState()==INTERRUPTED)
@@ -123,35 +120,31 @@ public class MoveJob extends AbstractCopyJob {
         if (destFile == null)
             return false;
 
-        // First, let's try to move/rename the file using AbstractFile#moveTo() if it is more efficient than moving
-        // the file manually. Do not attempt to rename the file if the destination must be appended.
-        if(!append) {
-            int moveToHint = file.getMoveToHint(destFile);
-            if(moveToHint==AbstractFile.SHOULD_HINT || moveToHint==AbstractFile.MUST_HINT) {
-                do {
-                    try {
-                        if(file.moveTo(destFile))
-                            return true;
-                        break;
-                    }
-                    catch(FileTransferException e) {
-                        int ret = showErrorDialog(errorDialogTitle, Translator.get("error_while_transferring", file.getAbsolutePath()));
-                        // Retry loops
-                        if(ret==RETRY_ACTION)
-                            continue;
-                        // Cancel, skip or close dialog returns false
-                        return false;
-                    }
-                }
-                while(true);
+        // Let's try to rename the file using AbstractFile#renameTo() whenever possible, as it is more efficient
+        // than moving the file manually.
+        //
+        // Do not attempt to rename the file in the following cases:
+        // - destination has to be appended
+        // - file schemes do not match (at the time of writing, no filesystem supports mixed scheme renaming)
+        // - if the 'rename' operation is not supported
+        // Note: we want to avoid calling AbstractFile#renameTo when we know it will fail, as it performs some costly
+        // I/O bound checks and ends up throwing an exception which also comes at a cost.
+        if(!append && file.getURL().schemeEquals(destFile.getURL()) && file.isFileOperationSupported(FileOperation.RENAME)) {
+            try {
+                file.renameTo(destFile);
+                return true;
+            }
+            catch(IOException e) {
+                // Fail silently: renameTo might fail under normal conditions, for instance for local files which are
+                // not located on the same volume.
+                AppLogger.fine("Failed to rename "+file+" into "+destFile+" (not necessarily an error)", e);
             }
         }
-        // That didn't work, let's copy the file to the destination and then delete the source file
+        // Rename couldn't be used or didn't succeed: move the file manually
 
-        // Move directory recursively
+        // Move the directory and all its children recursively, by copying files to the destination and then deleting them.
         if(file.isDirectory()) {
-
-            // creates the folder in the destination folder if it doesn't exist
+            // create the destination folder if it doesn't exist
             if(!(destFile.exists() && destFile.isDirectory())) {
                 do {		// Loop for retry
                     try {
@@ -174,19 +167,27 @@ public class MoveJob extends AbstractCopyJob {
                 try {
                     AbstractFile subFiles[] = file.ls();
                     boolean isFolderEmpty = true;
-                    for(int i=0; i<subFiles.length; i++) {
+                    for (AbstractFile subFile : subFiles) {
                         // Return now if the job was interrupted, so that we do not attempt to delete this folder
-                        if(getState()==INTERRUPTED)
+                        if (getState() == INTERRUPTED)
                             return false;
 
                         // Notify job that we're starting to process this file (needed for recursive calls to processFile)
-                        nextFile(subFiles[i]);
-                        if(!processFile(subFiles[i], destFile))
+                        nextFile(subFile);
+                        if (!processFile(subFile, destFile))
                             isFolderEmpty = false;
                     }
 
                     // Only when finished with folder, set destination folder's date to match the original folder one
-                    destFile.changeDate(file.getDate());
+                    if(destFile.isFileOperationSupported(FileOperation.CHANGE_DATE)) {
+                        try {
+                            destFile.changeDate(file.getDate());
+                        }
+                        catch (IOException e) {
+                            AppLogger.fine("failed to change the date of "+destFile, e);
+                            // Fail silently
+                        }
+                    }
 
                     // If one file failed to be moved, return false (failure) since this folder could not be moved totally
                     if(!isFolderEmpty)
@@ -224,11 +225,11 @@ public class MoveJob extends AbstractCopyJob {
                 }
             } while(true);
         }
-        // File is a regular file, move it
+        // File is a regular file, move it by copying it to the destination and then deleting it
         else  {
 
-            // if moveTo() returned false or if it wasn't possible to this method because of 'append',
-            // try the hard way by copying the file first, and then deleting the source file
+            // if renameTo() was not supported or failed, or if it wasn't possible because of 'append',
+            // try the hard way by copying the file first, and then deleting the source file.
             if(tryCopyFile(file, destFile, append, errorDialogTitle) && getState()!=INTERRUPTED) {
                 // Delete the source file
                 do {		// Loop for retry
@@ -255,6 +256,7 @@ public class MoveJob extends AbstractCopyJob {
     }
 
     // This job modifies baseDestFolder and its subfolders
+    @Override
     protected boolean hasFolderChanged(AbstractFile folder) {
         return (getBaseSourceFolder()!=null && getBaseSourceFolder().isParentOf(folder)) || baseDestFolder.isParentOf(folder);
     }
@@ -264,6 +266,7 @@ public class MoveJob extends AbstractCopyJob {
     // Overridden methods //
     ////////////////////////
 
+    @Override
     protected void jobCompleted() {
         super.jobCompleted();
 
@@ -281,13 +284,14 @@ public class MoveJob extends AbstractCopyJob {
 
         // If this job correponds to a file renaming in the same directory, select the renamed file
         // in the active table after this job has finished (and hasn't been cancelled)
-        if(files.size()==1 && newName!=null && baseDestFolder.equalsCanonical(files.fileAt(0).getParent())) {
+        if(files.size()==1 && newName!=null && baseDestFolder.equalsCanonical(files.elementAt(0).getParent())) {
             // Resolve new file instance now that it exists: some remote files do not immediately update file attributes
             // after creation, we need to get an instance that reflects the newly created file attributes
             selectFileWhenFinished(FileFactory.getFile(baseDestFolder.getAbsolutePath(true)+newName));
         }
     }
 
+    @Override
     public String getStatusString() {
         if(isCheckingIntegrity())
             return super.getStatusString();

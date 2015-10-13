@@ -1,6 +1,6 @@
 /**
  * This file is part of muCommander, http://www.mucommander.com
- * Copyright (C) 2002-2009 Maxence Bernard
+ * Copyright (C) 2002-2010 Maxence Bernard
  *
  * muCommander is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -290,12 +290,12 @@ public class XmlWriter {
 
         // Writes attributes, if any.
         if(attributes != null) {
-            Iterator names;
-            String   attName;
+            Iterator<String> names;
+            String           attName;
 
             names = attributes.names();
             while(names.hasNext()) {
-                attName = (String)names.next();
+                attName = names.next();
                 out.print(' ');
                 out.print(attName);
                 out.print("=\"");
