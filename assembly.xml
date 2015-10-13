@@ -5,6 +5,7 @@
 	<id>jar-release</id>
 	<formats>
 		<format>jar</format>
+		<format>tar.gz</format>
 	</formats>
  	<includeBaseDirectory>false</includeBaseDirectory>
 <!--	<fileSets>

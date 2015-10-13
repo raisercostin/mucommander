@@ -38,7 +38,7 @@ public class MakeDirectoryFileJobTest {
         //The third parameter
         FileSet fileSet = new FileSet();
 
-        makeDirectoryFileJob = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet, -1);
+        makeDirectoryFileJob = new MakeDirectoryFileJob(progressDialog, mainFrame, fileSet, -1, false);
     }
     @Test
     public void testProcessFile() {
