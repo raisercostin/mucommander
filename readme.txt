@@ -5,20 +5,20 @@
 |_|_|_|___|_____|___|_|_|_|_|_|_|__,|_|_|___|___|_| 
 
 
-------------------
-muCommander v0.8.5
-------------------
+----------------
+muCommander v0.9
+----------------
 
-muCommander is a lightweight, cross-platform file manager with a dual-pane
-interface. It runs on any operating system with Java support (Mac OS X,
-Windows, Linux, *BSD, Solaris...).
+muCommander is a lightweight, cross-platform file manager with a dual-pane interface.
+It runs on any operating system with Java support (Mac OS X, Windows, Linux, *BSD, Solaris...).
 
 Documentation can be found at http://trac.mucommander.com/ .
-Please visit the muCommander forums (http://www.mucommander.com/forums) to ask
-questions, suggest features or report a bug. Your feedback is always welcome!
 
-Official website: http://www.mucommander.com .
-Copyright (C) 2002-2010 Maxence Bernard.
+Please visit the muCommander forums (http://www.mucommander.com/forums) to ask questions, suggest features or
+report a bug. Your feedback is always welcome!
+
+Official website: http://www.mucommander.com
+Copyright (C) 2002-2012 Maxence Bernard.
 
 
 Requirements
@@ -27,67 +27,81 @@ Requirements
 A Java Runtime Environment (JRE) 1.5 or later is required to run muCommander.
 Java 1.6 is recommended, you can download it at http://java.com.
 
-Mac OS X users: your favorite OS already comes with a Java runtime so you're
-good to go!
+Mac OS X users: your favorite OS already comes with a Java runtime so you're good to go!
 
-If you're having problems launching muCommander, make sure the JAVA_HOME
-environment variable points to the directory where your Java runtime is
-installed.
+If you're having problems launching muCommander, make sure the JAVA_HOME environment variable points to the directory
+where your Java runtime is installed.
 
 
-What's new since v0.8.4 ?
+What's new since v0.8.5 ?
 -------------------------
 
 New features:
-- Added support for Amazon S3.
-- Added support for the Hadoop HDFS filesystem.
+- Tabbed browsing support (ticket #185).
+- Added support for Xfce desktop environment (ticket #394).
+- Text viewer and editor can now display line numbers.
+- New quick list for root folders, mapped onto Alt+5 by default (ticket #400).
 
 Improvements:
-- A proper error message is displayed when muCommander is started in a
-  headless environment.
-- Upgraded the commons-net FTP library to version 2.0 for increased
-  server compatibility.
-- Actions relying on a file operation that is not supported by the current
-  folder's filesystem are now disabled contextually.
-- Optimized the opening speed of Zip files.
-- Mac OS X: updated JavaApplicationStub and Info.plist to enable 64-bit
-  operation on x86_64 architecture.
-- Improved the HTTP filesystem: better HTML/XHTML detection, follows links
-  correctly.
-- Free space indicator now changes color gradually (ticket #311) ; adjusted
-  free space warning threshold.
-- Adjusted the layout of the main window to save some screen estate around the
-  toolbar. Contributed by Radomír Černoch.
-- Lowered memory usage by caching file attributes only when they are in use.
-- Migrated the codebase to Java 1.5 ; Java 1.4 is no longer supported.
+- Natural file ordering, suggested by 'andraaspar' in the forums. All symbols now come before digits (ticket #282).
+- Improved the display of filenames when they are not entirely visible, by removing characters in the middle so that
+  both ends of the filename are visible.
+- Current folder is now automatically changed to a workable folder when it is no longer available (ticket #333).
+- Upgraded the JmDNS library (used for Bonjour support) to version 3.1.
+- Upgraded the jCIFS library (used for SMB support) to version 1.3.14.
+- Better RAR archive support (ticket #152).
+- Text viewer and editor can now wrap long lines (ticket #101).
+- The bookmarks quick list is now displayed unsorted (ticket #416).
+- Changed the quick search mechanism in quick lists to match the one used in the folder pane (ticket #171).
+- Added an option to change the font size in the text file editor/viewer by pressing Ctrl while rotating the mouse wheel
+  (ticket #409).
+- Application state is now persisted on shutdown in a dedicated snapshot.xml file, instead of being stored along with
+  preferences in preferences.xml (see http://trac.mucommander.com/wiki/StatePersistence).
+- Changed the color of hidden files to be different from regular files (ticket #262).
+- Changed the default keyboard shortcuts of the 'open in both panels', 'open in other panel', 'recall next window' and
+  'recall previous window' actions, to make room for the new tab-related shortcuts.
+- File editor/viewer is now getting the focus when initiated (ticket #92).
+- Comic Book Archive files (cbr, cbz, cb7, cbt) are now recognized as archives (#454).
 
 Localization:
-- Dutch translation updated with a few corrections.
+- New: Turkish translation, contributed by Emre Aytaç
+- New: Catalan translation, contributed by Jordi Plantalech
+- New: Belarusian translation, contributed by vboo.
+- New: Norwegian translation, contributed by Ingrid Amundsen.
+- Russian translation updated. Update contributed by Alexey Sirotov and Evgeny Morozov.
+- Ukrainian translation updated. Update contributed by Oleksandr Kovalchuk.
+- Spanish translation updated. Update contributed by Xavi Miró.
 
 Bug fixes:
-- "Round displayed file sizes" checkbox does not refresh the panel correctly
-  (ticket #328).
-- Single click on folder panel treated as double click (ticket #321).
-- Fixed 'startup_error' message that wasn't properly localized.
-- Fixed 7zip files left open after being browsed (ticket #334).
-- Mac OS X: raised the maximum memory that can be allocated to 128MB,
-  to cope with directories that contain more than 80K files (ticket #332).
-- Unsafe behavior when deleting a bookmark from the file panel (ticket #329).
+- Pack dialog now implements the same filename selection algorithm as other dialogs (ticket #167).
+- When an invalid destination was entered in a transfer dialog, the spinning dial icon would keep spinning.
+- Fixed an issue that would occur when creating directories whose extension match that of one of the supported archive
+  formats (see ticket #360).
+- Fixed a bug that could cause the deletion of S3 files to fail.
+- Fixed an exception on shutdown (ticket #377).
+- Fixed an exception when trying to update text files in archives using the internal editor (ticket #408).
+- File renaming is now cancelled when the filename editor loses focus (#428).
+- Fixed a deadlock that could prevent the application from shutting down (#431).
+- Fixed an issue that caused unpacking of 7z archive file to produce corrupted files (ticket #347).
+- Fixed several bugs related to SMB handling (tickets #351 and #436).
 
 Known issues:
-- Some translations may not be up-to-date. Refer to
-  http://trac.mucommander.com/wiki/Translations for more information.
-- Recycle Bin not working on Windows 64-bit (ticket #234).
-- Executable permissions on local files are not properly preserved
-  when running a unix-based OS with Java 1.5.
+- Some translations may not be up-to-date. Refer to http://trac.mucommander.com/wiki/Translations for more information.
+- Windows: Recycle Bin not working on Windows 64-bit with a 64-bit Java runtime (ticket #234). One way to work around
+  this issue is to use a 32-bit Java runtime.
+- Mac OS X: "Do you want the application "muCommander.app" to accept incoming network connections?" dialog keeps popping
+  up on startup even if the dialog has been previously accepted (ticket #339). This dialog can be suppressed by
+  disabling 'Bonjour' support in the muCommander preferences.
+- Executable permissions on local files are not properly preserved when running a unix-based OS with Java 1.5.
 - SMB support may not work properly on non multi-language JRE.
-- 'Copy files to clipboard' not working with some applications (files are not
-  pasted).
+- 'Copy files to clipboard' not working with some applications (files are not pasted).
 - Mac OS X: some keyboard shortcuts may conflict with global system shortcuts.
-- Authentication issues when using several sets of credentials (login/password)
-  for the same server (see ticket #76).
+- Authentication issues when using several sets of credentials (login/password) for the same server (see ticket #76).
 - Untrusted HTTPS connections are allowed without a warning.
-
+- Windows Vista/7: "java.net.SocketException: Permission denied: recv failed" error can appear when trying to access FTP
+  sites. This seems to be a Windows firewall problem, with a possible workaround:
+  http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=7077696
+- Unpacking files from 7z archive files can be slow.
 
 License
 -------
@@ -163,13 +177,13 @@ Contributors:
 
 Translators: 
 - Frank Berger and Tony Klüver (German)
-- Marcos Cobeña (Spanish)
+- Marcos Cobeña and Xavi Miró (Spanish)
 - Jaromír Mára and Peter Vasko (Czech)
 - Kent Hsu (Traditional Chinese)
 - Jioh L. Jung (Korean)
 - Andrzej Kosiński (Polish)
 - György Varga and Tamás Balogh-Walder (Hungarian)
-- 4X_Pro (Russian)
+- 4X_Pro and Evgeny Morozov (Russian)
 - whiteriver and Woodie (Simplified Chinese)
 - Joze Kovacic (Slovenian)
 - Catalin Hritcu (Romanian)
@@ -183,13 +197,17 @@ Translators:
 - Jeppe Toustrup (Danish)
 - Mykola Bilovus (Ukrainian)
 - ChArLoK_16 (Arabic)
+- vboo (Belarusian)
+- Ingrid Amundsen (Norwegian)
+- Emre Aytaç (Turkish)
+- Jordi Plantalech (Catalan)
 
 Special thanks:
 - Semyon Filippov (muCommander icon)
 - Stefano Perelli (former muCommander icon)
 
-Many thanks to all of you who suggested new features, reported bugs, sent warm
-emails or generously donated to the project !
+Many thanks to all of you who suggested new features, reported bugs, sent warm emails or generously donated to the
+project !
 
 
 Command Line Interface
@@ -216,8 +234,8 @@ The following options are available:
  -w, --fail-on-warnings            Quits when a warning is encountered during
                                    the boot process.
 
-In addition to these, muCommander will interpret anything that comes after the
-last switch as a URI and load it in its windows.
+In addition to these, muCommander will interpret anything that comes after the last switch as a URI and load it in
+its windows.
 So for example:
 
  mucommander -b ~/.bookmarks.xml ftp://user@myftp.com ~/dev http://slashdot.org
