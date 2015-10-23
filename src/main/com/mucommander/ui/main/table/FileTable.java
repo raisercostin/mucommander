@@ -593,12 +593,17 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      * Selects the given file, does nothing if this table does not contain the file.
      *
      * @param file the file to select
+     * @return true if success
      */
-    public void selectFile(AbstractFile file) {
+    public boolean selectFile(AbstractFile file) {
         int row = tableModel.getFileRow(file);
 
-        if(row!=-1)
+        if (row >= 0) {
             selectRow(row);
+            return true;
+        } else {
+            return false;
+        }
     }
 
 

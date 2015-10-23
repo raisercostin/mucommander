@@ -43,7 +43,8 @@
         <dependency org="jdeb"          name="jdeb"                            rev="latest.integration" conf="tools"/>
         <dependency org="proguard"      name="proguard"                        rev="latest.integration" conf="tools"/>
         <dependency org="ant-contrib"   name="ant-contrib"                     rev="latest.integration" conf="tools"/>
-        <dependency org="mucommander"   name="code-metrics" rev="latest.integration" conf="tools"/>
+        <dependency org="mucommander"   name="code-metrics"                    rev="latest.integration" conf="tools"/>
         <dependency org="mucommander"   name="mucommander-commons-ant"         rev="latest.integration" conf="tools->runtime"/>
+        <dependency org="commons-io"    name="commons-io"                      rev="2.2"                conf="runtime->*"/>
     </dependencies>
 </ivy-module>

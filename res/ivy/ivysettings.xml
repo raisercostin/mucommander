@@ -10,14 +10,17 @@
     <property name="repo.uri" value="http://ivy.mucommander.com/"/>
 
 
-
     <!-- = muCommander Repository ================================================================================== -->
     <!-- =========================================================================================================== -->
     <resolvers>
-      <url name="mucommander-ivy">
-        <ivy      pattern="${repo.uri}/[organisation]/[module]/[revision]/ivy.xml" />
-        <artifact pattern="${repo.uri}/[organisation]/[module]/[revision]/[artifact].[ext]" />
-      </url>
+        <chain name="chain">
+            <ibiblio name="central" m2compatible="true"/>
+            <url name="mucommander-ivy">
+                <ivy      pattern="${repo.uri}/[organisation]/[module]/[revision]/ivy.xml" />
+                <artifact pattern="${repo.uri}/[organisation]/[module]/[revision]/[artifact].[ext]" />
+            </url>
+
+        </chain>
     </resolvers>
-    <settings defaultResolver="mucommander-ivy"/>
+    <settings defaultResolver="chain"/>     <!--   <settings defaultResolver="mucommander-ivy"/> -->
 </ivysettings>
