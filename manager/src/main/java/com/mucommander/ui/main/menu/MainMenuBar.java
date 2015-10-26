@@ -62,6 +62,7 @@ import com.mucommander.ui.action.impl.CloseWindowAction;
 import com.mucommander.ui.action.impl.CombineFilesAction;
 import com.mucommander.ui.action.impl.CompareFoldersAction;
 import com.mucommander.ui.action.impl.ConnectToServerAction;
+import com.mucommander.ui.action.impl.CopyFileBaseNamesAction;
 import com.mucommander.ui.action.impl.CopyFileNamesAction;
 import com.mucommander.ui.action.impl.CopyFilePathsAction;
 import com.mucommander.ui.action.impl.CopyFilesToClipboardAction;
@@ -116,6 +117,7 @@ import com.mucommander.ui.action.impl.ShowRecentExecutedFilesQLAction;
 import com.mucommander.ui.action.impl.ShowRecentLocationsQLAction;
 import com.mucommander.ui.action.impl.ShowRootFoldersQLAction;
 import com.mucommander.ui.action.impl.ShowServerConnectionsAction;
+import com.mucommander.ui.action.impl.ShowTabsQLAction;
 import com.mucommander.ui.action.impl.SplitEquallyAction;
 import com.mucommander.ui.action.impl.SplitFileAction;
 import com.mucommander.ui.action.impl.SplitHorizontallyAction;
@@ -274,6 +276,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         markMenu.add(new JSeparator());
         MenuToolkit.addMenuItem(markMenu, ActionManager.getActionInstance(CopyFilesToClipboardAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper);
         MenuToolkit.addMenuItem(markMenu, ActionManager.getActionInstance(CopyFileNamesAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper);
+        MenuToolkit.addMenuItem(markMenu, ActionManager.getActionInstance(CopyFileBaseNamesAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper);
         MenuToolkit.addMenuItem(markMenu, ActionManager.getActionInstance(CopyFilePathsAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper);
         MenuToolkit.addMenuItem(markMenu, ActionManager.getActionInstance(PasteClipboardFilesAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper);
 
@@ -352,6 +355,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
         MenuToolkit.addMenuItem(quickListMenu, ActionManager.getActionInstance(ShowRecentExecutedFilesQLAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper2);
         MenuToolkit.addMenuItem(quickListMenu, ActionManager.getActionInstance(ShowBookmarksQLAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper2);
         MenuToolkit.addMenuItem(quickListMenu, ActionManager.getActionInstance(ShowRootFoldersQLAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper2);
+        MenuToolkit.addMenuItem(quickListMenu, ActionManager.getActionInstance(ShowTabsQLAction.Descriptor.ACTION_ID, mainFrame), menuItemMnemonicHelper2);
         goMenu.add(quickListMenu);
 
         // Add Bonjour services menu
@@ -575,7 +579,7 @@ public class MainMenuBar extends JMenuBar implements ActionListener, MenuListene
                 checkBoxMenuItem.setAction(recallWindowAction);
 
                 // Replace the action's label and use the MainFrame's current folder path instead
-                checkBoxMenuItem.setText((i+1)+" "+mainFrame.getActiveTable().getCurrentFolder().getAbsolutePath());
+                checkBoxMenuItem.setText((i+1)+" "+mainFrame.getActiveTable().getFolderPanel().getCurrentFolder().getAbsolutePath());
 
                 // Use the action's label as a tooltip 
                 checkBoxMenuItem.setToolTipText(recallWindowAction.getLabel());

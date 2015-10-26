@@ -18,10 +18,14 @@
 
 package com.mucommander.ui.main.tabs;
 
+import com.mucommander.ui.action.impl.CloneTabToOtherPanelAction;
 import com.mucommander.ui.action.impl.CloseDuplicateTabsAction;
 import com.mucommander.ui.action.impl.CloseOtherTabsAction;
 import com.mucommander.ui.action.impl.CloseTabAction;
+import com.mucommander.ui.action.impl.DuplicateTabAction;
 import com.mucommander.ui.action.impl.MoveTabToOtherPanelAction;
+import com.mucommander.ui.action.impl.SetTabTitleAction;
+import com.mucommander.ui.action.impl.ToggleLockTabAction;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.popup.MuActionsPopupMenu;
 
@@ -34,15 +38,18 @@ class FileTableTabPopupMenu extends MuActionsPopupMenu {
 
 	public FileTableTabPopupMenu(MainFrame mainFrame) {
 		super(mainFrame);
+
+		FileTableTab tab = mainFrame.getActivePanel().getTabs().getCurrentTab();
 		
-//		addAction("duplicate");
+		addAction(DuplicateTabAction.Descriptor.ACTION_ID);
 		addAction(CloseTabAction.Descriptor.ACTION_ID);
 		addAction(CloseOtherTabsAction.Descriptor.ACTION_ID);
 		addAction(CloseDuplicateTabsAction.Descriptor.ACTION_ID);
 		add(new Separator());
+		addAction(ToggleLockTabAction.Descriptor.ACTION_ID);
+		addAction(SetTabTitleAction.Descriptor.ACTION_ID);
+		add(new Separator());
 		addAction(MoveTabToOtherPanelAction.Descriptor.ACTION_ID);
-//		addAction("lock");
-//		addAction("Move To Other Panel");
-//		addAction("Clone To Other Panel");
+		addAction(CloneTabToOtherPanelAction.Descriptor.ACTION_ID);
 	}
 }

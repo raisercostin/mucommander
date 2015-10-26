@@ -18,23 +18,29 @@
 
 package com.mucommander.ui.action.impl;
 
+import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.util.Map;
+
+import javax.swing.KeyStroke;
+
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileProtocols;
 import com.mucommander.commons.file.impl.local.LocalFile;
 import com.mucommander.desktop.DesktopManager;
 import com.mucommander.job.TempExecJob;
 import com.mucommander.text.Translator;
-import com.mucommander.ui.action.*;
+import com.mucommander.ui.action.AbstractActionDescriptor;
+import com.mucommander.ui.action.ActionCategories;
+import com.mucommander.ui.action.ActionCategory;
+import com.mucommander.ui.action.ActionFactory;
+import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.dialog.InformationDialog;
 import com.mucommander.ui.dialog.file.ProgressDialog;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.main.quicklist.RecentExecutedFilesQL;
-
-import javax.swing.*;
-import java.awt.event.KeyEvent;
-import java.io.IOException;
-import java.util.Map;
+import com.mucommander.ui.main.tabs.FileTableTabs;
 
 /**
  * This action 'opens' the currently selected file or folder in the active FileTable.
@@ -80,8 +86,13 @@ public class OpenAction extends MuAction {
      */
     protected void open(AbstractFile file, FolderPanel destination) {
         // Opens browsable files in the destination FolderPanel.
-        if(file.isBrowsable())
-            destination.tryChangeCurrentFolder(file);
+        if(file.isBrowsable()) {
+        	FileTableTabs tabs = destination.getTabs();
+        	if (tabs.getCurrentTab().isLocked())
+        		tabs.add(file);
+        	else
+        		destination.tryChangeCurrentFolder(file);
+        }
 
         // Opens local files using their native associations.
         else if(file.getURL().getScheme().equals(FileProtocols.FILE) && (file.hasAncestor(LocalFile.class))) {

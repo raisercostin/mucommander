@@ -39,11 +39,14 @@ import com.mucommander.ui.quicklist.QuickListWithIcons;
  */
 public class ParentFoldersQL extends QuickListWithIcons<AbstractFile> implements LocationListener {
 	
-	protected List<AbstractFile> parents = new Vector<AbstractFile>();
-	protected boolean updated = true;
-		
+	private List<AbstractFile> parents = new Vector<AbstractFile>();
+	private boolean updated = true;
+	private FolderPanel folderPanel;
+	
 	public ParentFoldersQL(FolderPanel folderPanel) {
-		super(ActionProperties.getActionLabel(ShowParentFoldersQLAction.Descriptor.ACTION_ID), Translator.get("parent_folders_quick_list.empty_message"));
+		super(folderPanel, ActionProperties.getActionLabel(ShowParentFoldersQLAction.Descriptor.ACTION_ID), Translator.get("parent_folders_quick_list.empty_message"));
+		
+		this.folderPanel = folderPanel;
 		
 		folderPanel.getLocationManager().addLocationListener(this);
 	}
@@ -73,21 +76,17 @@ public class ParentFoldersQL extends QuickListWithIcons<AbstractFile> implements
 		return getIconOfFile(item);
 	}
 
-	/*******************
-	 * LocationListener
-	 *******************/
+	/**********************************
+	 * LocationListener Implementation
+	 **********************************/
 
-	@Override
 	public void locationChanged(LocationEvent locationEvent) {
 		updated = false;
 	}
 	
-	@Override
 	public void locationChanging(LocationEvent locationEvent) { }
 
-	@Override
 	public void locationCancelled(LocationEvent locationEvent) { }
 
-	@Override
 	public void locationFailed(LocationEvent locationEvent) { }
 }

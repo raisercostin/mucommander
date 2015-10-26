@@ -74,6 +74,7 @@ public class ActionManager {
     	registerAction(new ChangeLocationAction.Descriptor(),               new ChangeLocationAction.Factory());
     	registerAction(new ChangePermissionsAction.Descriptor(),            new ChangePermissionsAction.Factory());
     	registerAction(new CheckForUpdatesAction.Descriptor(),              new CheckForUpdatesAction.Factory());
+    	registerAction(new CloneTabToOtherPanelAction.Descriptor(), 		new CloneTabToOtherPanelAction.Factory());
     	registerAction(new CloseDuplicateTabsAction.Descriptor(),			new CloseDuplicateTabsAction.Factory());
     	registerAction(new CloseOtherTabsAction.Descriptor(),				new CloseOtherTabsAction.Factory());
     	registerAction(new CloseWindowAction.Descriptor(),                  new CloseWindowAction.Factory());
@@ -82,6 +83,7 @@ public class ActionManager {
     	registerAction(new CompareFoldersAction.Descriptor(),               new CompareFoldersAction.Factory());
     	registerAction(new ConnectToServerAction.Descriptor(),              new ConnectToServerAction.Factory());
     	registerAction(new CopyAction.Descriptor(),                         new CopyAction.Factory());
+    	registerAction(new CopyFileBaseNamesAction.Descriptor(),            new CopyFileBaseNamesAction.Factory());
     	registerAction(new CopyFileNamesAction.Descriptor(),                new CopyFileNamesAction.Factory());
     	registerAction(new CopyFilePathsAction.Descriptor(),                new CopyFilePathsAction.Factory());
     	registerAction(new CopyFilesToClipboardAction.Descriptor(),         new CopyFilesToClipboardAction.Factory());
@@ -89,6 +91,7 @@ public class ActionManager {
     	registerAction(new FocusNextAction.Descriptor(),                    new FocusNextAction.Factory());
     	registerAction(new DeleteAction.Descriptor(),         			    new DeleteAction.Factory());
     	registerAction(new DonateAction.Descriptor(),    			        new DonateAction.Factory());
+    	registerAction(new DuplicateTabAction.Descriptor(),						new DuplicateTabAction.Factory());
     	registerAction(new EditAction.Descriptor(),     			        new EditAction.Factory());
     	registerAction(new EditBookmarksAction.Descriptor(),                new EditBookmarksAction.Factory());
     	registerAction(new EditCredentialsAction.Descriptor(),              new EditCredentialsAction.Factory());
@@ -174,10 +177,12 @@ public class ActionManager {
     	registerAction(new SelectFirstRowAction.Descriptor(),               new SelectFirstRowAction.Factory());
     	registerAction(new SelectLastRowAction.Descriptor(),                new SelectLastRowAction.Factory());
     	registerAction(new SetSameFolderAction.Descriptor(),                new SetSameFolderAction.Factory());
+    	registerAction(new SetTabTitleAction.Descriptor(),                  new SetTabTitleAction.Factory());
     	registerAction(new ShowAboutAction.Descriptor(),          		    new ShowAboutAction.Factory());
     	registerAction(new ShowBookmarksQLAction.Descriptor(),              new ShowBookmarksQLAction.Factory());
     	registerAction(new CustomizeCommandBarAction.Descriptor(),          new CustomizeCommandBarAction.Factory());
-    	registerAction(new ShowFilePropertiesAction.Descriptor(),           new ShowFilePropertiesAction.Factory());
+        registerAction(new ShowDebugConsoleAction.Descriptor(),             new ShowDebugConsoleAction.Factory());
+        registerAction(new ShowFilePropertiesAction.Descriptor(),           new ShowFilePropertiesAction.Factory());
     	registerAction(new ShowKeyboardShortcutsAction.Descriptor(),        new ShowKeyboardShortcutsAction.Factory());
     	registerAction(new ShowParentFoldersQLAction.Descriptor(),          new ShowParentFoldersQLAction.Factory());
     	registerAction(new ShowPreferencesAction.Descriptor(),              new ShowPreferencesAction.Factory());
@@ -185,7 +190,7 @@ public class ActionManager {
     	registerAction(new ShowRecentLocationsQLAction.Descriptor(),        new ShowRecentLocationsQLAction.Factory());
     	registerAction(new ShowRootFoldersQLAction.Descriptor(), 			new ShowRootFoldersQLAction.Factory());
     	registerAction(new ShowServerConnectionsAction.Descriptor(),        new ShowServerConnectionsAction.Factory());
-        registerAction(new ShowDebugConsoleAction.Descriptor(),             new ShowDebugConsoleAction.Factory());
+    	registerAction(new ShowTabsQLAction.Descriptor(),					new ShowTabsQLAction.Factory());
     	registerAction(new SortByDateAction.Descriptor(),             		new SortByDateAction.Factory());
     	registerAction(new SortByExtensionAction.Descriptor(),              new SortByExtensionAction.Factory());
     	registerAction(new SortByGroupAction.Descriptor(),            		new SortByGroupAction.Factory());
@@ -207,6 +212,7 @@ public class ActionManager {
     	registerAction(new ToggleExtensionColumnAction.Descriptor(),        new ToggleExtensionColumnAction.Factory());
     	registerAction(new ToggleGroupColumnAction.Descriptor(),            new ToggleGroupColumnAction.Factory());
     	registerAction(new ToggleHiddenFilesAction.Descriptor(),            new ToggleHiddenFilesAction.Factory());
+    	registerAction(new ToggleLockTabAction.Descriptor(),                new ToggleLockTabAction.Factory());
     	registerAction(new ToggleOwnerColumnAction.Descriptor(),            new ToggleOwnerColumnAction.Factory());
     	registerAction(new TogglePermissionsColumnAction.Descriptor(),      new TogglePermissionsColumnAction.Factory());
     	registerAction(new ToggleShowFoldersFirstAction.Descriptor(),       new ToggleShowFoldersFirstAction.Factory());

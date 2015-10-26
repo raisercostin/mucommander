@@ -18,19 +18,19 @@
 
 package com.mucommander.ui.main.tabs;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import com.mucommander.commons.file.AbstractFile;
+import com.mucommander.commons.file.FileURL;
 import com.mucommander.ui.event.LocationEvent;
 import com.mucommander.ui.event.LocationListener;
 import com.mucommander.ui.main.FolderPanel;
 import com.mucommander.ui.main.MainFrame;
 import com.mucommander.ui.tabs.HideableTabbedPane;
+import com.mucommander.ui.tabs.TabFactory;
+import com.mucommander.ui.tabs.TabUpdater;
+import com.mucommander.utils.Callback;
 
 /**
-* HideableTabbedPane of FileTableTabs.
+* HideableTabbedPane of {@link com.mucommander.ui.main.tabs.FileTableTab} instances.
 * 
 * @author Arik Hadas
 */
@@ -38,46 +38,100 @@ public class FileTableTabs extends HideableTabbedPane<FileTableTab> implements L
 
 	/** FolderPanel containing those tabs */
 	private FolderPanel folderPanel;
-	
-	public FileTableTabs(MainFrame mainFrame, FolderPanel folderPanel, AbstractFile[] initialFolders) {
-		super(new FileTableTabsDisplayFactory(mainFrame, folderPanel));
-		
+
+	/** Factory of instances of FileTableTab */
+	private TabFactory<FileTableTab, FileURL> defaultTabsFactory;
+
+	/** Factory of instances of FileTableTab */
+	private TabFactory<FileTableTab, FileTableTab> clonedTabsFactory;
+
+	public FileTableTabs(MainFrame mainFrame, FolderPanel folderPanel, ConfFileTableTab[] initialTabs) {
+		super(new FileTableTabsWithoutHeadersViewerFactory(folderPanel), new FileTableTabsWithHeadersViewerFactory(mainFrame, folderPanel));
+
 		this.folderPanel = folderPanel;
-		
+
+		defaultTabsFactory = new DefaultFileTableTabFactory(folderPanel);
+		clonedTabsFactory = new ClonedFileTableTabFactory(folderPanel);
+
 		// Register to location change events
 		folderPanel.getLocationManager().addLocationListener(this);
-		
+
 		// Add the initial folders
-		for (AbstractFile folder : initialFolders)
-			addTab(FileTableTab.create(folder));
+		for (FileTableTab tab : initialTabs)
+			addTab(clonedTabsFactory.createTab(tab));
+	}
+
+	@Override
+	public void selectTab(int index) {
+		super.selectTab(index);
+
+		show(index);
+	}
+
+	@Override
+	protected void show(final int tabIndex) {
+		folderPanel.tryChangeCurrentFolderInternal(getTab(tabIndex).getLocation(), new Callback() {
+			@Override
+			public void call() {
+				fireActiveTabChanged();
+			}
+		});
+	};
+
+	/**
+	 * Return the currently selected tab
+	 * 
+	 * @return currently selected tab
+	 */
+	public FileTableTab getCurrentTab() {
+		return getTab(getSelectedIndex());
+	}
+
+	private void updateTabLocation(final FileURL location) {
+		updateCurrentTab(new TabUpdater<FileTableTab>() {
+
+			public void update(FileTableTab tab) {
+				tab.setLocation(location);
+			}
+		});
+	}
 	
-		// TODO: change
-		selectTab(0);
+	private void updateTabLocking(final boolean lock) {
+		updateCurrentTab(new TabUpdater<FileTableTab>() {
+			
+			public void update(FileTableTab tab) {
+				tab.setLocked(lock);
+			}
+		});
+	}
+
+	private void updateTabTitle(final String title) {
+		updateCurrentTab(new TabUpdater<FileTableTab>() {
+
+			public void update(FileTableTab tab) {
+				tab.setTitle(title);
+			}
+		});
+	}
+
+	@Override
+	protected boolean showSingleTabHeader() {
+		int nbTabs = getTabs().count();
+		
+		if (nbTabs == 1) {
+			FileTableTab tab = getTab(0);
+			
+			// If there's just single tab that is locked don't remove his header
+			if (tab.isLocked())
+				return true;
+		}
+		
+		return super.showSingleTabHeader();
 	}
 	
 	@Override
-	protected void selectTab(int index) {
-		super.selectTab(index);
-
-		try {
-			folderPanel.tryChangeCurrentFolder(getTab(index).getLocation(), null, true).join();
-		} catch (InterruptedException e) {
-			// We're screwed - no valid location to display
-			throw new RuntimeException("Unable to read any drive");
-		}
-	}
-	
-	/**
-	 * This function returns a list of tabs which are clones of the current tabs presented in the FolderPanel
-	 * 
-	 * @return List of clones of the current tabs
-	 */
-	public List<FileTableTab> getClonedTabs() {
-		List<FileTableTab> tabs = new ArrayList<FileTableTab>();
-		Iterator<FileTableTab> tabsIterator = getTabsIterator();
-		while(tabsIterator.hasNext())
-			tabs.add(tabsIterator.next().clone());
-		return tabs;
+	protected FileTableTab removeTab() {
+		return !getCurrentTab().isLocked() ? super.removeTab() : null;
 	}
 	
 	/********************
@@ -85,7 +139,7 @@ public class FileTableTabs extends HideableTabbedPane<FileTableTab> implements L
 	 ********************/
 	
 	public void add(AbstractFile file) {
-		addAndSelectTab(FileTableTab.create(file));
+		addTab(defaultTabsFactory.createTab(file.getURL()));
 	}
 	
 	public void add(FileTableTab tab) {
@@ -103,6 +157,22 @@ public class FileTableTabs extends HideableTabbedPane<FileTableTab> implements L
 	public void closeOtherTabs() {
 		removeOtherTabs();
 	}
+	
+	public void duplicate() {
+		add(clonedTabsFactory.createTab(getCurrentTab()));
+	}
+	
+	public void lock() {
+		updateTabLocking(true);
+	}
+	
+	public void unlock() {
+		updateTabLocking(false);
+	}
+
+	public void setTitle(String title) {
+		updateTabTitle(title);
+	}
 
 	/****************
 	 * Other Actions
@@ -112,25 +182,21 @@ public class FileTableTabs extends HideableTabbedPane<FileTableTab> implements L
 		removeTab(fileTableTabHeader);
 	}
 	
-	/*******************
-	 * LocationListener
-	 *******************/
+	/**********************************
+	 * LocationListener Implementation
+	 **********************************/
 	
-	@Override
 	public void locationChanged(LocationEvent locationEvent) {
-		updateTab(FileTableTab.create(folderPanel.getCurrentFolder()));
+		updateTabLocation(folderPanel.getCurrentFolder().getURL());
 	}
 
-	@Override
 	public void locationCancelled(LocationEvent locationEvent) {
-		updateTab(FileTableTab.create(folderPanel.getCurrentFolder()));
+		updateTabLocation(folderPanel.getCurrentFolder().getURL());
 	}
 
-	@Override
 	public void locationFailed(LocationEvent locationEvent) {
-		updateTab(FileTableTab.create(folderPanel.getCurrentFolder()));
+		updateTabLocation(folderPanel.getCurrentFolder().getURL());
 	}
 	
-	@Override
 	public void locationChanging(LocationEvent locationEvent) { }
 }

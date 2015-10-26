@@ -300,7 +300,7 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
         if(!isVisible())
             return;
 
-        final AbstractFile currentFolder = mainFrame.getActiveTable().getCurrentFolder();
+        final AbstractFile currentFolder = mainFrame.getActivePanel().getCurrentFolder();
         // Resolve the current folder's volume and use its path as a key for the volume info cache
         final String volumePath = currentFolder.getVolume().getAbsolutePath(true);
 
@@ -483,26 +483,22 @@ public class StatusBar extends JPanel implements Runnable, MouseListener, Active
     // LocationListener implementation //
     /////////////////////////////////////
 
-    @Override
     public void locationChanged(LocationEvent e) {
         dial.setAnimated(false);
         updateStatusInfo();
     }
 
-    @Override
     public void locationChanging(LocationEvent e) {
         // Show a message in the status bar saying that folder is being changed
         setStatusInfo(Translator.get("status_bar.connecting_to_folder"), dial, true);
         dial.setAnimated(true);
     }
 	
-    @Override
     public void locationCancelled(LocationEvent e) {
         dial.setAnimated(false);
         updateStatusInfo();
     }
 
-    @Override
     public void locationFailed(LocationEvent e) {
         dial.setAnimated(false);
         updateStatusInfo();

@@ -37,6 +37,7 @@ import javax.swing.JSplitPane;
 import javax.swing.WindowConstants;
 import javax.swing.table.TableColumnModel;
 
+import com.apple.eawt.FullScreenUtilities;
 import com.mucommander.commons.file.AbstractArchiveEntryFile;
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.FileProtocols;
@@ -63,8 +64,8 @@ import com.mucommander.ui.main.table.Column;
 import com.mucommander.ui.main.table.FileTable;
 import com.mucommander.ui.main.table.FileTableConfiguration;
 import com.mucommander.ui.main.table.SortInfo;
+import com.mucommander.ui.main.tabs.ConfFileTableTab;
 import com.mucommander.ui.main.toolbar.ToolBar;
-import com.mucommander.ui.quicklist.QuickListFocusableComponent;
 
 /**
  * This is the main frame, which contains all other UI components visible on a mucommander window.
@@ -152,6 +153,11 @@ public class MainFrame extends JFrame implements LocationListener {
     private void init(FolderPanel leftFolderPanel, FolderPanel rightFolderPanel) {
         // Set the window icon
         setWindowIcon();
+
+        if (OsFamilies.MAC_OS_X.isCurrent()) {
+        	// Lion Fullscreen support
+        	FullScreenUtilities.setWindowCanFullScreen(this, true);
+        }
 
         // Enable window resize
         setResizable(true);
@@ -258,47 +264,24 @@ public class MainFrame extends JFrame implements LocationListener {
         setFocusTraversalPolicy(new CustomFocusTraversalPolicy());
     }
 
-    private MainFrame() {
+    public MainFrame(ConfFileTableTab leftTab, FileTableConfiguration leftTableConf,
+    	             ConfFileTableTab rightTab, FileTableConfiguration rightTableConf) {
+    	this(new ConfFileTableTab[] {leftTab}, 0, leftTableConf, new ConfFileTableTab[] {rightTab}, 0, rightTableConf);
     }
-
-    private FileTableConfiguration getFileTableConfiguration(boolean isLeft) {
-        FileTableConfiguration conf;
-
-        conf = new FileTableConfiguration();
-
-        // Loop on columns
-        for(Column c  : Column.values()) {
-            if(c!=Column.NAME) {       // Skip the special name column (always visible, width automatically calculated)
-            	// Sets the column's initial visibility.
-            	conf.setEnabled(c,
-            			MuConfigurations.getSnapshot().getVariable(
-            					MuSnapshot.getShowColumnVariable(0, c, isLeft),
-            					c.showByDefault()
-    					)
-    			);
-
-                // Sets the column's initial width.
-                conf.setWidth(c, MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getColumnWidthVariable(0, c, isLeft)));
-            }
-
-            // Sets the column's initial order
-            conf.setPosition(c, MuConfigurations.getSnapshot().getVariable(
-                                    MuSnapshot.getColumnPositionVariable(0, c, isLeft),
-                                    c.ordinal())
-            );
-        }
-
-        return conf;
-    }
-
+    
     /**
      * Creates a new main frame set to the given initial folders.
      *
      * @param leftInitialFolders the initial folders to display in the left panel's tabs
      * @param rightInitialFolders the initial folders to display in the right panel's tabs
      */
-    public MainFrame(AbstractFile[] leftInitialFolders, AbstractFile[] rightInitialFolders) {
-        init(new FolderPanel(this, leftInitialFolders, getFileTableConfiguration(true)), new FolderPanel(this, rightInitialFolders, getFileTableConfiguration(false)));
+    public MainFrame(ConfFileTableTab[] leftTabs, int indexOfLeftSelectedTab, FileTableConfiguration leftTableConf,
+    		         ConfFileTableTab[] rightTabs, int indexOfRightSelectedTab, FileTableConfiguration rightTableConf) {
+    		/*AbstractFile[] leftInitialFolders, AbstractFile[] rightInitialFolders,
+    				 int indexOfLeftSelectedTab, int indexOfRightSelectedTab,
+    			     FileURL[] leftLocationHistory, FileURL[] rightLocationHistory) { */
+        init(new FolderPanel(this, leftTabs, indexOfLeftSelectedTab, leftTableConf), 
+        	 new FolderPanel(this, rightTabs, indexOfRightSelectedTab, rightTableConf));
 
         for (boolean isLeft = true; ; isLeft=false) {
         	FileTable fileTable = isLeft ? leftTable : rightTable;
@@ -314,15 +297,21 @@ public class MainFrame extends JFrame implements LocationListener {
         }
     }
 
-    MainFrame cloneMainFrame() {
-        MainFrame mainFrame;
+    /**
+     * Copy constructor
+     */
+    public MainFrame(MainFrame mainFrame) {
+    	FolderPanel leftFolderPanel = mainFrame.getLeftPanel(); 
+    	FolderPanel rightFolderPanel = mainFrame.getRightPanel();
+    	FileTable leftFileTable = leftFolderPanel.getFileTable();
+    	FileTable rightFileTable = rightFolderPanel.getFileTable();
 
-        mainFrame = new MainFrame();
-        mainFrame.init(new FolderPanel(mainFrame, leftFolderPanel.getCurrentFolder(), leftTable.getConfiguration()),
-                       new FolderPanel(mainFrame, rightFolderPanel.getCurrentFolder(), rightTable.getConfiguration()));
-        mainFrame.leftTable.sortBy(leftTable.getSortInfo());
-        mainFrame.rightTable.sortBy(rightTable.getSortInfo());
-        return mainFrame;
+    	init(new FolderPanel(this, new ConfFileTableTab[] {new ConfFileTableTab(leftFolderPanel.getCurrentFolder().getURL())}, 0, leftFileTable.getConfiguration()),
+             new FolderPanel(this, new ConfFileTableTab[] {new ConfFileTableTab(rightFolderPanel.getCurrentFolder().getURL())}, 0, rightFileTable.getConfiguration()));
+
+    	// TODO: Sorting should be part of the FileTable configuration
+        this.leftTable.sortBy(leftFileTable.getSortInfo());
+        this.rightTable.sortBy(rightFileTable.getSortInfo());
     }
 
     /**
@@ -595,14 +584,12 @@ public class MainFrame extends JFrame implements LocationListener {
         activeTable.requestFocus();
     }
 
-
     /**
      * Makes both folders the same, choosing the one which is currently active. 
      */
     public void setSameFolder() {
-        (activeTable == leftTable ? rightTable : leftTable).getFolderPanel().tryChangeCurrentFolder(activeTable.getCurrentFolder());
+        (activeTable == leftTable ? rightTable : leftTable).getFolderPanel().tryChangeCurrentFolder(activeTable.getFolderPanel().getCurrentFolder());
     }
-
 
     /**
      * Returns <code>true</code> if this MainFrame is currently active in the foreground.
@@ -651,14 +638,18 @@ public class MainFrame extends JFrame implements LocationListener {
         return false;
     }
 
-
     /**
      * Updates this window's title to show currently active folder and window number.
      * This method is called by this class and WindowManager.
      */
     public void updateWindowTitle() {
         // Update window title
-        String title = activeTable.getCurrentFolder().getAbsolutePath();
+        String title = activeTable.getFolderPanel().getCurrentFolder().getAbsolutePath();
+
+	// Add the application name to window title on all OSs except MAC
+        if (!OsFamilies.MAC_OS_X.isCurrent())
+        	title += " - muCommander";
+
         java.util.List<MainFrame> mainFrames = WindowManager.getMainFrames();
         if(mainFrames.size()>1)
             title += " ["+(mainFrames.indexOf(this)+1)+"]";
@@ -667,7 +658,7 @@ public class MainFrame extends JFrame implements LocationListener {
         // Use new Window decorations introduced in Mac OS X 10.5 (Leopard)
         if(OsFamilies.MAC_OS_X.isCurrent() && OsVersions.MAC_OS_X_10_5.isCurrentOrHigher()) {
             // Displays the document icon in the window title bar, works only for local files
-            AbstractFile currentFolder = activeTable.getCurrentFolder();
+            AbstractFile currentFolder = activeTable.getFolderPanel().getCurrentFolder();
             Object javaIoFile;
             if(currentFolder.getURL().getScheme().equals(FileProtocols.FILE)) {
                 // If the current folder is an archive entry, display the archive file, this is the closest we can get
@@ -719,9 +710,7 @@ public class MainFrame extends JFrame implements LocationListener {
 
         @Override
         public Component getComponentAfter(Container container, Component component) {
-        	if (component instanceof QuickListFocusableComponent) {
-        		return ((QuickListFocusableComponent) component).getInvokerFileTable();
-        	} else if (component==leftFolderPanel.getFoldersTreePanel().getTree()) {
+        	if (component==leftFolderPanel.getFoldersTreePanel().getTree()) {
 		        return leftTable;
 		    } else if (component==rightFolderPanel.getFoldersTreePanel().getTree()) {
 		        return rightTable;
@@ -766,22 +755,18 @@ public class MainFrame extends JFrame implements LocationListener {
         rightTable.setAutoSizeColumnsEnabled(b);
     }
     
-    /*******************
-	 * LocationListener
-	 *******************/
+    /**********************************
+	 * LocationListener Implementation
+	 **********************************/
 
-    @Override
     public void locationChanged(LocationEvent e) {
         // Update window title to reflect the new current folder
         updateWindowTitle();
     }
     
-	@Override
 	public void locationChanging(LocationEvent locationEvent) { }
 
-	@Override
 	public void locationCancelled(LocationEvent locationEvent) { }
 
-	@Override
 	public void locationFailed(LocationEvent locationEvent) { }
 }

@@ -18,68 +18,100 @@
 
 package com.mucommander.ui.main.tabs;
 
-import com.mucommander.commons.file.AbstractFile;
+import com.mucommander.commons.file.FileURL;
+import com.mucommander.commons.file.impl.local.LocalFile;
+import com.mucommander.commons.file.util.PathUtils;
+import com.mucommander.commons.util.StringUtils;
+import com.mucommander.core.LocalLocationHistory;
 import com.mucommander.ui.tabs.Tab;
 
 /**
- * Properties of a presented tab.
+ * Interface of tab in the {@link com.mucommander.ui.main.FolderPanel} that contains a {@link com.mucommander.ui.main.table.FileTable}
  *
  * @author Arik Hadas
  */
-public class FileTableTab implements Tab, Cloneable {
-
-	/** The location presented in this tab */
-	private AbstractFile location;
-
-	// 	 private boolean isLocked;
+public abstract class FileTableTab implements Tab {
 
 	/**
-	 * Factory method that validates the input before initiating FileTableTab instance
+	 * Setter for the location presented in the tab
 	 * 
-	 * @param location - the location that would be presented in the tab
+	 * @param location the file that is going to be presented in the tab
 	 */
-	public static FileTableTab create(AbstractFile location) {
-		if (location == null)
-			throw new RuntimeException("Invalid location");
-
-		return new FileTableTab(location);
-	}
+	public abstract void setLocation(FileURL location);
 
 	/**
-	 * Private constructor
+	 * Getter for the location presented in the tab
 	 * 
-	 * @param location - the location that would be presented in the tab
+	 * @return the file that is being presented in the tab
 	 */
-	private FileTableTab(AbstractFile location) {
-		setLocation(location);
-	}
+	public abstract FileURL getLocation();
 	
-	public void setLocation(AbstractFile location) {
-		this.location = location;
+	/**
+	 * Set the tab to be locked or unlocked according to the given flag
+	 * 
+	 * @param locked flag that indicates whether the tab should be locked or not
+	 */
+	public abstract void setLocked(boolean locked);
+	
+	/**
+	 * Returns whether the tab is locked
+	 * 
+	 * @return indication whether the tab is locked
+	 */
+	public abstract boolean isLocked();
+
+	/**
+	 * Set the title of the tab to the given string
+	 * 
+	 * @param title - predefined title to be assigned to the tab, null for no predefined title
+	 */
+	public abstract void setTitle(String title);
+
+	/**
+	 * Returns the title that was assigned for the tab
+	 * 
+	 * @return the title that was assigned for the tab, null is returned if no title was assigned
+	 */
+	public abstract String getTitle();
+
+	/**
+	 * Returns a string representation for the tab:
+	 *  the tab's fixed title will be returned if such title was assigned,
+	 *  otherwise, a string representation will be created based on the tab's location:
+	 *    for local file, the filename will be returned ("/" in case the root folder is presented)
+	 *    for remote file, the returned pattern will be "\<host\>:\<filename\>"
+	 * 
+	 * @return String representation of the tab
+	 */
+	public String getDisplayableTitle() {
+		String title = getTitle();
+
+		return title != null ? title : createDisplayableTitleFromLocation(getLocation());
 	}
 
-	public AbstractFile getLocation() {
-		return location;
+	private String createDisplayableTitleFromLocation(FileURL location) {
+		boolean local = location.getHost().equals(FileURL.LOCALHOST);
+
+		return getHostRepresentation(location.getHost(), local) + getFilenameRepresentation(location.getFilename(), local);
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof FileTableTab)
-			return location.getAbsolutePath().equals(((FileTableTab) obj).getLocation().getAbsolutePath());
-		return false;
+	private String getHostRepresentation(String host, boolean local) {
+		return local ? "" : host + ":";
 	}
 
-	@Override
-	public int hashCode() {
-		return location.hashCode();
+	private String getFilenameRepresentation(String filename, boolean local) {
+		// Under for OSes with 'root drives' (Windows, OS/2), remove the leading '/' character
+		if(local && LocalFile.hasRootDrives() && filename != null)
+			return PathUtils.removeLeadingSeparator(filename, "/");
+		// Under other OSes, if the filename is empty return "/"
+		else
+			return filename == null ? "/" : filename;
 	}
 
-	///////////////////////////
-	/// Cloneable Interface ///
-	///////////////////////////
-
-	@Override
-	public FileTableTab clone() {
-		return new FileTableTab(location);
-	}
+	/**
+	 * Returns the tracker of the last accessed locations within the tab
+	 * 
+	 * @return tracker of the last accessed locations within the tab
+	 */
+	public abstract LocalLocationHistory getLocationHistory();
 }

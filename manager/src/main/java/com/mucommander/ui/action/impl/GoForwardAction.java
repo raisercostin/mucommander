@@ -30,7 +30,7 @@ import java.util.Map;
  *
  * @author Maxence Bernard
  */
-public class GoForwardAction extends ParentFolderAction {
+public class GoForwardAction extends ActiveTabAction {
 
     public GoForwardAction(MainFrame mainFrame, Map<String,Object> properties) {
         super(mainFrame, properties);
@@ -45,11 +45,12 @@ public class GoForwardAction extends ParentFolderAction {
 
     /**
      * Enables or disables this action based on the history of the currently active FolderPanel: if there is a next
-     * folder in the history, this action will be enabled, if not it will be disabled.
+     * folder in the history and the current tab is not locked, this action will be enabled, if not it will be disabled.
      */
     @Override
     protected void toggleEnabledState() {
-        setEnabled(mainFrame.getActivePanel().getFolderHistory().hasForwardFolder());
+        setEnabled(mainFrame.getActivePanel().getFolderHistory().hasForwardFolder() &&
+        		  !mainFrame.getActivePanel().getTabs().getCurrentTab().isLocked());
     }
 
     public static class Factory implements ActionFactory {

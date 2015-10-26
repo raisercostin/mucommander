@@ -97,7 +97,7 @@ import com.mucommander.ui.theme.ThemeManager;
  *
  * @author Maxence Bernard, Nicolas Rinaudo
  */
-public class FileTable extends JTable implements MouseListener, MouseMotionListener, KeyListener, FocusListener,
+public class FileTable extends JTable implements MouseListener, MouseMotionListener, KeyListener,
                                                  ActivePanelListener, ConfigurationListener, ThemeListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileTable.class);
 	
@@ -215,7 +215,6 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         folderPanel.addMouseListener(this);
         addMouseMotionListener(this);
         addKeyListener(this);
-        addFocusListener(this);
         mainFrame.addActivePanelListener(this);
         MuConfigurations.addPreferencesListener(this);
 
@@ -225,7 +224,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
             setTableHeaderRenderingProperties();
         
         // Initialize a wrapper of presentation adjustments for the file-table
-        scrollpaneWrapper = new FileTableWrapperForDisplay(this, mainFrame);
+        scrollpaneWrapper = new FileTableWrapperForDisplay(this, folderPanel, mainFrame);
     }
     
     public String getFileNameAtRow(int index) {
@@ -273,6 +272,31 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
             // header back to normal. This looks like a bug in Apple's implementation.
 
         }
+    }
+    
+    /**
+     * Restores selection when focus is gained.
+     * Note: this is not FocusListener implementation method
+     */
+    private void focusGained() {
+        focusGainedTime = System.currentTimeMillis();
+
+        if(isEditing()) {
+            filenameEditor.filenameField.requestFocus();
+        }
+        else {
+            // Repaints the table to reflect the new focused state
+            repaint();
+        }
+    }
+
+    /**
+     * Hides selection when focus is lost.
+     * Note: this is not FocusListener implementation method
+     */
+    private void focusLost() {
+        // Repaints the table to reflect the new focused state
+        repaint();
     }
 
     /**
@@ -417,15 +441,6 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     }
 
     /**
-     * Returns the folder currently displayed by this FileTable.
-     *
-     * @return the folder currently displayed by this FileTable
-     */
-    public AbstractFile getCurrentFolder() {
-        return tableModel.getCurrentFolder();
-    }
-
-    /**
      * Shorthand for {@link #setCurrentFolder(AbstractFile, AbstractFile[], AbstractFile)} called with no specific file
      * to select (default selection).
      *
@@ -464,17 +479,14 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      * @param fileToSelect the file to select, <code>null</code> for the default selection.
      */
     public void setCurrentFolder(AbstractFile folder, AbstractFile children[], AbstractFile fileToSelect) {
-        AbstractFile currentFolder;     // Current folder.
-        FileSet      markedFiles;       // Buffer for all previously marked file.
-
         // Stop quick search in case it was being used before folder change
         quickSearch.stop();
 
-        currentFolder = getCurrentFolder();
+        AbstractFile currentFolder = folderPanel.getCurrentFolder();
 
         // If we're refreshing the current folder, save the current selection and marked files
         // in order to restore them properly.
-        markedFiles  = null;
+        FileSet markedFiles  = null;
         if(currentFolder != null && folder.equalsCanonical(currentFolder)) {
             markedFiles = tableModel.getMarkedFiles();
             if(fileToSelect==null)
@@ -866,7 +878,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         // protocols that have a special file implementation for the root folder (s3 is one).
         AbstractFile file = getFileTableModel().getFileAt(0);
         if(file==null)
-            file = getCurrentFolder();
+            file = folderPanel.getCurrentFolder();
 
         // The Owner and Group columns are displayable only if current folder has this information
         if(column==Column.OWNER) {
@@ -1232,7 +1244,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
      */
     @Override
     public String toString() {
-        return getClass().getName()+"@"+hashCode() +" currentFolder="+getCurrentFolder()+" hasFocus="+hasFocus()+" currentRow="+currentRow;
+        return getClass().getName()+"@"+hashCode() +" currentFolder="+folderPanel.getCurrentFolder()+" hasFocus="+hasFocus()+" currentRow="+currentRow;
     }
 
     ///////////////////////////
@@ -1362,7 +1374,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
                 requestFocus();
 
             // Popup menu where the user right-clicked
-            new TablePopupMenu(mainFrame, getCurrentFolder(), parentFolderClicked?null:tableModel.getFileAtRow(clickedRow), parentFolderClicked, tableModel.getMarkedFiles()).show(this, x, y);
+            new TablePopupMenu(mainFrame, folderPanel.getCurrentFolder(), parentFolderClicked?null:tableModel.getFileAtRow(clickedRow), parentFolderClicked, tableModel.getMarkedFiles()).show(this, x, y);
         }
         // Middle-click on a row marks or unmarks it
         // Control left-click also works
@@ -1441,35 +1453,6 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         }
     }
 
-
-    ///////////////////////////
-    // FocusListener methods //
-    ///////////////////////////
-
-    /**
-     * Restores selection when focus is gained.
-     */
-    public void focusGained(FocusEvent e) {
-        focusGainedTime = System.currentTimeMillis();
-
-        if(isEditing()) {
-            filenameEditor.filenameField.requestFocus();
-        }
-        else {
-            // Repaints the table to reflect the new focused state
-            repaint();
-        }
-    }
-
-    /**
-     * Hides selection when focus is lost.
-     */
-    public void focusLost(FocusEvent e) {
-        // Repaints the table to reflect the new focused state
-        repaint();
-    }
-
-
     /////////////////////////////////
     // ActivePanelListener methods //
     /////////////////////////////////
@@ -1481,6 +1464,11 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
         // instead of a custom header renderer. These indicators change when the active table has changed. 
         if(usesTableHeaderRenderingProperties())
             setTableHeaderRenderingProperties();
+        
+        if(isActiveTable)
+        	focusGained();
+        else
+        	focusLost();
     }
 
 
@@ -1562,19 +1550,19 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
                 }
             );
             textField.addActionListener(new ActionListener() {
-            	@Override
+            	
                 public void actionPerformed(ActionEvent e) {
                     rename();
                 }
             });
             textField.addFocusListener(new FocusListener() {
-				@Override
+				
 				public void focusLost(FocusEvent e) {
 					cancelCellEditing();
 					FileTable.this.repaint();
 				}
 				
-				@Override
+				
 				public void focusGained(FocusEvent e) {}
 			});
         }
@@ -1590,7 +1578,7 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
             if(!newName.equals(fileToRename.getName())) {
                 AbstractFile current;
 
-                current = getCurrentFolder();
+                current = folderPanel.getCurrentFolder();
                 // Starts moving files
                 ProgressDialog progressDialog = new ProgressDialog(mainFrame, Translator.get("move_dialog.moving"));
                 FileSet files = new FileSet(current);

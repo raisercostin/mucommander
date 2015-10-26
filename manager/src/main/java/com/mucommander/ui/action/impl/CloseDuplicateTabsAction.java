@@ -30,7 +30,7 @@ import com.mucommander.ui.action.MuAction;
 import com.mucommander.ui.main.MainFrame;
 
 /**
- * Close duplicate tabs in the tabbedpane
+ * Close duplicate tabs in the folder panel
  * 
  * @author Arik Hadas
  */
@@ -57,7 +57,7 @@ public class CloseDuplicateTabsAction extends MuAction {
     	
 		public String getId() { return ACTION_ID; }
 
-		public ActionCategory getCategory() { return ActionCategories.NAVIGATION; }
+		public ActionCategory getCategory() { return ActionCategories.TAB; }
 
 		public KeyStroke getDefaultAltKeyStroke() { return null; }
 

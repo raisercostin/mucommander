@@ -1,22 +1,19 @@
 package com.mucommander.ui.viewer;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.KeyStroke;
 import javax.swing.WindowConstants;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mucommander.commons.file.AbstractFile;
-import com.mucommander.commons.runtime.OsFamilies;
 import com.mucommander.ui.dialog.DialogToolkit;
 import com.mucommander.ui.helper.FocusRequester;
 import com.mucommander.ui.layout.AsyncPanel;
@@ -29,9 +26,9 @@ import com.mucommander.ui.main.MainFrame;
  */
 public abstract class FileFrame extends JFrame {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileFrame.class);
-	
-	protected final static String CUSTOM_DISPOSE_EVENT = "CUSTOM_DISPOSE_EVENT";
-	
+
+	private final static Dimension WAIT_DIALOG_SIZE = new Dimension(400, 350);
+
 	// The file presenter within this frame
 	private FilePresenter filePresenter;
 	
@@ -52,22 +49,31 @@ public abstract class FileFrame extends JFrame {
 	}
 	
 	protected void initContentPane(final AbstractFile file) {
-        AsyncPanel asyncPanel = new AsyncPanel() {
+		try {
+			filePresenter = createFilePresenter(file);
+		} catch (UserCancelledException e) {
+			// May get a UserCancelledException if the user canceled (refused to confirm the operation after a warning)
+			return;
+		}
+
+		// If not suitable presenter was found for the given file
+		if (filePresenter == null) {
+			showGenericErrorDialog();
+			return;
+		}
+
+		AsyncPanel asyncPanel = new AsyncPanel() {
         	
             @Override
             public JComponent getTargetComponent() {
                 try {
-                	filePresenter = createFilePresenter(file);
-
                     // Ask the presenter to present the file
                 	filePresenter.open(file);
                 }
                 catch(Exception e) {
                     LOGGER.debug("Exception caught", e);
 
-                    // May be a UserCancelledException if the user canceled (refused to confirm the operation after a warning)
-                    if(!(e instanceof UserCancelledException))
-                        showGenericErrorDialog();
+                    showGenericErrorDialog();
 
                     dispose();
                     return filePresenter==null?new JPanel():filePresenter;
@@ -75,22 +81,15 @@ public abstract class FileFrame extends JFrame {
 
                 setJMenuBar(filePresenter.getMenuBar());
                 
-                // Catch Apple+W keystrokes under Mac OS X to close the window
-                if(OsFamilies.MAC_OS_X.isCurrent()) {
-                	filePresenter.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.META_MASK), CUSTOM_DISPOSE_EVENT);
-                	filePresenter.getActionMap().put(CUSTOM_DISPOSE_EVENT, new AbstractAction() {
-                		public void actionPerformed(ActionEvent e){
-                			dispose();
-                		}
-                	});
-                }
-
                 return filePresenter;
             }
 
             @Override
             protected void updateLayout() {
                 super.updateLayout();
+
+                // Sets panel to preferred size, without exceeding a maximum size and with a minimum size
+                pack();
 
                 // Request focus on the viewer when it is visible
                 FocusRequester.requestFocus(filePresenter);
@@ -102,15 +101,33 @@ public abstract class FileFrame extends JFrame {
         contentPane.add(asyncPanel, BorderLayout.CENTER);
         setContentPane(contentPane);
 
-        // Sets panel to preferred size, without exceeding a maximum size and with a minimum size
-        pack();
+        setSize(WAIT_DIALOG_SIZE);
+        DialogToolkit.centerOnWindow(this, getMainFrame());
+
         setVisible(true);
     }
-	
+
 	protected MainFrame getMainFrame() {
 		return mainFrame;
 	}
-	
+
+	/**
+	 * Sets this file presenter to full screen
+	 */
+	public void setFullScreen(boolean on) {
+		int currentExtendedState = getExtendedState();
+		setExtendedState(on ? currentExtendedState | Frame.MAXIMIZED_BOTH : currentExtendedState & ~Frame.MAXIMIZED_BOTH);
+	}
+
+	/**
+	 * Returns whether this frame is set to be displayed in full screen mode
+	 * 
+	 * @return true if the frame is set to full screen, false otherwise
+	 */
+	public boolean isFullScreen() {
+		return (getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+	}
+
 	////////////////////////
     // Overridden methods //
     ////////////////////////
@@ -127,8 +144,7 @@ public abstract class FileFrame extends JFrame {
     
     @Override
     public void dispose() {
-    	if (filePresenter != null)
-    		filePresenter.beforeCloseHook();
+    	filePresenter.beforeCloseHook();
     	super.dispose();
     }
     
@@ -138,5 +154,5 @@ public abstract class FileFrame extends JFrame {
     
     protected abstract void showGenericErrorDialog();
     
-    protected abstract FilePresenter createFilePresenter(AbstractFile file) throws UserCancelledException, Exception;
+    protected abstract FilePresenter createFilePresenter(AbstractFile file) throws UserCancelledException;
 }

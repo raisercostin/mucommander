@@ -18,12 +18,7 @@
 
 package com.mucommander.text;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
@@ -39,7 +34,6 @@ import com.mucommander.commons.file.util.ResourceLoader;
 import com.mucommander.commons.io.bom.BOMReader;
 import com.mucommander.conf.MuConfigurations;
 import com.mucommander.conf.MuPreference;
-import com.mucommander.conf.MuPreferences;
 
 
 /**

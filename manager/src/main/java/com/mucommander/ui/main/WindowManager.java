@@ -18,16 +18,10 @@
 
 package com.mucommander.ui.main;
 
-import java.awt.Dimension;
 import java.awt.Frame;
-import java.awt.Insets;
-import java.awt.Rectangle;
-import java.awt.Toolkit;
-import java.awt.Window;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.io.File;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
 
@@ -40,65 +34,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mucommander.ShutdownHook;
-import com.mucommander.auth.CredentialsManager;
-import com.mucommander.auth.CredentialsMapping;
-import com.mucommander.commons.conf.Configuration;
 import com.mucommander.commons.conf.ConfigurationEvent;
 import com.mucommander.commons.conf.ConfigurationListener;
-import com.mucommander.commons.file.AbstractFile;
-import com.mucommander.commons.file.AuthException;
-import com.mucommander.commons.file.FileFactory;
-import com.mucommander.commons.file.FileURL;
 import com.mucommander.conf.MuConfigurations;
 import com.mucommander.conf.MuPreference;
 import com.mucommander.conf.MuPreferences;
-import com.mucommander.conf.MuPreferencesAPI;
-import com.mucommander.conf.MuSnapshot;
 import com.mucommander.extension.ExtensionManager;
-import com.mucommander.ui.dialog.auth.AuthDialog;
 import com.mucommander.ui.main.commandbar.CommandBar;
+import com.mucommander.ui.main.frame.MainFrameBuilder;
 
 /**
  * Window Manager is responsible for creating, disposing, switching,
  * in other words managing :) muCommander windows.
  *
- * @author Maxence Bernard
+ * @author Maxence Bernard, Arik Hadas
  */
 //public class WindowManager implements ActionListener, WindowListener, ActivePanelListener, LocationListener, ConfigurationListener {
 public class WindowManager implements WindowListener, ConfigurationListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(WindowManager.class);
 	
-    // - Folder frame identifiers -----------------------------------------------
-    // --------------------------------------------------------------------------
-    // The following constants are used to identify the left and right folder frames
-    // in the configuration file.
-
-    /** Configuration identifier for the left folder frame. */
-    static final int LEFT_FRAME  = 0;
-    /** Configuration identifier for the right folder frame. */
-    static final int RIGHT_FRAME = 1;
-
-
-
     // - MainFrame positioning --------------------------------------------------
     // --------------------------------------------------------------------------
     // The following constants are used to compute the proper position of a new MainFrame.
 
-    /** Number of pixels a new MainFrame will be moved to the left from its parent. */
-    private static final int X_OFFSET = 22;
-    /** Number of pixels a new MainFrame will be moved down from its parent. */
-    private static final int Y_OFFSET = 22;
-
-
-
     /** MainFrame (main muCommander window) instances */
-    private static List<MainFrame> mainFrames;
+    private List<MainFrame> mainFrames;
     
     /** MainFrame currently being used (that has focus),
      * or last frame to have been used if muCommander doesn't have focus */	
-    private static MainFrame currentMainFrame;
+    private MainFrame currentMainFrame;
 
-    private static WindowManager instance;
+    private static final WindowManager instance = new WindowManager();
 
 
     // - Initialization ---------------------------------------------------------
@@ -123,9 +89,11 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         }
     }
 
-    static {
-        mainFrames = new Vector<MainFrame>();
-        instance   = new WindowManager();
+    /**
+     * Creates a new instance of WindowManager.
+     */
+    private WindowManager() {
+    	mainFrames = new Vector<MainFrame>();
 
         // Notifies Swing that look&feels must be loaded as extensions.
         // This is necessary to ensure that look and feels placed in the extensions folder
@@ -135,7 +103,6 @@ public class WindowManager implements WindowListener, ConfigurationListener {
         // Installs all custom look and feels.
         installCustomLookAndFeels();
         
-
         // Sets custom lookAndFeel if different from current lookAndFeel
         String lnfName = MuConfigurations.getPreferences().getVariable(MuPreference.LOOK_AND_FEEL);
         if(lnfName!=null && !lnfName.equals(UIManager.getLookAndFeel().getName()))
@@ -143,151 +110,10 @@ public class WindowManager implements WindowListener, ConfigurationListener {
 
         if(lnfName == null)
             LOGGER.debug("Could load look'n feel from preferences");
+        
+        MuConfigurations.addPreferencesListener(this);
     }
 
-    /**
-     * Creates a new instance of WindowManager.
-     */
-    private WindowManager() {MuConfigurations.addPreferencesListener(this);}
-
-    /**
-     * Retrieves the user's initial path for the specified frame.
-     * <p>
-     * If the path found in preferences is either illegal or does not exist, this method will
-     * return the user's home directory - we assume this will always exist, which might be a bit
-     * of a leap of faith.
-     * </p>
-     * @param  frame frame for which the initial path should be returned (either {@link #LEFT_FRAME} or
-     *               {@link #RIGHT_FRAME}).
-     * @return       the user's initial path for the specified frame.
-     */ 
-    private static AbstractFile[] getInitialPaths(int frame) {
-        boolean       isCustom;    // Whether the initial path is a custom one or the last used folder.
-        String[]      folderPaths; // Paths to the initial folders.
-        
-        // Snapshot configuration
-        Configuration snapshot = MuConfigurations.getSnapshot();
-        // Preferences configuration
-        MuPreferencesAPI preferences = MuConfigurations.getPreferences();
-        
-        // Checks which kind of initial path we're dealing with.
-        isCustom = (frame == LEFT_FRAME ? preferences.getVariable(MuPreference.LEFT_STARTUP_FOLDER, MuPreferences.DEFAULT_STARTUP_FOLDER) :
-        	preferences.getVariable(MuPreference.RIGHT_STARTUP_FOLDER, MuPreferences.DEFAULT_STARTUP_FOLDER)).equals(MuPreferences.STARTUP_FOLDER_CUSTOM);
-
-        // Handles custom initial paths.
-        if (isCustom) {
-        	folderPaths = new String[] {(frame == LEFT_FRAME ? preferences.getVariable(MuPreference.LEFT_CUSTOM_FOLDER) :
-        		preferences.getVariable(MuPreference.RIGHT_CUSTOM_FOLDER))};
-        }
-        // Handles "last folder" initial paths.
-        else {
-        	// Get the index of the window that was selected in the previous run
-        	int indexOfPreviouslySelectedWindow = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getSelectedWindow());
-        	// Set initial path to each tab
-        	int nbFolderPaths = snapshot.getVariable(MuSnapshot.getTabsCountVariable(indexOfPreviouslySelectedWindow, frame == LEFT_FRAME), 0);
-        	folderPaths = new String[nbFolderPaths];
-        	for (int i=0; i<nbFolderPaths;++i)
-        		folderPaths[i] = snapshot.getVariable(MuSnapshot.getTabLocationVariable(indexOfPreviouslySelectedWindow, frame == LEFT_FRAME, i));
-        }
-
-        List<AbstractFile> initialFolders = new LinkedList<AbstractFile>(); // Initial folders 
-        AbstractFile folder;
-        
-        for (String folderPath : folderPaths) {
-        	// TODO: consider whether to search for workable path in case the folder doesn't exist
-        	if (folderPath != null && (folder = FileFactory.getFile(folderPath)) != null && folder.exists())
-        		initialFolders.add(folder);
-        }
-        
-        // If the initial path is not legal or does not exist, defaults to the user's home.
-        AbstractFile[] results = initialFolders.size() == 0 ?
-        		new AbstractFile[] {FileFactory.getFile(System.getProperty("user.home"))} :
-        		initialFolders.toArray(new AbstractFile[0]);
-
-         LOGGER.debug("initial folders:");
-         for (AbstractFile result:results)
-        	 LOGGER.debug("\t"+result);
-        
-        return results;
-    }
-
-    /**
-     * Returns a valid initial abstract path for the specified frame.
-     * <p>
-     * This method does its best to interpret <code>path</code> properly, or to fail
-     * politely if it can't. This means that:<br/>
-     * - we first try to see whether <code>path</code> is a legal, existing URI.<br/>
-     * - if it's not, we check whether it might be a legal local, existing file path.<br/>
-     * - if it's not, we'll just use the default initial path for the frame.<br/>
-     * - if <code>path</code> is browsable (eg directory, archive, ...), use it as is.<br/>
-     * - if it's not, use its parent.<br/>
-     * - if it does not have a parent, use the default initial path for the frame.<br/>
-     * </p>
-     * @param  path  path to the folder we want to open in <code>frame</code>.
-     * @param  frame identifer of the frame we want to compute the path for (either {@link #LEFT_FRAME} or
-     *               {@link #RIGHT_FRAME}).
-     * @return       our best shot at what was actually requested.
-     */
-    private static AbstractFile[] getInitialAbstractPaths(String path, int frame) {
-        // This is one of those cases where a null value actually has a proper meaning.
-        if(path == null)
-            return getInitialPaths(frame);
-
-        // Tries the specified path as-is.
-        AbstractFile file;
-        CredentialsMapping newCredentialsMapping;
-
-        while(true) {
-            try {
-                file = FileFactory.getFile(path, true);
-                if(!file.exists())
-                    file = null;
-                break;
-            }
-            // If an AuthException occurred, gets login credential from the user.
-            catch(Exception e) {
-                if(e instanceof AuthException) {
-                    // Prompts the user for a login and password.
-                    AuthException authException = (AuthException)e;
-                    FileURL url = authException.getURL();
-                    AuthDialog authDialog = new AuthDialog(currentMainFrame, url, true, authException.getMessage());
-                    authDialog.showDialog();
-                    newCredentialsMapping = authDialog.getCredentialsMapping();
-                    if(newCredentialsMapping !=null) {
-                        // Use the provided credentials
-                        CredentialsManager.authenticate(url, newCredentialsMapping);
-                        path = url.toString(true);
-                    }
-                    // If the user cancels, we fall back to the default path.
-                    else {
-                        return getInitialPaths(frame);
-                    }
-                }
-                else {
-                    file = null;
-                    break;
-                }
-            }
-        }
-
-        // If the specified path does not work out,
-        if(file == null)
-            // Tries the specified path as a relative path.
-            if((file = FileFactory.getFile(new File(path).getAbsolutePath())) == null || !file.exists())
-                // Defaults to home.
-                return getInitialPaths(frame);
-
-        // If the specified path is a non-browsable, uses its parent.
-        if(!file.isBrowsable())
-            // This is just playing things safe, as I doubt there might ever be a case of
-            // a file without a parent directory.
-            if((file = file.getParent()) == null)
-                return getInitialPaths(frame);
-
-        return new AbstractFile[] {file};
-    }
-    
-    
     /**
      * Returns the sole instance of WindowManager.
      *
@@ -305,7 +131,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * @return the <code>MainFrame</code> instance that was last active
      */
     public static MainFrame getCurrentMainFrame() {
-        return currentMainFrame;
+        return instance.currentMainFrame;
     }
 	
     /**
@@ -314,7 +140,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * @return a <code>Vector</code> of all <code>MainFrame</code> instances currently displaying
      */
     public static List<MainFrame> getMainFrames() {
-        return mainFrames;
+        return instance.mainFrames;
     }
 
     /**
@@ -323,38 +149,10 @@ public class WindowManager implements WindowListener, ConfigurationListener {
     public static void tryRefreshCurrentFolders() {
         // Starts with the main frame to make sure that results are immediately
         // visible to the user.
-        currentMainFrame.tryRefreshCurrentFolders();
-        for(MainFrame mainFrame : mainFrames)
-            if(mainFrame != currentMainFrame)
+    	instance.currentMainFrame.tryRefreshCurrentFolders();
+        for(MainFrame mainFrame : instance.mainFrames)
+            if(mainFrame != instance.currentMainFrame)
                 mainFrame.tryRefreshCurrentFolders();
-    }
-
-    /**
-     * Creates a new MainFrame and makes it visible on the screen, on top of any other frames.
-     * <p>
-     * The initial path of each frame will differ depending on whether this is the first mainframe
-     * we create or not.<br/>
-     * If it is, we'll use the user's default paths. If it's not, the current mainframe's paths will
-     * be used.
-     * </p>
-     * @return a fully initialised mainframe.
-     */	
-    public static synchronized MainFrame createNewMainFrame() {
-        if(currentMainFrame == null)
-            return createNewMainFrame(getInitialPaths(LEFT_FRAME), getInitialPaths(RIGHT_FRAME));
-        return createNewMainFrame(new AbstractFile[] {currentMainFrame.getLeftPanel().getFileTable().getCurrentFolder()},
-                                  new AbstractFile[] {currentMainFrame.getRightPanel().getFileTable().getCurrentFolder()});
-    }
-
-    /**
-     * Creates a new MainFrame and makes it visible on the screen, on top of any other frame.
-     * @param  folder1 path on which the left frame will be opened.
-     * @param  folder2 path on which the right frame will be opened.
-     * @return         a fully initialized mainframe.
-     */
-    public static synchronized MainFrame createNewMainFrame(String folder1, String folder2) {
-        return createNewMainFrame(getInitialAbstractPaths(folder1, LEFT_FRAME),
-                                  getInitialAbstractPaths(folder2, RIGHT_FRAME));
     }
 
     /**
@@ -364,141 +162,38 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * @param rightFolders initial paths for the right frame.
      * @return the newly created MainFrame.
      */
-    public static synchronized MainFrame createNewMainFrame(AbstractFile[] leftFolders, AbstractFile[] rightFolders) {
-        MainFrame newMainFrame; // New MainFrame.
-        Dimension screenSize;   // Used to compute the new MainFrame's proper location.
-        int       x;            // Horizontal position of the new MainFrame.
-        int       y;            // Vertical position of the new MainFrame.
-        int       width;        // Width of the new MainFrame.
-        int       height;       // Height of the new MainFrame.
-
-        // Initialization.
-        if(currentMainFrame == null)
-            newMainFrame = new MainFrame(leftFolders, rightFolders);
-        else
-            newMainFrame = currentMainFrame.cloneMainFrame();
-        screenSize   = Toolkit.getDefaultToolkit().getScreenSize();
-
-
-        // - Initial window dimensions --------------------------
-        // ------------------------------------------------------
-        // If this is the first window, retrieve initial dimensions from preferences.
-        if(mainFrames.isEmpty()) {
-            currentMainFrame = newMainFrame;
-            // Retrieve last saved window bounds
-            x      = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getX(0));
-            y      = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getY(0));
-            width  = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getWidth(0));
-            height = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.getHeight(0));
-
-            // Retrieves the last known size of the screen.
-            int lastScreenWidth  = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.SCREEN_WIDTH);
-            int lastScreenHeight = MuConfigurations.getSnapshot().getIntegerVariable(MuSnapshot.SCREEN_HEIGHT);
-
-            // If no previous location was saved, or if the resolution has changed,
-            // reset the window's dimensions to their default values.
-            if(x == -1 || y == -1 || width == -1 || height == -1 ||
-               screenSize.width != lastScreenWidth ||  screenSize.height != lastScreenHeight
-               || width + x > screenSize.width + 5 || height + y > screenSize.height + 5) {
-
-                // Full screen bounds are not reliable enough, in particular under Linux+Gnome
-                // so we simply make the initial window 4/5 of screen's size, and center it.
-                // This should fit under any window manager / platform
-                x      = screenSize.width / 10;
-                y      = screenSize.height / 10;
-                width  = (int)(screenSize.width * 0.8);
-                height = (int)(screenSize.height * 0.8);
-            }
-        }
-
-        // If this is *not* the first window, use the same dimensions as the previous MainFrame, with
-        // a slight horizontal and vertical offset to make sure we keep both of them visible.
-        else {
-            x             = currentMainFrame.getX() + X_OFFSET;
-            y             = currentMainFrame.getY() + Y_OFFSET;
-            width         = currentMainFrame.getWidth();
-            height        = currentMainFrame.getHeight();
-
-            // Make sure we're still within the screen.
-            // Note that while the width and height tests look redundant, they are required. Some
-            // window managers, such as Gnome, return rather peculiar results.
-            if(!isInsideUsableScreen(currentMainFrame, x + width, -1))
-                x = 0;
-            if(!isInsideUsableScreen(currentMainFrame, -1, y + height))
-                y = 0;
-            if(width + x > screenSize.width)
-                width = screenSize.width - x;
-            if(height + y > screenSize.height)
-                height = screenSize.height - y;
-        }
-        newMainFrame.setBounds(new Rectangle(x, y, width, height));
+    public static synchronized void createNewMainFrame(MainFrameBuilder mainFrameBuilder) {
+        MainFrame[] newMainFrames = mainFrameBuilder.build();
 
         // To catch user window closing actions
-        newMainFrame.addWindowListener(instance);
+        for (MainFrame frame : newMainFrames)
+        	frame.addWindowListener(instance);
 
         // Adds the new MainFrame to the vector
-        mainFrames.add(newMainFrame);
+        instance.mainFrames.addAll(Arrays.asList(newMainFrames));
 
         // Set new window's title. Window titles show window number only if there is more than one window.
         // So if a second window was just created, we update first window's title so that it shows window number (#1).
-        newMainFrame.updateWindowTitle();
-        if(mainFrames.size()==2)
-            mainFrames.get(0).updateWindowTitle();
+        for (MainFrame frame : instance.mainFrames)
+        	frame.updateWindowTitle();
 
-        // Make this new frame visible
-        newMainFrame.setVisible(true);
+        // Make frames visible
+        for (MainFrame frame : newMainFrames)
+        	frame.setVisible(true);
 
-        return newMainFrame;
-    }
-
-    /**
-     * Properly disposes the given MainFrame.
-     */
-/*
-    public static synchronized void disposeMainFrame(MainFrame mainFrameToDispose) {
-        // Saves last folders
-        MuConfiguration.setVariable("prefs.startup_folder.left.last_folder", 
-                                         mainFrameToDispose.getLeftPanel().getFolderHistory().getLastRecallableFolder());
-        MuConfiguration.setVariable("prefs.startup_folder.right.last_folder", 
-                                         mainFrameToDispose.getRightPanel().getFolderHistory().getLastRecallableFolder());
-
-        // Saves window position, size and screen resolution
-        Rectangle bounds = mainFrameToDispose.getBounds();
-        MuConfiguration.setVariableInt("prefs.last_window.x", (int)bounds.getX());
-        MuConfiguration.setVariableInt("prefs.last_window.y", (int)bounds.getY());
-        MuConfiguration.setVariableInt("prefs.last_window.width", (int)bounds.getWidth());
-        MuConfiguration.setVariableInt("prefs.last_window.height", (int)bounds.getHeight());
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        MuConfiguration.setVariableInt("prefs.last_window.screen_width", screenSize.width);
-        MuConfiguration.setVariableInt("prefs.last_window.screen_height", screenSize.height);
-
-        // Disposes the MainFrame
-        int frameIndex = mainFrames.indexOf(mainFrameToDispose);
-
-        mainFrameToDispose.dispose();
-        mainFrames.remove(mainFrameToDispose);
-
-        // Update following window titles to reflect the MainFrame's disposal.
-        // Window titles show window number only if there is more than one window.
-        // So if there is only one window left, we update first window's title so that it removes window number (#1).
-        int nbFrames = mainFrames.size();
-        if(nbFrames==1) {
-            ((MainFrame)mainFrames.elementAt(0)).updateWindowTitle();
-        }
-        else {
-            for(int i=frameIndex; i<nbFrames; i++)
-                ((MainFrame)mainFrames.elementAt(i)).updateWindowTitle();
+        if (instance.mainFrames.size() > 0) {
+        	int previouslySelectedMainFrame = mainFrameBuilder.getSelectedFrame();
+        	instance.mainFrames.get(previouslySelectedMainFrame).toFront();
         }
     }
-*/
 
     /**
      * Disposes all opened windows, ending with the one that is currently active if there is one, 
-     * or the last one which was activated.
+     * or the last one which was activated.	
      */
     public static synchronized void quit() {
         // Dispose all MainFrames, ending with the currently active one.
-        int nbFrames = mainFrames.size();
+        int nbFrames = instance.mainFrames.size();
         if(nbFrames>0) {            // If an uncaught exception occurred in the startup sequence, there is no MainFrame to dispose
             // Retrieve current MainFrame's index
             int currentMainFrameIndex = getCurrentWindowIndex();
@@ -506,12 +201,12 @@ public class WindowManager implements WindowListener, ConfigurationListener {
             // Dispose all MainFrames but the current one
             for(int i=0; i<nbFrames; i++) {
                 if(i!=currentMainFrameIndex)
-                    mainFrames.get(i).dispose();
+                	instance.mainFrames.get(i).dispose();
             }
 
             // Dispose current MainFrame last so that its attributes (last folders, window position...) are saved last
             // in the preferences
-            mainFrames.get(currentMainFrameIndex).dispose();
+            instance.mainFrames.get(currentMainFrameIndex).dispose();
         }
 
         // Dispose all other frames (viewers, editors...)
@@ -538,7 +233,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      * @return index of currently selected window
      */
     public static int getCurrentWindowIndex() {
-    	return mainFrames.indexOf(currentMainFrame);
+    	return instance.mainFrames.indexOf(instance.currentMainFrame);
     }
 	
     /**
@@ -546,7 +241,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      */
     public static void switchToNextWindow() {
         int frameIndex = getCurrentWindowIndex();
-        MainFrame mainFrame = mainFrames.get(frameIndex==mainFrames.size()-1?0:frameIndex+1);
+        MainFrame mainFrame = instance.mainFrames.get((frameIndex+1) % instance.mainFrames.size());
         mainFrame.toFront();
     }
 
@@ -555,7 +250,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      */
     public static void switchToPreviousWindow() {
         int frameIndex = getCurrentWindowIndex();
-        MainFrame mainFrame = mainFrames.get(frameIndex==0?mainFrames.size()-1:frameIndex-1);
+        int nbFrames = instance.mainFrames.size();
+        MainFrame mainFrame = instance.mainFrames.get((frameIndex-1+nbFrames) % nbFrames);
         mainFrame.toFront();
     }
 
@@ -577,7 +273,7 @@ public class WindowManager implements WindowListener, ConfigurationListener {
             ClassLoader oldLoader;
             Thread      currentThread;
 
-            // Initialises class loading.
+            // Initializes class loading.
             // This is necessary due to Swing's UIDefaults.LazyProxyValue behaviour that just
             // won't use the right ClassLoader instance to load resources.
             currentThread = Thread.currentThread();
@@ -589,8 +285,8 @@ public class WindowManager implements WindowListener, ConfigurationListener {
             // Restores the contextual ClassLoader.
             currentThread.setContextClassLoader(oldLoader);
 
-            for(int i=0; i<mainFrames.size(); i++)
-                SwingUtilities.updateComponentTreeUI(mainFrames.get(i));
+            for(int i=0; i<instance.mainFrames.size(); i++)
+                SwingUtilities.updateComponentTreeUI(instance.mainFrames.get(i));
         }
         catch(Throwable e) {
             LOGGER.debug("Exception caught", e);
@@ -706,76 +402,14 @@ public class WindowManager implements WindowListener, ConfigurationListener {
      */
     public void configurationChanged(ConfigurationEvent event) {
     	String var = event.getVariable();
-    
+
     	// /!\ font.size is set after font.family in AppearancePrefPanel
     	// that's why we only listen to this one in order not to change Font twice
     	if (var.equals(MuPreferences.LOOK_AND_FEEL)) {
-            String lnfName = event.getValue();
+    		String lnfName = event.getValue();
 
-	    if(!UIManager.getLookAndFeel().getClass().getName().equals(lnfName))
-		setLookAndFeel(lnfName);
-        }
-    }
-
-
-
-    // - Screen handling --------------------------------------------------------
-    // --------------------------------------------------------------------------
-    /**
-     * Computes the screen's insets for the specified window and returns them.
-     * <p>
-     * While this might seem strange, screen insets can change from one window
-     * to another. For example, on X11 windowing systems, there is no guarantee that
-     * a window will be displayed on the same screen, let alone computer, as the one
-     * the application is running on.
-     * </p>
-     * @param window the window for which screen insets should be computed.
-     * @return the screen's insets for the specified window
-     */
-    public static Insets getScreenInsets(Window window) {
-        return Toolkit.getDefaultToolkit().getScreenInsets(window.getGraphicsConfiguration());
-    }
-	
-	
-    /**
-     * Checks whether the specified frame can be moved to the specified coordinates and still
-     * be fully visible.
-     * <p>
-     * If <code>x</code> (resp. <code>y</code>) is <code>null</code>, this method won't test
-     * whether the frame is within horizontal (resp. vertical) bounds.
-     * </p>
-     * @param frame frame who's visibility should be tested.
-     * @param x     horizontal coordinate of the upper-leftmost corner of the area to check for.
-     * @param y     vertical coordinate of the upper-leftmost corner of the area to check for.
-     * @return      <code>true</code> if the frame can be moved at the specified location,
-     *              <code>false</code> otherwise.
-     */
-    public static boolean isInsideUsableScreen(Frame frame, int x, int y) {
-        Insets    screenInsets;
-        Dimension screenSize;
-
-        screenInsets = getScreenInsets(frame);
-        screenSize   = Toolkit.getDefaultToolkit().getScreenSize();
-
-        return (x < 0 || (x >= screenInsets.left && x < screenSize.width - screenInsets.right))
-            && (y < 0 || (y >= screenInsets.top && y < screenSize.height - screenInsets.bottom));
-    }
-	
-	
-    /**
-     * Returns the maximum dimensions for a full-screen window.
-     *
-     * @param window window who's full screen size should be computed.
-     * @return the maximum dimensions for a full-screen window
-     */
-    public static Rectangle getFullScreenBounds(Window window) {
-        Toolkit   toolkit;
-        Dimension screenSize;
-
-        toolkit    = Toolkit.getDefaultToolkit();
-        screenSize = toolkit.getScreenSize();
-
-        Insets screenInsets = toolkit.getScreenInsets(window.getGraphicsConfiguration());
-        return new Rectangle(screenInsets.left, screenInsets.top, screenSize.width-screenInsets.left-screenInsets.right, screenSize.height-screenInsets.top-screenInsets.bottom);
+    		if(!UIManager.getLookAndFeel().getClass().getName().equals(lnfName))
+    			setLookAndFeel(lnfName);
+    	}
     }
 }

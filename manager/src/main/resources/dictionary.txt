@@ -2069,19 +2069,8 @@ details:UA:Детальніше
 details:ES:Detalles
 # Translation missing (New!)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+title:EN:Title
+# Translation missing (New!)
 
 
 ##########################
@@ -2931,21 +2920,6 @@ action_categories.all:UA:Всі
 action_categories.all:ES:Todos
 # Translation missing (New!)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 action_categories.navigation:EN:Navigation
 action_categories.navigation:FR:Navigation
 action_categories.navigation:DE:Navigation
@@ -3080,6 +3054,9 @@ action_categories.windows:BE:Вакенцы
 action_categories.windows:NB:Vinduer
 action_categories.windows:TR:Pencereler
 action_categories.windows:CA:Finestres
+
+action_categories.tabs:EN:Tabs
+# Translation missing (New!)
 
 action_categories.misc:EN:$[prefs_dialog.misc_tab]
 
@@ -4133,6 +4110,9 @@ CopyFileNames.label:BE:Капіяваць імёны
 CopyFileNames.label:NB:Kopier navn(ene)
 CopyFileNames.label:TR:İsim(ler)i kopyala
 CopyFileNames.label:CA:Copia el(s) nom(s)
+
+CopyFileBaseNames.label:EN:Copy basename(s)
+# Translation missing (New!)
 
 CopyFilePaths.label:EN:Copy path(s)
 CopyFilePaths.label:FR:Copier chemin(s)
@@ -5537,6 +5517,7 @@ OpenNatively.tooltip:CA:Executa el fitxer seleccionat amb el programa associat a
 OpenInNewTab.label:EN:Open in new tab
 OpenInNewTab.label:UA:Відкрити у новій вкладці
 OpenInNewTab.label:ES:Abrir en pestaña nueva
+OpenInNewTab.label:DE:In neuem Panel öffnen
 # Translation missing (New!)
 
 OpenInOtherPanel.label:EN:Open in other panel
@@ -7326,6 +7307,9 @@ ShowRootFoldersQL.label:UA:Кореневі папки
 ShowRootFoldersQL.label:ES:Directorios raíz
 # Translation missing (New!)
 
+ShowTabsQL.label:EN:Open tabs
+# Translation missing (New!)
+
 SplitFile.label:EN:$[split]
 
 SplitFile.tooltip:EN:Split a file into multiple parts
@@ -8408,24 +8392,59 @@ table.download_or_browse:CA:Vol explorar o descarregar aquest fitxer?
 # Tabs #
 ########
 
-CloseDuplicateTabs.label:EN:Close duplicate tabs
-CloseDuplicateTabs.label:UA:Закрити вкладки, що повторюються
-CloseDuplicateTabs.label:ES:Cerrar pestañas duplicadas
+ToggleLockTab.lock:EN:Lock
 # Translation missing (New!)
 
-CloseOtherTabs.label:EN:Close other tabs
-CloseOtherTabs.label:UA:Закрити інші вкладки
-CloseOtherTabs.label:ES:Cerrar las demás pestañas
+ToggleLockTab.unlock:EN:Unlock
 # Translation missing (New!)
 
-CloseTab.label:EN:Close tab
-CloseTab.label:UA:Закрити вкладку
-CloseTab.label:ES:Cerrar pestaña
+ToggleLockTab.label:EN:Lock/Unlock
 # Translation missing (New!)
 
-MoveTabToOtherPanel.label:EN:Move tab to other panel
-MoveTabToOtherPanel.label:UA:Перемістити вкладку на іншу панель
-MoveTabToOtherPanel.label:ES:Mover pestaña al otro panel
+ToggleLockTab.tooltip:EN:Change tab's locking state
+# Translation missing (New!)
+
+DuplicateTab.label:EN:Duplicate
+# Translation missing (New!)
+
+DuplicateTab.tooltip:EN:Create similar tab in the same panel
+# Translation missing (New!)
+
+CloseDuplicateTabs.label:EN:Close duplicates
+# Translation missing (New!)
+
+CloseDuplicateTabs.tooltip:EN:Close duplicate tabs
+CloseDuplicateTabs.tooltip:UA:Закрити вкладки, що повторюються
+CloseDuplicateTabs.tooltip:ES:Cerrar pestañas duplicadas
+# Translation missing (New!)
+
+CloseOtherTabs.label:EN:Close others
+# Translation missing (New!)
+
+CloseOtherTabs.tooltip:EN:Close other tabs
+CloseOtherTabs.tooltip:UA:Закрити інші вкладки
+CloseOtherTabs.tooltip:ES:Cerrar las demás pestañas
+# Translation missing (New!)
+
+CloseTab.label:EN:$[close]
+
+CloseTab.tooltip:EN:Close tab
+CloseTab.tooltip:UA:Закрити вкладку
+CloseTab.tooltip:ES:Cerrar pestaña
+# Translation missing (New!)
+
+MoveTabToOtherPanel.label:EN:Move to other panel
+# Translation missing (New!)
+
+MoveTabToOtherPanel.tooltip:EN:Move tab to other panel
+MoveTabToOtherPanel.tooltip:UA:Перемістити вкладку на іншу панель
+MoveTabToOtherPanel.tooltip:ES:Mover pestaña al otro panel
+# Translation missing (New!)
+
+CloneTabToOtherPanel.label:EN:Clone to other panel
+# Translation missing (New!)
+
+CloneTabToOtherPanel.tooltip:EN:Add similar tab in the other panel
 # Translation missing (New!)
 
 NextTab.label:EN:Next tab
@@ -8433,9 +8452,21 @@ NextTab.label:UA:Наступна вкладка
 NextTab.label:ES:Siguiente pestaña
 # Translation missing (New!)
 
+NextTab.tooltip:EN:Switch to the tab on the right
+# Translation missing (New!)
+
 PreviousTab.label:EN:Previous tab
 PreviousTab.label:UA:Попередня вкладка
 PreviousTab.label:ES:Pestaña anterior
+# Translation missing (New!)
+
+PreviousTab.tooltip:EN:Switch to the tab on the left
+# Translation missing (New!)
+
+SetTabTitle.label:EN:Set title
+# Translation missing (New!)
+
+SetTabTitle.tooltip:EN:Set fixed title for the tab
 # Translation missing (New!)
 
 ##################
@@ -15631,6 +15662,9 @@ prefs_dialog.follow_symlinks_when_cd:TR:Geçerli dizini değiştirirken sembolik
 prefs_dialog.follow_symlinks_when_cd:CA:Seguir els enllaços simbòlics en canviar el directori actual
 # Translation missing (KO)
 
+prefs_dialog.show_tab_header:EN:Always show tab header
+# Translation missing (New!)
+
 # Appearance tab
 
 prefs_dialog.appearance_tab:EN:Appearance
@@ -18522,7 +18556,10 @@ recent_executed_files_quick_list.empty_message:CA:No hi ha fitxers executats rec
 recent_executed_files_quick_list.empty_message:ES:No hay ficheros ejecutados recientmente
 # Translation missing (KO)
 
-roots_quick_list.empty_message:EN:No root folders
+roots_quick_list.empty_message:EN:No root folders available
+# Translation missing (New!)
+
+tabs_quick_list.empty_message:EN:Only one tab is presented
 # Translation missing (New!)
 
 ######################

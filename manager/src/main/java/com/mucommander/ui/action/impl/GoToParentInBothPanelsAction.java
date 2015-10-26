@@ -33,7 +33,7 @@ import java.util.Map;
  * if the inactive panel's current folder has a parent, it will open that one as well.
  * </p>
  * <p>
- * Note that this action's behaviour is strictly equivalent to that of {@link GoToParentAction} in the
+ * Note that this action's behavior is strictly equivalent to that of {@link GoToParentAction} in the
  * active panel. Differences will only occur in the inactive panel, and then again only when possible.
  * </p>
  * <p>
@@ -42,7 +42,7 @@ import java.util.Map;
  * </p>
  * @author Nicolas Rinaudo
  */
-public class GoToParentInBothPanelsAction extends GoToParentAction {
+public class GoToParentInBothPanelsAction extends ActiveTabAction {
     // - Initialization ------------------------------------------------------------------
     // -----------------------------------------------------------------------------------
     /**
@@ -57,7 +57,17 @@ public class GoToParentInBothPanelsAction extends GoToParentAction {
         setPerformActionInSeparateThread(true);
     }
 
-
+    /**
+     * Enables or disables this action based on the currently active folder's
+     * has a parent and both tabs in the two panel are not locked,
+     * this action will be enabled, if not it will be disabled.
+     */
+    @Override
+    protected void toggleEnabledState() {
+        setEnabled(!mainFrame.getActivePanel().getTabs().getCurrentTab().isLocked() &&
+        		   !mainFrame.getInactivePanel().getTabs().getCurrentTab().isLocked() &&
+        		    mainFrame.getActivePanel().getCurrentFolder().getParent()!=null);
+    }
 
     // - Action code ---------------------------------------------------------------------
     // -----------------------------------------------------------------------------------

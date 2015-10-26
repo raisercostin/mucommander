@@ -18,7 +18,6 @@
 
 package com.mucommander.ui.viewer.text;
 
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
@@ -28,6 +27,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
 
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -59,9 +60,9 @@ import com.mucommander.ui.viewer.FileViewer;
  */
 class TextViewer extends FileViewer implements EncodingListener {
 
-	private final static Dimension MIN_DIMENSION = new Dimension(500, 360);
-	
-    private TextEditorImpl textEditorImpl;
+	public final static String CUSTOM_FULL_SCREEN_EVENT = "CUSTOM_FULL_SCREEN_EVENT";
+
+	private TextEditorImpl textEditorImpl;
     
     /** Menu items */
     // Menus //
@@ -96,9 +97,15 @@ class TextViewer extends FileViewer implements EncodingListener {
     @Override
     public void setFrame(FileFrame frame) {
         super.setFrame(frame);
-        
-        // Set the minimum size of text viewer frame to be greater than the default minimum size
-        frame.setMinimumSize(MIN_DIMENSION);
+
+        frame.setFullScreen(isTextPresenterDisplayedInFullScreen());
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_M, ActionEvent.CTRL_MASK), CUSTOM_FULL_SCREEN_EVENT);
+    	getActionMap().put(CUSTOM_FULL_SCREEN_EVENT, new AbstractAction() {
+    		public void actionPerformed(ActionEvent e){
+    			getFrame().setFullScreen(!getFrame().isFullScreen());
+    		}
+    	});
     }
     
     void startEditing(AbstractFile file, DocumentListener documentListener) throws IOException {
@@ -187,6 +194,8 @@ class TextViewer extends FileViewer implements EncodingListener {
     public void beforeCloseHook() {
     	MuConfigurations.getPreferences().setVariable(MuPreference.LINE_WRAP, textEditorImpl.isWrap());
     	MuConfigurations.getPreferences().setVariable(MuPreference.LINE_NUMBERS, getRowHeader().getView() != null);
+
+    	setTextPresenterDisplayedInFullScreen(getFrame().isFullScreen());
     }
 
     String getEncoding() {

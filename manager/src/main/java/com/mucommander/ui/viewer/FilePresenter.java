@@ -1,38 +1,49 @@
 package com.mucommander.ui.viewer;
 
 import java.awt.Component;
+import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 
+import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JMenuBar;
 import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
 
 import com.mucommander.commons.file.AbstractFile;
+import com.mucommander.commons.runtime.OsFamilies;
+import com.mucommander.conf.MuConfigurations;
+import com.mucommander.conf.MuSnapshot;
 
 /**
  * Abstract class that serves as a common base for the file presenter objects (FileViewer, FileEditor).
  * 
  * @author Arik Hadas
  */
-abstract class FilePresenter extends JScrollPane {
+public abstract class FilePresenter extends JScrollPane {
 	
 	/** FileFrame instance that contains this presenter (may be null). */
     private FileFrame frame;
     
     /** File currently being presented. */
     private AbstractFile file;
+
+    protected final static String CUSTOM_FULL_SCREEN_EVENT = "CUSTOM_FULL_SCREEN_EVENT";
+    private final static String CUSTOM_DISPOSE_EVENT = "CUSTOM_DISPOSE_EVENT";
+
+    private static boolean textPresenterFullScreen = MuConfigurations.getSnapshot().getBooleanVariable(MuSnapshot.TEXT_FILE_PRESENTER_FULL_SCREEN);
 	
 	public FilePresenter() {
 		super(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		
 		addFocusListener(new FocusListener() {
-			@Override
+
 			public void focusLost(FocusEvent e) {}
 			
-			@Override
 			public void focusGained(FocusEvent e) {
 				// Delegate the focus to the JComponent that actually present the file
 				Component component = FilePresenter.this.getViewport().getComponent(0);
@@ -40,8 +51,26 @@ abstract class FilePresenter extends JScrollPane {
 					component.requestFocus();
 			}
 		});
+
+		// Catch Apple+W keystrokes under Mac OS X to close the window
+        if(OsFamilies.MAC_OS_X.isCurrent()) {
+        	getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.META_MASK), CUSTOM_DISPOSE_EVENT);
+        	getActionMap().put(CUSTOM_DISPOSE_EVENT, new AbstractAction() {
+        		public void actionPerformed(ActionEvent e){
+        			getFrame().dispose();
+        		}
+        	});
+        }
 	}
-	
+
+	public static void setTextPresenterDisplayedInFullScreen(boolean on) {
+		textPresenterFullScreen = on;
+	}
+
+	public static boolean isTextPresenterDisplayedInFullScreen() {
+		return textPresenterFullScreen;
+	}
+
 	/**
 	 * Set component to be presented in the ScrollPane viewport
 	 * 
