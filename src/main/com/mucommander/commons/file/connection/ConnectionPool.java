@@ -22,12 +22,11 @@ import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.mucommander.commons.file.Credentials;
 import com.mucommander.commons.file.FileURL;
+import com.mucommander.utils.CryptoUtils;
 
 
 /**
@@ -110,7 +109,7 @@ public class ConnectionPool implements Runnable {
                 if (acquireLock) {
                     connHandler.acquireLock();
                 }
-
+                CryptoUtils.removeCryptographyRestrictions();
                 LOGGER.info("adding new ConnectionHandler {}, realm = {}", connHandler, connHandler.getRealm());
 
                 // Insert new ConnectionHandler at first position as if it has more chances to be accessed again soon

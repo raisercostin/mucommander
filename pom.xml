@@ -570,7 +570,17 @@
 			<artifactId>log4j</artifactId> </exclusion> <exclusion> <groupId>org.slf4j</groupId> 
 			<artifactId>slf4j-log4j12</artifactId> </exclusion> <exclusion> <groupId>net.java.dev.jets3t</groupId> 
 			<artifactId>jets3t</artifactId> </exclusion> </exclusions> </dependency> -->
-	</dependencies>
+		<dependency>
+		        <groupId>io.atlassian.fugue</groupId>
+		        <artifactId>fugue</artifactId>
+		        <version>3.0.0</version>
+		</dependency>
+		<dependency>
+		    <groupId>com.jason-goodwin</groupId>
+		    <artifactId>better-monads</artifactId>
+		    <version>0.2.1</version>
+		</dependency>
+    </dependencies>
 	<build>
 		<sourceDirectory>src/main</sourceDirectory>
 		<testSourceDirectory>src/test</testSourceDirectory>

@@ -18,13 +18,9 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
-import static org.testng.Assert.assertEquals;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
+import java.util.TreeSet;
+import static org.junit.Assert.*;
+import org.junit.*;
 /**
  *
  * @author jeppe
@@ -45,18 +41,18 @@ public class ISOArchiverNGTest {
     public static void setUpClass() throws Exception {
          //Create a archive
         
-        tempFile1 = MuCreateISOTest.createTempFile("tempFile1",10000);
+        tempFile1 = MuCreateISOTest.createTempFile("tempFile1-",10000);
         files.put(tempFile1.getName(), tempFile1);
         tempFile1.deleteOnExit();
         
-        tempFile2 = MuCreateISOTest.createTempFile("tempFile2",20000);
+        tempFile2 = MuCreateISOTest.createTempFile("tempFile2-",20000);
         files.put(tempFile2.getName(), tempFile2);
         tempFile2.deleteOnExit();
         
         tempDir1 = Files.createTempDir();
         tempDir1.deleteOnExit();
         
-        tempFile3 = MuCreateISOTest.createTempFile("tempFile3",40000);
+        tempFile3 = MuCreateISOTest.createTempFile("tempFile3-",40000);
         files.put(tempDir1.getName() + File.separator + tempFile3.getName(), tempFile3);
         tempFile3.deleteOnExit();
         
@@ -83,14 +79,6 @@ public class ISOArchiverNGTest {
         archiveFile.delete();
         files.clear();
         instance = null;
-    }
-
-    @BeforeMethod
-    public void setUpMethod() throws Exception {
-    }
-
-    @AfterMethod
-    public void tearDownMethod() throws Exception {
     }
 
     /**
@@ -207,7 +195,7 @@ public class ISOArchiverNGTest {
         //complete check of file content
         IsoArchiveFile archive = new IsoArchiveFile(FileFactory.getFile(archiveFile.getPath()));
         
-        for(String fileName : files.keySet()){
+        for(String fileName : new TreeSet<>(files.keySet())){
             System.out.println("Testing: "+fileName);
             //File that should be saved in the archive
             AbstractFile archiveEntryFile = archive.getArchiveEntryFile(fileName);

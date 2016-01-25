@@ -499,6 +499,9 @@ public class FileTable extends JTable implements MouseListener, MouseMotionListe
     public synchronized AbstractFile getSelectedFile(boolean includeParentFolder) {
         return getSelectedFile(includeParentFolder, false);
     }
+    public synchronized FileSet getMarkedFiles() {
+        return tableModel.getMarkedFiles();
+    }
 
 
     /**
