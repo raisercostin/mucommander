@@ -132,20 +132,18 @@ public class ConfigurationSectionTest {
         // Makes sure that the section contains exactly var1, var2..., var<count>.
         // We have to go through a set here: the order in which we'll iterate over the variable names is unreliable.
         else {
-            Set<String> names;
-            Set<String>      expectedNames;
-
             assert section.hasVariables();
             assert !section.isEmpty();
 
             // Populates a set will all the expected variable names.
-            expectedNames = new HashSet<String>(count);
+            Set<String> expectedNames = new HashSet<>(count);
             for(int i = 0; i < count; i++)
                 expectedNames.add("var" + i);
 
             // Makes sure that we can remove all of the section's variables, and that none remains afterward.
-            for (String s : section.variableNames()) {
-                assert expectedNames.remove(s);
+            Set<String> names = section.variableNames();
+            for (String name : names) {
+                assert expectedNames.remove(name);
             }
             assert expectedNames.isEmpty();
         }
@@ -318,9 +316,11 @@ public class ConfigurationSectionTest {
                 expectedNames.add("sect" + i);
 
             // Makes sure that we can remove all of the section's sub-sections, and that none remains afterward.
-            for (String s : section.sectionNames()) {
-                assert expectedNames.remove(s);
+            Set<String> names = section.sectionNames();
+            for (String name : names) {
+                assert expectedNames.remove(name);
             }
+
             assert expectedNames.isEmpty();
         }
     }
